@@ -1,0 +1,15 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+## Environment
+
+Use the uv python package for running scripts, installing packages.
+Remember to always activate the virtual environment using: .venv\Scripts\activate
+
+## Shell Scripts
+
+Remember that I am running this project on a Windows Operational System.
+When running shell scripts, replace '&&' for ';'

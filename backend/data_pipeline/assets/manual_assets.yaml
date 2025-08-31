@@ -1,0 +1,391 @@
+# Lista manual de ativos financeiros para coleta de dados
+# Formato: YAML para facilitar leitura e manutenção
+
+
+# MOEDAS (Forex)
+currencies:
+  - ticker: "BRL=X"
+    name: "USD/BRL"
+    
+  - ticker: "EURUSD=X"
+    name: "EUR/USD"
+    
+  - ticker: "GBPUSD=X"
+    name: "GBP/USD"
+    
+  - ticker: "JPY=X"
+    name: "USD/JPY"
+
+  - ticker: "DX-Y.NYB"
+    name: "US Dollar Index (DXY)"
+
+#   - ticker: "AUDUSD=X"
+#     name: "AUD/USD"
+
+#   - ticker: "NZDUSD=X"
+#     name: "NZD/USD"
+
+#   - ticker: "CNY=X"
+#     name: "USD/CNY"
+
+#   - ticker: "HKD=X"
+#     name: "USD/HKG"
+
+#   - ticker: "MXN=X"
+#     name: "USD/MXN"
+
+#   - ticker: "CHF=X"
+#     name: "USD/CHF"
+
+#   - ticker: "CAD=X"
+#     name: "USD/CAD"   
+
+# currencies_future: 
+#   - ticker: "DX=F"
+#     name: "US Dollar Futures"
+
+#   - ticker: "6E=F"
+#     name: "Euro FX Futures"
+
+#   - ticker: "6J=F"
+#     name: "Japanese Yen Futures"
+
+#   - ticker: "6B=F"
+#     name: "British Pound Futures"
+
+#   - ticker: "6A=F"
+#     name: "Australian Dollar Futures"
+
+#   - ticker: "6N=F"
+#     name: "New Zealand Dollar Futures"
+
+#   - ticker: "6M=F"
+#     name: "Mexican Peso Futures"
+
+#   - ticker: "6L=F"
+#     name: "Brazilian Real Futures (CME)"
+
+#   - ticker: "6S=F"
+#     name: "Swiss Franc Futures"
+
+#   - ticker: "6C=F"
+#     name: "Canadian Dollar Futures"
+
+
+# # CRIPTOMOEDAS
+# cryptocurrencies:
+#   - ticker: "BTC-USD"
+#     name: "Bitcoin USD"
+    
+#   - ticker: "ETH-USD"
+#     name: "Ethereum USD"
+    
+#   - ticker: "XRP-USD"
+#     name: "XRP USD"
+
+#   - ticker: "USDT-USD"
+#     name: "Theter USDt USD"
+
+#   - ticker: "BNB-USD"
+#     name: "BNB USD"
+
+#   - ticker: "SOL-USD"
+#     name: "Solana USD"
+
+# cryptocurrencies_future:
+#   - ticker: "BTC=F"
+#     name: "Bitcoin Futures"
+  
+#   - ticker: "ETH=F"
+#     name: "Ether Futures"
+
+
+# # COMMODITIES
+# commodities_future:
+#   # Energia
+#   - ticker: "CL=F"
+#     name: "WTI Crude Oil Futures"
+
+#   - ticker: "BZ=F"
+#     name: "Brent Crude Oil Futures"
+
+#   - ticker: "RB=F"
+#     name: "RBOB Gasoline Futures"
+   
+#   - ticker: "NG=F"
+#     name: "Natural Gas Futures"
+    
+#   # Metais Preciosos
+#   - ticker: "GC=F"
+#     name: "Gold Futures"
+    
+#   - ticker: "SI=F"
+#     name: "Silver Futures"
+
+#   - ticker: "HG=F"
+#     name: "Copper Futures"
+
+#   - ticker: "PL=F"
+#     name: "Platinum Futures"
+
+#   - ticker: "PA=F"
+#     name: "Palladium Futures"
+
+#   # Agrícolas
+#   - ticker: "ZC=F"
+#     name: "Corn Futures"
+    
+#   - ticker: "ZS=F"
+#     name: "Soybeans Futures"
+
+#   - ticker: "KE=F"
+#     name: "KC HRW Wheat Futures"
+
+#   - ticker: "ZR=F"
+#     name: "Rough Rice Futures"
+
+#   - ticker: "LE=F"
+#     name: "Live Cattle Futures"
+
+#   - ticker: "CC=F"
+#     name: "Cocoa Futures"
+  
+#   - ticker: "KC=F"
+#     name: "Coffee Futures"
+
+#   - ticker: "CT=F"
+#     name: "Cotton Futures"
+  
+#   - ticker: "SB=F"
+#     name: "Sugar #11 Futures"
+
+# # TÍTULOS E BONDS
+# bonds:
+#   - ticker: "^TNX"
+#     name: "10-Year US Treasury Yield"
+    
+#   - ticker: "^FVX"
+#     name: "5-Year US Treasury Yield"
+
+#   - ticker: "^TYX"
+#     name: "30-Year US Treasury Yield"
+
+# bonds_future:
+#   - ticker: "ZT=F"
+#     name: "2-Year US T-Note Futures"
+
+#   - ticker: "ZF=F"
+#     name: "5-Year US T-Note Futures"
+
+#   - ticker: "ZN=F"
+#     name: "10-Year US T-Note Futures" 
+
+
+# # ÍNDICES INTERNACIONAIS
+# international_indices:
+#   - ticker: "^GSPC"
+#     name: "S&P 500"
+    
+#   - ticker: "^IXIC"
+#     name: "NASDAQ Composite"
+    
+#   - ticker: "^DJI"
+#     name: "Dow Jones Industrial Average"
+  
+#   - ticker: "^RUT"
+#     name: "Russell 2000 Index"
+
+#   - ticker: "^VIX"
+#     name: "VIX"
+
+#   - ticker: "^FTSE"
+#     name: "FTSE 100"
+
+#   - ticker: "^GDAXI"
+#     name: "DAX"
+  
+#   - ticker: "^FCHI"
+#     name: "CAC 40"
+  
+#   - ticker: "^STOXX50E"
+#     name: "EURO STOXX 50"
+  
+#   - ticker: "^N100"
+#     name: "NIKKEI 100"
+
+#   - ticker: "^HSI"
+#     name: "HANG SENG"
+
+#   - ticker: "^MXX"
+#     name: "IPC MEXICO"
+  
+#   - ticker: "^IPSA"
+#     name: "S&P IPSA"
+  
+#   - ticker: "^MERV"
+#     name: "MERVAL"
+
+
+# international_indices_future:
+#   - ticker: "ES=F"
+#     name: "E-Mini S&P 500 Futures"
+  
+#   - ticker: "NQ=F"
+#     name: "Nasdaq 100 Futures"
+
+#   - ticker: "RTY=F"
+#     name: "E-mini Russell 2000 Futures"
+
+#   - ticker: "MME=F"
+#     name: "MSCI Emerging Markets Index Futures"
+
+# ÍNDICES BRASILEIROS
+brazilian_indices:
+  - ticker: "^BVSP"
+    name: "IBOVESPA"
+
+
+# # ETFs IMPORTANTES
+# etfs:
+#   - ticker: "ARKK"
+#     name: "ARK Innovation ETF"
+    
+#   - ticker: "BITO"
+#     name: "ProShares Bitcoin ETF"
+    
+#   - ticker: "EEM"
+#     name: "iShares MSCI Emerging Markets ETF"
+
+#   - ticker: "EWZ"
+#     name: "iShares MSCI Brazil ETF"
+    
+#   - ticker: "ETH"
+#     name: "Grayscale Ethereum Mini Trust ETF"
+    
+#   - ticker: "FXI"
+#     name: "iShares China Large-Cap ETF"
+
+#   - ticker: "GDX"
+#     name: "VanEck Gold Miners ETF (GDX)"
+    
+#   - ticker: "GLD"
+#     name: "SPDR Gold Shares"
+    
+#   - ticker: "HYG"
+#     name: "iShares iBoxx $ High Yield Corporate Bond ETF"
+
+#   - ticker: "IBIT"
+#     name: "iShares Bitcoin Trust ETF (IBIT)"
+    
+#   - ticker: "INDA"
+#     name: "iShares MSCI India ETF"
+    
+#   - ticker: "IWM"
+#     name: "iShares Russell 2000 ETF"
+
+#   - ticker: "KWEB"
+#     name: "KraneShares CSI China Internet ETF"
+    
+#   - ticker: "MCHI"
+#     name: "iShares MSCI China ETF"
+    
+#   - ticker: "QQQ"
+#     name: "Invesco QQQ Trust"
+
+#   - ticker: "SLV"
+#     name: "iShares Silver Trust"
+    
+#   - ticker: "SOXX"
+#     name: "iShares Semiconductor ETF"
+    
+#   - ticker: "SPY"
+#     name: "SPDR S&P 500 ETF"
+
+#   - ticker: "TLT"
+#     name: "iShares 20+ Year Treasury Bond ETF"
+    
+#   - ticker: "URA"
+#     name: "Global X Uranium ETF"
+    
+#   - ticker: "UVXY"
+#     name: "ProShares Ultra VIX Short-Term Futures ETF"
+
+#   - ticker: "XBI"
+#     name: "SPDR S&P Biotech ETF'"
+    
+#   - ticker: "XHB"
+#     name: "SPDR S&P Homebuilders ETF"
+    
+#   - ticker: "XLC"
+#     name: "SPDR S&P Communication Services ETF"
+
+#   - ticker: "XLE"
+#     name: "SPDR S&P Energy ETF"
+
+#   - ticker: "XLF"
+#     name: "SPDR S&P Financial ETF"
+
+#   - ticker: "XLI"
+#     name: "SPDR S&P Industrial ETF"
+
+#   - ticker: "XLK"
+#     name: "SPDR S&P Technology ETF"
+
+#   - ticker: "XLP"
+#     name: "SPDR S&P Consumer Staples ETF"
+
+#   - ticker: "XLRE"
+#     name: "SPDR S&P Real Estate ETF"
+
+#   - ticker: "XLU"
+#     name: "SPDR S&P Utilities ETF"
+
+#   - ticker: "XLV"
+#     name: "SPDR S&P Health Care ETF"
+
+#   - ticker: "XLY"
+#     name: "SPDR S&P Consumer Discretionary ETF"
+
+# # SETORES US
+# us_sectors:
+
+#   - ticker: "^YH311"
+#     name: "Technology (Sector)"
+
+#   - ticker: "Financial Services (Sector)"
+#     name: "^YH103"
+
+#   - ticker: "^YH102"
+#     name: "Consumer Cyclical (Sector)"
+
+#   - ticker: "^YH308"
+#     name: "Communication Services (Sector)"
+
+#   - ticker: "^YH310"
+#     name: "Industrials (Sector)"
+
+#   - ticker: "^YH206"
+#     name: "Healthcare (Sector)"
+
+#   - ticker: "^YH205"
+#     name: "Consumer Defensive (Sector)"
+
+#   - ticker: "^YH309"
+#     name: "Energy (Sector)"
+
+#   - ticker: "^YH101"
+#     name: "Basic Materials (Sector)"
+
+#   - ticker: "^YH104"
+#     name: "Real Estate (Sector)"
+
+#   - ticker: "^YH207"
+#     name: "Utilities (Sector)"
+
+
+# # CONFIGURAÇÕES GERAIS
+# settings:
+#   update_frequency: "daily"  # daily, weekly, monthly
+#   max_retries: 3
+#   timeout_seconds: 30
+#   data_source: "yahoo_finance"

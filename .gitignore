@@ -1,0 +1,54 @@
+# Ambientes virtuais
+.venv/
+env/
+venv/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos temporários e de log
+*.log
+*.tmp
+*.swp
+*.bak
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Configurações locais de IDEs/editors
+.vscode/
+.idea/
+*.code-workspace
+
+# Arquivos de dados temporários
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.parquet
+*.h5
+*.feather
+*.pkl
+*.joblib
+*.db
+*.sqlite
+
+# Credenciais e arquivos sensíveis
+.env
+*.env
+secrets.json
+config.yaml
+
+# Arquivos de build
+dist/
+build/
+*.egg-info/
+
+# Configuração Streamlit
+.streamlit
