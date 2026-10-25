@@ -106,10 +106,15 @@ export function FitArea({ children, className = '' }: { children: React.ReactNod
 }
 
 // ---------- layout ----------
-export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, children, source, note }: {
+const FOOT_PT = { src: 'Fonte', edu: 'Conteúdo educacional — não é recomendação de investimento.', notes: 'Fonte e notas' }
+const FOOT_EN = { src: 'Source', edu: 'Educational content only — not investment advice.', notes: 'Source & notes' }
+export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, children, source, note, en = false }: {
   code: string; ticker?: string; title?: string; tabs?: string[]; tab?: number; setTab?: (i: number) => void
   right?: React.ReactNode; children: React.ReactNode; source?: React.ReactNode; note?: React.ReactNode
+  /** rodapé em inglês (telas com strings em inglês) */
+  en?: boolean
 }) {
+  const F = en ? FOOT_EN : FOOT_PT
   const desc = title || FUNCTION_LIST.find(f => f.code === code)?.desc || code
   return (
     <div className="w-full px-2 pb-3 lg:pb-1 -mt-4 sm:-mt-6 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col" style={{ fontFamily: MONO, color: C.text }}>
@@ -134,16 +139,16 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
       {(source || note) && (
         <div className="mt-2 lg:mt-1 text-[11px] leading-snug shrink-0 max-lg:hidden" style={{ color: C.muted }}>
           {note && <div className="mb-1">{note}</div>}
-          {source && <div>Fonte: {source}</div>}
-          <div>Conteúdo educacional — não é recomendação de investimento.</div>
+          {source && <div>{F.src}: {source}</div>}
+          <div>{F.edu}</div>
         </div>
       )}
       {(source || note) && (
         <details className="group mt-2 text-[11px] leading-snug lg:hidden" style={{ color: C.muted }}>
-          <summary className="cursor-pointer list-none select-none py-1 text-[12px] [&::-webkit-details-marker]:hidden" style={{ color: C.amber }}>Fonte e notas <span className="inline-block transition-transform group-open:rotate-90">▸</span></summary>
+          <summary className="cursor-pointer list-none select-none py-1 text-[12px] [&::-webkit-details-marker]:hidden" style={{ color: C.amber }}>{F.notes} <span className="inline-block transition-transform group-open:rotate-90">▸</span></summary>
           {note && <div className="mb-1">{note}</div>}
-          {source && <div>Fonte: {source}</div>}
-          <div>Conteúdo educacional — não é recomendação de investimento.</div>
+          {source && <div>{F.src}: {source}</div>}
+          <div>{F.edu}</div>
         </details>
       )}
     </div>

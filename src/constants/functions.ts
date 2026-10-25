@@ -52,5 +52,16 @@ export const FUNCTION_LIST: FunctionItem[] = [
     { code: 'FA', desc: 'Financial Analysis' },
     { code: 'BTMM', desc: 'Rates & Money Market Monitor' },
     { code: 'MRR', desc: 'Member Returns / Monthly' },
+    { code: 'WIRP', desc: 'Rate Probabilities (Copom/Fed)' },
+    { code: 'FOMC', desc: 'Fed & Copom Meetings' },
+    { code: 'ECO', desc: 'Economic Calendar (BR/US)' },
+    { code: 'GMM', desc: 'Global Macro Movers' },
+    { code: 'TAYL', desc: 'Taylor Rule (BR/US)' },
+    { code: 'WB', desc: 'World Bonds' },
+    { code: 'FXC', desc: 'Currency Cross Rates' },
+    { code: 'FXFC', desc: 'FX Forecasts (Focus)' },
+    { code: 'YAS', desc: 'Bond Yield & Spread Calculator' },
+    { code: 'DRSK', desc: 'Default Risk (Merton DD)' },
+    { code: 'ECTR', desc: 'Trade Flows (Comex Stat)' },
   
 ]; 
