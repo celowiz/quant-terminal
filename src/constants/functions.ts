@@ -56,6 +56,17 @@ export const FUNCTION_LIST: FunctionItem[] = [
   { code: 'FX', desc: 'Currency Quotes', pt: 'Cotações de moedas', cat: 'fxcmd' },
   { code: 'WCRS', desc: 'World Currency Ranker', pt: 'Ranking de moedas', cat: 'fxcmd' },
   { code: 'GLCO', desc: 'Global Commodities', pt: 'Commodities globais', cat: 'fxcmd' },
+  { code: 'WIRP', desc: 'Rate Probabilities', pt: 'Probabilidades de juros', cat: 'rates' },
+  { code: 'FOMC', desc: 'Fed & Copom Meetings', pt: 'Reuniões do Fed e do Copom', cat: 'rates' },
+  { code: 'WB', desc: 'World Bonds', pt: 'Títulos soberanos mundiais', cat: 'rates' },
+  { code: 'YAS', desc: 'Bond Yield & Spread Calculator', pt: 'Calculadora de títulos públicos', cat: 'rates' },
+  { code: 'ECO', desc: 'Economic Calendar (BR/US)', pt: 'Calendário econômico (BR/EUA)', cat: 'macro' },
+  { code: 'TAYL', desc: 'Taylor Rule (BR/US)', pt: 'Regra de Taylor (BR/EUA)', cat: 'macro' },
+  { code: 'ECTR', desc: 'Trade Flows (Comex Stat)', pt: 'Comércio exterior (Comex Stat)', cat: 'macro' },
+  { code: 'GMM', desc: 'Global Macro Movers', pt: 'Movimentos macro globais', cat: 'monitors' },
+  { code: 'FXC', desc: 'Currency Cross Rates', pt: 'Matriz de câmbio cruzado', cat: 'fxcmd' },
+  { code: 'FXFC', desc: 'FX Forecasts (Focus)', pt: 'Projeções de câmbio (Focus)', cat: 'fxcmd' },
+  { code: 'DRSK', desc: 'Default Risk (Merton DD)', pt: 'Risco de default (DD de Merton)', cat: 'equity' },
 ]
 
 /** nome da função no idioma atual */

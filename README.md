@@ -16,7 +16,7 @@ Publicado no GitHub Pages: https://celowiz.github.io/quant-terminal/
 - **Desktop:** cada tela ocupa exatamente a janela (sem rolagem da página) e o rodapé fica sempre visível; tabelas longas rolam dentro do próprio painel. Testado em 1920×1080, 1536×864, 1440×900, 1366×768 e 1280×800.
 - **Celular:** hoje a página rola normalmente; a proposta de layout mobile está em [docs/MOBILE.md](docs/MOBILE.md).
 
-## Funções (50)
+## Funções (61)
 
 | Código | Função |
 |---|---|
@@ -70,6 +70,17 @@ Publicado no GitHub Pages: https://celowiz.github.io/quant-terminal/
 | `FA` | Financial Analysis |
 | `BTMM` | Rates & Money Market Monitor |
 | `MRR` | Member Returns / Monthly |
+| `WIRP` | Rate Probabilities |
+| `FOMC` | Fed & Copom Meetings |
+| `WB` | World Bonds |
+| `YAS` | Bond Yield & Spread Calculator |
+| `ECO` | Economic Calendar (BR/US) |
+| `TAYL` | Taylor Rule (BR/US) |
+| `ECTR` | Trade Flows (Comex Stat) |
+| `GMM` | Global Macro Movers |
+| `FXC` | Currency Cross Rates |
+| `FXFC` | FX Forecasts (Focus) |
+| `DRSK` | Default Risk (Merton DD) |
 
 Funções com ticker aceitam a URL `/<função>/<TICKER>/` (ex.: `/gpc/PETR4.SA/`).
 
@@ -82,7 +93,10 @@ Funções com ticker aceitam a URL `/<função>/<TICKER>/` (ex.: `/gpc/PETR4.SA/
 | B3 | Carteira teórica do Ibovespa, setores, DI1 (BDI), COTAHIST (opções) |
 | BCB | SGS (Selic, CDI, IPCA…), Focus, Copom |
 | FRED | Juros e indicadores dos EUA |
-| IBGE SIDRA, Tesouro Transparente | Estatísticas econômicas, curva de títulos públicos |
+| IBGE SIDRA, Tesouro Transparente | Estatísticas econômicas, curva de títulos públicos, preços e taxas do Tesouro Direto (YAS, WB Brasil) |
+| Fed (calendário do FOMC), BLS/BEA/Census | Reuniões do FOMC, calendário de indicadores dos EUA |
+| Bank of Canada, Bundesbank, Bank of England, MoF Japão, RBA, OCDE (via FRED) | Juros de títulos soberanos (WB) |
+| Comex Stat (MDIC/SECEX) | Exportações e importações por país (ECTR) |
 | RSS de licença aberta | Agência Brasil, BCB, CVM, SEC, Fed, Receita Federal |
 
 ANBIMA não é usada (os termos de uso proíbem automação); a função `ANB` usa as categorias da CVM.
@@ -91,7 +105,7 @@ ANBIMA não é usada (os termos de uso proíbem automação); a função `ANB` u
 
 `pipeline/run_all.sh` roda cada etapa de forma independente (uma fonte fora do ar não derruba as outras; o job só falha se os preços não atualizarem):
 
-`prices` → `markets` → `rates` → `corp` → `extra` → `options` → `news` → `anb` → `alerts`
+`prices` → `markets` → `rates` → `corp` → `extra` → `macro` → `credit` → `options` → `news` → `anb` → `alerts`
 
 Variáveis: `QT_DATA_OUT` (saída, padrão `public/data`), `QT_CACHE` (cache de downloads grandes), `QT_ALERTS` (regras em `alerts.yaml`). Nenhuma chave de API é necessária.
 

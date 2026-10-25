@@ -52,6 +52,8 @@ const EN = {
   'fn.sourceNotes': 'Source and notes',
   'fn.loading': 'Loading…',
   'fn.error': 'Error',
+  'fn.na': 'is unavailable in the latest data run.',
+  'fn.dataNA': 'Data unavailable',
 }
 type Key = keyof typeof EN
 
@@ -104,6 +106,8 @@ const PT: Record<Key, string> = {
   'fn.sourceNotes': 'Fonte e notas',
   'fn.loading': 'Carregando…',
   'fn.error': 'Erro',
+  'fn.na': 'está indisponível na última atualização de dados.',
+  'fn.dataNA': 'Dados indisponíveis',
 }
 
 export function t(k: Key): string { return (lang() === 'pt' ? PT : EN)[k] }
