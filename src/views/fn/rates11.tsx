@@ -1,6 +1,6 @@
 'use client'
 /** WIRP (probabilidades de juros), FOMC (calendário Fed/Copom), TAYL (regra de Taylor), WB (títulos soberanos). Strings em inglês por tela. */
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import FnChart from '@/components/fn/FnChart'
 import { C, useJSON, FnScreen, Panel, Grid, Btns, Field, KV, Spark } from '@/components/fn/kit'
 import { n, sn, bps, cl, dUS, dUSfull, mLab, Kpis, NumIn, BarLine, Loading2, Unavailable, todaySP } from './fn11util'
@@ -171,6 +171,7 @@ const S_TAYL = {
   usInfl: [{ v: 'core_pce', l: 'Core PCE' }, { v: 'cpi', l: 'CPI' }], brInfl: [{ v: 'ipca12', l: 'IPCA 12m' }, { v: 'exp12', l: 'Focus IPCA 12m ahead' }],
   usGap: [{ v: 'gap', l: 'CBO output gap' }, { v: 'okun', l: 'Okun (NAIRU − u)' }, { v: 'none', l: 'None' }], brGap: [{ v: 'none', l: 'None' }, { v: 'okun', l: 'Okun (user NAIRU)' }],
   rstarUs: 'Default r* = FOMC longer-run median fed funds − 2%.', rstarBr: 'Default r* = Focus long-run Selic − long-run IPCA (real neutral rate).',
+  unUs: 'US Taylor rule data (FRED did not respond in the last update)', unBr: 'Brazil Taylor rule data',
   brGapNote: 'Brazil has no official output gap series in open data; the gap is off by default. Choose Okun and type a NAIRU to include one.',
 }
 export function TAYLView() {
@@ -178,6 +179,8 @@ export function TAYLView() {
   const [rg, setRg] = useState<'us' | 'br'>('us'), [tab, setTab] = useState(0)
   const [P, setP] = useState<Record<string, any>>({})
   const S = S_TAYL
+  // Sem dados dos EUA (FRED fora do ar no CI), abre no Brasil em vez de uma tela vazia.
+  useEffect(() => { if (d && !d.us?.rows?.length && d.br?.rows?.length) setRg('br') }, [d])
   const r = d?.[rg]
   const def = useMemo(() => !r ? {} : rg === 'us'
     ? { rstar: r.longrun_ffr != null ? +(r.longrun_ffr - r.pi_target).toFixed(2) : 2, pistar: r.pi_target, alpha: 0.5, beta: 0.5, rho: 0, okun: 2, nairu: null, infl: 'core_pce', gap: 'gap' }
@@ -199,11 +202,12 @@ export function TAYLView() {
     })
   }, [r, JSON.stringify(p), rg])
   if (!d) return <FnScreen code="TAYL" title={S.title}><Loading2 err={err} /></FnScreen>
-  if (!r?.rows?.length) return <FnScreen code="TAYL" title={S.title}><Unavailable what="Taylor rule data" /></FnScreen>
+  const regionBtns = <Field label={S.region}><Btns opts={[{ v: 'us', l: 'US' }, { v: 'br', l: 'Brazil' }]} value={rg} onChange={setRg} /></Field>
+  if (!r?.rows?.length) return <FnScreen code="TAYL" title={S.title} right={regionBtns}><Unavailable what={rg === 'us' ? S.unUs : S.unBr} /></FnScreen>
   const last = [...rows].reverse().find(x => x.taylor != null)
   return (
     <FnScreen code="TAYL" title={S.title} tabs={S.tabs} tab={tab} setTab={setTab}
-      right={<Field label={S.region}><Btns opts={[{ v: 'us', l: 'US' }, { v: 'br', l: 'Brazil' }]} value={rg} onChange={setRg} /></Field>}
+      right={regionBtns}
       source={r.source} note={<>{d.method} {rg === 'us' ? S.rstarUs : S.rstarBr} {rg === 'br' && S.brGapNote}</>}>
       <div className="mb-2 flex flex-wrap items-center gap-3 text-[12px] border px-2 py-1" style={{ borderColor: C.line, background: C.panel }}>
         {(['rstar', 'pistar', 'alpha', 'beta', 'rho'] as const).map(k => <Field key={k} label={(S as any)[k]}><NumIn value={p[k]} onChange={v => set(k, v)} w={52} /></Field>)}

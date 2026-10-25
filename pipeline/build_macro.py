@@ -1,15 +1,15 @@
 """Macro global (11 funções novas, parte 1): WB, FOMC, WIRP, TAYL, ECO, FXFC, FXC e GMM.
 Fontes públicas e gratuitas, sem chave de API:
-- Títulos soberanos (WB): FRED (Treasuries, OECD mensal), Bank of Canada Valet, Bundesbank (BBSIS), Bank of England (IADB),
+- Títulos soberanos (WB): FRED (Treasuries, OECD mensal; se o FRED cair, Treasuries via home.treasury.gov), Bank of Canada Valet, Bundesbank (BBSIS), Bank of England (IADB),
   Reserve Bank of Australia (F2), Ministry of Finance Japan (JGB), Tesouro Transparente (taxas do Tesouro Direto).
-- Bancos centrais (FOMC/WIRP/TAYL): federalreserve.gov (calendário do FOMC), FRED (DFEDTARU/L, DFF, FEDFUNDS, PCE, NROU, GDPPOT...),
+- Bancos centrais (FOMC/WIRP/TAYL): federalreserve.gov (calendário do FOMC), FRED (DFEDTARU/L, DFF, FEDFUNDS, PCE, NROU, GDPPOT...; meta/EFFR via API do NY Fed se o FRED cair),
   Yahoo Finance (futuros de Fed Funds ZQ, CBOT), BCB (histórico de metas do Copom, calendário, SGS, Focus/Olinda), cdie.json (DI1 B3).
 - Calendário (ECO): IBGE (API de calendário), BEA (ICS), Census (indicadores econômicos), SIDRA/SGS/FRED (realizado), Focus (consenso).
 Cada etapa é independente e mantém o JSON anterior se a fonte falhar."""
 import io, re, sys, os, json, math, datetime as dt, urllib.parse, html as htmlmod
 from zoneinfo import ZoneInfo
 import pandas as pd
-from common import save, get, get_json, load_prev, clean, step, now_iso, today_brt, cached, OUT, TZ
+from common import save, get, get_json, load_prev, clean, step, now_iso, today_brt, cached, OUT, TZ, fred_csv
 
 TODAY = today_brt()
 NY = ZoneInfo('America/New_York')
@@ -24,11 +24,37 @@ def fred(ids, start='2000-01-01'):
     cols = {}
     for i in ids:
         try:
-            r = get(f'https://fred.stlouisfed.org/graph/fredgraph.csv?id={i}&cosd={start}')
-            df = pd.read_csv(io.StringIO(r.text), na_values=['.'])
+            df = pd.read_csv(io.StringIO(fred_csv(i, start)), na_values=['.'])
             cols[i] = pd.Series(pd.to_numeric(df.iloc[:, 1], errors='coerce').values, index=pd.to_datetime(df.iloc[:, 0])).dropna()
         except Exception as e: print('fred', i, e)
     return cols
+
+# Fontes alternativas sem chave quando o FRED não responde (as mesmas séries, direto da fonte primária).
+UST_COLS = {'DGS2': '2 Yr', 'DGS5': '5 Yr', 'DGS10': '10 Yr', 'DGS30': '30 Yr'}
+
+def parse_treasury_csv(txt):
+    """CSV 'Daily Treasury Par Yield Curve Rates' (home.treasury.gov) → {DGSn: Series}."""
+    df = pd.read_csv(io.StringIO(txt))
+    idx = pd.to_datetime(df['Date'], format='%m/%d/%Y')
+    return {k: pd.Series(pd.to_numeric(df[c], errors='coerce').values, index=idx).dropna().sort_index() for k, c in UST_COLS.items() if c in df}
+
+def treasury_yields(start):
+    out = {}
+    for y in range(int(start[:4]), TODAY.year + 1):
+        txt = get(f'https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{y}/all'
+                  f'?type=daily_treasury_yield_curve&field_tdr_date_value={y}&page&_format=csv').text
+        for k, v in parse_treasury_csv(txt).items(): out[k] = pd.concat([out[k], v]) if k in out else v
+    return {k: v[~v.index.duplicated()].sort_index().loc[pd.Timestamp(start):] for k, v in out.items()}
+
+def parse_nyfed_effr(d):
+    """JSON da API do NY Fed (EFFR) → {DFF, DFEDTARU, DFEDTARL} (dias úteis)."""
+    rows = sorted(d.get('refRates', []), key=lambda r: r['effectiveDate'])
+    idx = pd.to_datetime([r['effectiveDate'] for r in rows])
+    ser = lambda k: pd.Series([r.get(k) for r in rows], index=idx, dtype=float).dropna()
+    return {'DFF': ser('percentRate'), 'DFEDTARU': ser('targetRateTo'), 'DFEDTARL': ser('targetRateFrom')}
+
+def nyfed_effr(start):
+    return parse_nyfed_effr(get_json(f'https://markets.newyorkfed.org/api/rates/unsecured/effr/search.json?startDate={start}&endDate={TODAY.isoformat()}'))
 
 def pts(s, nd=3):
     return [[i.strftime('%Y-%m-%d'), clean(v, nd)] for i, v in s.items() if clean(v, nd) is not None]
@@ -125,8 +151,11 @@ def wb():
             if st: st['series'] = pts(s.dropna()[s.dropna().index >= pd.Timestamp(TODAY - dt.timedelta(days=400))]); ten[t] = st
         if ten: countries.append({'cc': cc, 'name': name, 'region': REGION.get(cc, 'EMEA'), 'source': src, 'tenors': ten})
     # EUA (FRED, diário)
-    f = fred(['DGS2', 'DGS5', 'DGS10', 'DGS30'], start)
-    add('US', 'United States', 'FRED – US Treasury constant maturity (H.15)', {'2Y': f.get('DGS2'), '5Y': f.get('DGS5'), '10Y': f.get('DGS10'), '30Y': f.get('DGS30')}, 'D')
+    f = fred(['DGS2', 'DGS5', 'DGS10', 'DGS30'], start); us_src = 'FRED – US Treasury constant maturity (H.15)'
+    if len(f) < 4:
+        try: f = treasury_yields(start); us_src = 'U.S. Department of the Treasury – Daily Treasury Par Yield Curve Rates (home.treasury.gov)'
+        except Exception as e: print('wb US treasury', e)
+    add('US', 'United States', us_src, {'2Y': f.get('DGS2'), '5Y': f.get('DGS5'), '10Y': f.get('DGS10'), '30Y': f.get('DGS30')}, 'D')
     # Canadá (BoC Valet)
     try:
         ids = {'2Y': 'BD.CDN.2YR.DQ.YLD', '5Y': 'BD.CDN.5YR.DQ.YLD', '10Y': 'BD.CDN.10YR.DQ.YLD', '30Y': 'BD.CDN.LONG.DQ.YLD'}
@@ -195,7 +224,7 @@ def wb():
     save('wb.json', {'generated_at': now_iso(), 'tenors': TENORS, 'countries': countries, 
                      'note': 'Daily series where the central bank / treasury publishes them; OECD rows are monthly averages (1D/1W blank). '
                              'Brazil = local-currency fixed-rate curve from Tesouro Direto rates (retail platform; may lag a few days), not USD bonds.',
-                     'source': 'FRED, Bank of Canada, Deutsche Bundesbank, Bank of England, MoF Japan, RBA, Tesouro Transparente, OECD (via FRED)'})
+                     'source': 'FRED / US Treasury, Bank of Canada, Deutsche Bundesbank, Bank of England, MoF Japan, RBA, Tesouro Transparente, OECD (via FRED)'})
 
 # =====================================================================================
 # FOMC / Copom – datas e decisões
@@ -276,6 +305,10 @@ def fomc():
     meets = [m for m in parse_fomc_calendar(h) if m['decision'] >= '2021-01-01']
     if len(meets) < 8: raise RuntimeError('calendário do FOMC não reconhecido')
     f = fred(['DFEDTARU', 'DFEDTARL', 'DFF'], '2020-06-01')
+    fed_src = 'FRED DFEDTARU/DFEDTARL (target range), DFF (effective rate)'
+    if len(f) < 3:
+        try: f = nyfed_effr('2020-06-01'); fed_src = 'Federal Reserve Bank of New York – EFFR API (effective rate and target range, business days)'
+        except Exception as e: print('fomc nyfed', e)
     fed = fomc_decisions(meets, f.get('DFEDTARU', pd.Series(dtype=float)), f.get('DFEDTARL', pd.Series(dtype=float)))
     out = {'generated_at': now_iso(), 'fed': {'meetings': fed, 'target_upper': clean(f['DFEDTARU'].iloc[-1], 2) if 'DFEDTARU' in f else None,
                                                'target_lower': clean(f['DFEDTARL'].iloc[-1], 2) if 'DFEDTARL' in f else None,
@@ -298,7 +331,7 @@ def fomc():
     except Exception as e:
         print('copom', e); prev = load_prev('fomc.json') or {}
         if prev.get('copom'): out['copom'] = prev['copom']
-    out['source'] = ('Federal Reserve – FOMC meeting calendar (federalreserve.gov); FRED DFEDTARU/DFEDTARL (target range), DFF (effective rate); '
+    out['source'] = (f'Federal Reserve – FOMC meeting calendar (federalreserve.gov); {fed_src}; '
                      'BCB – Copom rate history and meeting calendar (bcb.gov.br)')
     save('fomc.json', out)
 
