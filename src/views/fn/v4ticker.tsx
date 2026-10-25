@@ -86,7 +86,7 @@ export function HSView({ ticker }: { ticker: string }) {
     <FnScreen code="HS" ticker={ticker} title="Historical Spread – spread/razão entre dois ativos"
       right={<><Field label="vs"><select className={inputCls} style={inputStyle} value={other} onChange={e => setOther(e.target.value)}>{all.filter(t => t !== ticker).map(t => <option key={t} value={t}>{lbl(t)}</option>)}</select></Field><Btns opts={[{ v: 'ratio', l: 'Razão A/B' }, { v: 'spread', l: 'Spread A−B' }]} value={mode} onChange={setMode} /><Btns opts={['1A', '2A', '3A', '5A', '10A']} value={yrs} onChange={setYrs} /></>}
       source={SRC_PX} note="Painel 1: os dois ativos em base 100. Painel 2: razão (ou diferença) de preços com média e bandas de ±1σ/±2σ no período. Painel 3: z-score = (valor − média)/σ. Meia-vida de reversão por AR(1) do spread (ideia do projeto pairs-trading). Não é recomendação de operação.">
-      {!calc ? <Loading /> : <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1fr) 270px' }}>
+      {!calc ? <Loading /> : <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 270px' }}>
         <FnChart height={560} panes={panes} />
         <Panel title={`${lbl(ticker)} ${mode === 'ratio' ? '/' : '−'} ${lbl(other)}`}>
           <KV rows={[['Atual', nf(calc.cur, 4), C.amber], ['Média', nf(calc.mu, 4)], ['Desvio-padrão', nf(calc.sd, 4)], ['z-score atual', nf(calc.zc, 2), Math.abs(calc.zc) > 2 ? C.yellow : C.text], ['Mínimo', nf(calc.min, 4)], ['Máximo', nf(calc.max, 4)], ['Correlação (ret. diários)', nf(calc.rc, 3)], ['Hedge ratio (log-preços)', nf(calc.hedge, 3)], ['Meia-vida (pregões)', calc.hl ? nf(calc.hl, 1) : '—'], ['Observações', String(calc.t.length)], ['Período', `${dBR(calc.t[0])} – ${dBR(calc.t[calc.t.length - 1])}`]]} />
@@ -119,7 +119,7 @@ export function HRAView({ ticker }: { ticker: string }) {
     <FnScreen code="HRA" ticker={ticker} title="Historical Regression Analysis"
       right={<><Field label="X (independente)"><select className={inputCls} style={inputStyle} value={bench} onChange={e => setBench(e.target.value)}>{all.filter(t => t !== ticker).map(t => <option key={t} value={t}>{lbl(t)}</option>)}</select></Field><Btns opts={[{ v: 'd', l: 'Diário' }, { v: 'w', l: 'Semanal' }, { v: 'm', l: 'Mensal' }]} value={freq} onChange={setFreq} /><Btns opts={['1A', '2A', '3A', '5A', '10A']} value={per} onChange={setPer} /></>}
       source={SRC_PX} note="Regressão linear (MQO) dos retornos percentuais de Y (o ativo) contra X. Estatísticas t = coeficiente ÷ erro-padrão; |t| > 2 ≈ significativo a 5%. Resíduos = parte do retorno não explicada por X.">
-      {!calc ? <Loading /> : <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
+      {!calc ? <Loading /> : <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
         <div>
           <XYChart height={380} legend zeroLine xLabel={`Retorno ${lbl(bench)} (%)`} yLabel={`Retorno ${lbl(ticker)} (%)`} xFmt={v => nf(v, 1)} yFmt={v => nf(v, 1)} series={[
             { name: `Observações (${calc.n})`, points: calc.x.map((v, i) => [v, calc.y[i]]), color: C.amber, scatter: true, opacity: 0.6 },
@@ -169,7 +169,7 @@ export function GIPView({ ticker }: { ticker: string }) {
     <FnScreen code="GIP" ticker={ticker} title="Intraday Graph – gráfico intradiário"
       right={<><Btns opts={[{ v: 'm1', l: '1 min' }, { v: 'm5', l: '5 min' }]} value={res} onChange={v => { setRes(v); setDay('') }} /><Field label="Pregão"><select className={inputCls} style={inputStyle} value={calc.sel} onChange={e => setDay(e.target.value)}><option value="all">Todos ({calc.days.length})</option>{calc.days.slice().reverse().map((x: string) => <option key={x} value={x}>{dBRfull(x)}</option>)}</select></Field><Btns opts={[{ v: 'line', l: 'Linha' }, { v: 'candle', l: 'Candle' }]} value={kind} onChange={setKind} /></>}
       source={d.source} note="Horário de Brasília. Limitação da fonte gratuita: barras de 1 minuto só cobrem os últimos ~5–7 pregões e de 5 minutos ~60 dias; dados com atraso (não é tempo real). VWAP = Σ(preço típico × volume) ÷ Σ volume do recorte.">
-      {!st ? <Loading err="Sem barras para o recorte." /> : <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1fr) 240px' }}>
+      {!st ? <Loading err="Sem barras para o recorte." /> : <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 240px' }}>
         <FnChart intraday height={520} panes={panes} />
         <Panel title={calc.sel === 'all' ? 'Todos os pregões do arquivo' : dBRfull(calc.sel)}>
           <KV rows={[['Último', nf(st.last, 2), C.amber], ['Variação', chg == null ? '—' : pf(chg), clr(chg)], ['Fech. anterior', nf(calc.prevClose, 2)], ['Abertura', nf(st.open, 2)], ['Máxima', nf(st.high, 2), C.up], ['Mínima', nf(st.low, 2), C.down], ['VWAP', nf(st.vwap, 2)], ['Volume (qtd.)', big(st.vol, 2)], ['Barras', String(st.n)], ['Das', `${calc.sel === 'all' ? dBR(new Date(st.t0 * 1000).toISOString().slice(0, 10)) + ' ' : ''}${hhmm(st.t0)}`], ['Até', `${calc.sel === 'all' ? dBR(new Date(st.t1 * 1000).toISOString().slice(0, 10)) + ' ' : ''}${hhmm(st.t1)}`]]} />
@@ -210,7 +210,7 @@ export function RVView({ ticker }: { ticker: string }) {
         { k: 'cod', label: 'Ticker', color: (x: any) => x === cod ? C.amber : C.white }, { k: 'name', label: 'Empresa', w: '170px' },
         ...RV_M.map(m => ({ k: m.k, label: <span className="cursor-pointer" style={{ textDecoration: m.k === metric ? 'underline' : undefined }} onClick={() => setMetric(m.k)}>{m.l}</span>, align: 'r' as const, fmt: (x: any) => m.f(x), color: (x: any, r: any) => ['ytd', 'y1'].includes(m.k) ? clr(x) : r.cod === cod && calc.med[m.k] != null && x != null ? ((m.lowGood ? x < calc.med[m.k] : x > calc.med[m.k]) ? C.up : C.down) : C.text })),
       ]} />
-      <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
+      <div className="mt-2 grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
         <Panel title={`${M.l} — ${calc.me.cod} vs pares`}><HBars hi={cod} rows={calc.peers.map((r: any) => ({ label: r.cod, v: r[metric] ?? null, color: r.cod === cod ? C.amber : C.blue })).concat([{ label: 'Mediana', v: calc.med[metric], color: '#888' }])} fmt={M.f} /></Panel>
         <Panel title="Leitura"><div className="p-2 text-[12px]" style={{ color: C.muted }}>Verde/vermelho na linha da ação = melhor/pior que a mediana dos pares para aquele indicador (múltiplos e alavancagem: menor é melhor; rentabilidade e DY: maior é melhor). Fundamentos do ITR {dBR(calc.me.fund_period)}; preço de {dBR(calc.me.date)}.</div></Panel>
       </div>
@@ -235,7 +235,7 @@ export function HPView({ ticker }: { ticker: string }) {
     <FnScreen code="HP" ticker={ticker} title="Historical Price Table – histórico de preços"
       right={<><Btns opts={[{ v: 'd', l: 'Diário' }, { v: 'w', l: 'Semanal' }, { v: 'm', l: 'Mensal' }]} value={tf} onChange={setTf} /><Btns opts={PERIODS} value={per} onChange={setPer} /><CsvBtn onClick={exp} /></>}
       source={SRC_PX} note="Mais recente no topo. Variação contra o fechamento do período anterior. Preços ajustados por proventos e desdobramentos (por isso podem diferir do fechamento nominal da época). O CSV usa ';' como separador e vírgula decimal (Excel pt-BR).">
-      {!calc ? <Loading err={err} /> : <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1fr) 240px' }}>
+      {!calc ? <Loading err={err} /> : <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 240px' }}>
         <Grid maxH={620} rows={calc.out} cols={[
           { k: 'time', label: 'Data', fmt: x => dBRfull(x), color: () => C.amber }, { k: 'open', label: 'Abertura', align: 'r', fmt: x => nf(x, 2) }, { k: 'high', label: 'Máxima', align: 'r', fmt: x => nf(x, 2) }, { k: 'low', label: 'Mínima', align: 'r', fmt: x => nf(x, 2) },
           { k: 'close', label: 'Fechamento', align: 'r', fmt: x => nf(x, 2), color: () => C.white }, { k: 'chg', label: 'Var.', align: 'r', fmt: x => nf(x, 2), color: x => clr(x) }, { k: 'pct', label: 'Var.%', align: 'r', fmt: x => pf(x), color: x => clr(x) }, { k: 'volume', label: 'Volume', align: 'r', fmt: x => big(x, 2) },
@@ -275,7 +275,7 @@ export function TRAView({ ticker }: { ticker: string }) {
     <FnScreen code="TRA" ticker={ticker} title="Total Return Analysis – retorno total com proventos reinvestidos" right={<Btns opts={PERIODS} value={per} onChange={setPer} />}
       source="Yahoo Finance: fechamento nominal (não ajustado por proventos, ajustado por desdobramentos) e histórico de dividendos/JCP por data ex; pipeline build_corp.py."
       note="Retorno total = proventos (dividendos + JCP, valores brutos) reinvestidos no fechamento da data ex: cotas × (1 + provento ÷ preço). Sem impostos e custos. Comparar com a linha de preço mostra quanto do retorno veio dos proventos.">
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1fr) 260px' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 260px' }}>
         <FnChart height={400} panes={panes} />
         <Panel title={`${dBR(calc.from)} – ${dBR(calc.last)}`}><KV rows={[['Retorno total', pf(calc.T), C.amber], ['Retorno de preço', pf(calc.P), clr(calc.P)], ['Contribuição dos proventos', pf(calc.T - calc.P), C.up], ['Total anualizado', pf(calc.ann), clr(calc.ann)], ['Preço anualizado', pf(calc.annP), clr(calc.annP)], ['Proventos por ação (R$)', nf(calc.divSum, 4)], ['Nº de pagamentos (data ex)', String(calc.nDiv)]]} /></Panel>
       </div>
@@ -304,7 +304,7 @@ export function HDSView({ ticker }: { ticker: string }) {
   return (
     <FnScreen code="HDS" ticker={ticker} title="Holdings – principais acionistas" tabs={['Acionistas diretos', 'Cadeia de controle (indiretos)']} tab={tab} setTab={setTab}
       source={h.source} note={`Posição declarada pela companhia no Formulário de Referência (versão ${h.version}, última atualização ${dBRfull(calc.upd)}): acionistas com ≥5% de alguma classe, controladores, tesouraria e "Outros". Não inclui posições de fundos abaixo do limite nem movimentações diárias.`}>
-      {tab === 0 ? <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)' }}>
+      {tab === 0 ? <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)' }}>
         <Grid rows={calc.top} cols={[
           { k: 'name', label: 'Acionista', w: '280px', color: (_, r: any) => r.controller === 'S' ? C.amber : C.white }, { k: 'controller', label: 'Controlador', align: 'c', fmt: x => yn(x) },
           { k: 'qty_on', label: 'Ações ON', align: 'r', fmt: x => big(x, 2) }, { k: 'pct_on', label: '% ON', align: 'r', fmt: x => pf(x, 2, false) },
@@ -373,10 +373,10 @@ export function MRRView({ ticker }: { ticker: string }) {
       source={tab === 0 ? 'B3 (carteira teórica do Ibovespa e pesos) + Yahoo Finance (fechamentos ajustados), via universe.json.' : SRC_PX}
       note={tab === 0 ? 'Retorno de cada componente no período e contribuição aproximada = peso atual na carteira × retorno (não considera a variação dos pesos ao longo do período).' : 'Retorno de cada mês = fechamento do último pregão do mês ÷ fechamento do mês anterior. Linha "Média" e "% positivos" por mês do calendário (sazonalidade).'}>
       {tab === 0 ? (!rank ? <Loading err={err} /> : <>
-        <div className="mb-2 grid gap-2 text-[12px]" style={{ gridTemplateColumns: 'repeat(6,minmax(0,1fr))' }}>
+        <div className="mb-2 grid gap-2 text-[12px] fn-kpi" style={{ gridTemplateColumns: 'repeat(6,minmax(0,1fr))' }}>
           {[['Período', `${dBR(rank.from)} – ${dBR(rank.to)}`, C.text], ['Ibovespa', pf(rank.idx), clr(rank.idx)], ['Soma das contribuições', pf(rank.contrib), clr(rank.contrib)], ['Média / mediana', `${pf(rank.avg)} / ${pf(rank.med)}`, C.text], ['Em alta', String(rank.up), C.up], ['Em queda', String(rank.dn), C.down]].map(([k, v, c]) => <div key={k} className="border px-2 py-1" style={{ borderColor: C.line, background: C.panel }}><div style={{ color: C.muted }}>{k}</div><div className="text-[15px]" style={{ color: c }}>{v}</div></div>)}
         </div>
-        <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1.3fr) minmax(0,1fr)' }}>
+        <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.3fr) minmax(0,1fr)' }}>
           <Grid maxH={560} rows={rank.rows} cols={[{ k: 'rk', label: '#', align: 'r', color: () => C.muted }, { k: 'cod', label: 'Ticker', color: () => C.amber }, { k: 'name', label: 'Empresa', w: '170px' }, { k: 'sector', label: 'Setor', w: '140px', color: () => C.muted }, { k: 'weight', label: 'Peso %', align: 'r', fmt: x => nf(x, 2) }, { k: 'r', label: `Retorno ${per}`, align: 'r', fmt: x => pf(x), color: x => clr(x) }, { k: 'contrib', label: 'Contrib. (p.p.)', align: 'r', fmt: x => nf(x, 3), color: x => clr(x) }]} />
           <Panel title="Maiores e menores contribuições (p.p.)"><HBars rows={[...rank.rows.slice().sort((a: any, b: any) => b.contrib - a.contrib).slice(0, 10), ...rank.rows.slice().sort((a: any, b: any) => a.contrib - b.contrib).slice(0, 10).reverse()].map((x: any) => ({ label: x.cod, v: x.contrib }))} fmt={x => nf(x, 3)} /></Panel>
         </div>

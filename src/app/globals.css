@@ -216,3 +216,23 @@ input[type="date"]::-webkit-calendar-picker {
 }
 
 
+
+/* ===================== Mobile/tablet (<1024px) — desktop (≥1024px) não muda ===================== */
+@media (max-width: 1023px) {
+  /* painéis empilhados em 1 coluna; KPIs em 2 colunas */
+  .fn-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .fn-grid > *, .fn-kpi > * { min-width: 0; }
+  .fn-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  /* tabelas: rolagem interna (horizontal e vertical, máx. ~60vh), cabeçalho e 1ª coluna fixos */
+  .fn-gridwrap { max-height: 60vh !important; overscroll-behavior-x: contain; }
+  .fn-table thead { z-index: 2; position: sticky; top: 0; }
+  .fn-table tr > *:first-child { position: sticky; left: 0; z-index: 1; background: var(--rb, #0d0d0d); box-shadow: 1px 0 0 #2a2a2a; }
+  /* faixas de abas/botões: rolagem horizontal sem barra visível */
+  .fn-strip { scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .fn-strip::-webkit-scrollbar { display: none; }
+}
+/* tablet 768–1023: 2 colunas onde houver grid */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .fn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .fn-kpi { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}

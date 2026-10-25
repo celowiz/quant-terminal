@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef } from 'react'
 import {
-  createChart, CandlestickSeries, AreaSeries, LineSeries, HistogramSeries, LineStyle, CrosshairMode,
+  createChart, TrackingModeExitMode, CandlestickSeries, AreaSeries, LineSeries, HistogramSeries, LineStyle, CrosshairMode,
   type IChartApi, type MouseEventParams, type Time,
 } from 'lightweight-charts'
 import type { Price } from '../../lib/static'
@@ -80,6 +80,9 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
       localization: {
         locale: 'pt-BR',
       },
+      // toque: arrasto vertical rola a página; toque longo liga a mira (some ao soltar). Mouse/desktop inalterado.
+      handleScroll: { vertTouchDrag: false },
+      trackingMode: { exitMode: TrackingModeExitMode.OnTouchEnd },
     })
     chartRef.current = chart
 

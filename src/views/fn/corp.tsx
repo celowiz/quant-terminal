@@ -44,7 +44,7 @@ export function DESView({ ticker }: { ticker: string }) {
     return (
       <FnScreen code="DES" ticker={ticker} title={`Descrição — ${p.longName || cad.DENOM_SOCIAL}`} tabs={['Perfil', 'Receita & Lucro', 'Cadastro CVM']} tab={tab} setTab={setTab}
         source={SRC_CVM} note="Valor de mercado = preço bruto de fechamento × ações em circulação (CVM, composição do capital, todas as classes). Múltiplos com lucro/EBITDA dos últimos 4 trimestres.">
-        {tab === 0 && <div className="grid gap-2" style={{ gridTemplateColumns: '1.3fr 1fr 1fr' }}>
+        {tab === 0 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1.3fr 1fr 1fr' }}>
           <Panel title="Descrição da empresa">
             <div className="p-2 text-[12px] leading-snug" style={{ color: C.text, maxHeight: 210, overflow: 'auto', borderBottom: `1px solid ${C.line}` }}>{p.longBusinessSummary}</div>
             <KV rows={[['Setor (Yahoo)', `${p.sector || '—'} / ${p.industry || '—'}`], ['Setor CVM', cad.SETOR_ATIV || '—'], ['Funcionários', p.fullTimeEmployees ? nf(p.fullTimeEmployees, 0) : '—'], ['Sede', `${p.city || cad.MUN || '—'}, ${p.country || ''}`], ['Site', p.website || '—'], ['CNPJ', d.cnpj], ['Controle acionário', cad.CONTROLE_ACIONARIO || '—']]} />
@@ -57,7 +57,7 @@ export function DESView({ ticker }: { ticker: string }) {
             <KV rows={[['Valor de mercado', `R$ ${big(v.mcap)}`, C.amber], ['Ações (ON+PN)', big(v.shares, 2)], ['EV', `R$ ${big(v.ev)}`], ['P/L (LTM)', nf(v.pe)], ['P/VPA', nf(v.pb)], ['EV/EBITDA (LTM)', nf(v.evEbitda)], ['Div. yield 12m', pf(v.dy, 2, false)], ['ROE (LTM)', pf(v.roe, 1, false)], ['Margem líquida', pf(v.margin, 1, false)], ['Dív. líq./EBITDA', nf(v.ndEbitda)], ['Receita LTM', `R$ ${big(v.revLtm)}`], ['Lucro LTM', `R$ ${big(v.netLtm)}`]]} />
           </Panel>
         </div>}
-        {tab === 1 && <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        {tab === 1 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
           <Panel title="Receita anual (R$ bi)"><FnChart height={300} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.annual.filter((r: any) => r.revenue).map((r: any) => ({ time: r.period, value: r.revenue / 1e9 })), color: C.amber, title: 'Receita', decimals: 1 }] }]} /></Panel>
           <Panel title="Lucro líquido trimestral (R$ bi)"><FnChart height={300} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.quarterly.filter((r: any) => r.net != null).map((r: any) => ({ time: r.period, value: r.net / 1e9, color: r.net >= 0 ? C.up : C.down })), title: 'Lucro', decimals: 1 }] }]} /></Panel>
           <div className="col-span-2"><Panel title="Resumo anual">
@@ -129,7 +129,7 @@ export function VALView({ ticker }: { ticker: string }) {
     return (
       <FnScreen code="VAL" ticker={ticker} title="Valuation — múltiplos e histórico" source={SRC_CVM}
         note="Múltiplos calculados no pipeline com preço bruto × ações CVM e resultados dos últimos 4 trimestres (DFP/ITR). Histórico assume divulgação 45 dias após o fim do trimestre. Coluna Yahoo mostrada para conferência; diferenças vêm de critérios de ações/LTM.">
-        <div className="grid gap-2" style={{ gridTemplateColumns: '300px 1fr' }}>
+        <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '300px 1fr' }}>
           <Panel title="Múltiplos atuais">
             <Grid cols={[{ k: 'l', label: 'Indicador' }, { k: 'v', label: 'Calculado', align: 'r', color: () => C.amber }, { k: 'y', label: 'Yahoo', align: 'r', color: () => C.muted }]} rows={[
               { l: 'Preço (bruto)', v: nf(v.px[1]), y: '—' }, { l: 'Valor de mercado', v: big(v.mcap), y: big(ys.marketCap) }, { l: 'EV', v: big(v.ev), y: '—' },
@@ -161,7 +161,7 @@ export function DYView({ ticker }: { ticker: string }) {
     const cur = ser[ser.length - 1]?.value, avg = ser.reduce((s, x) => s + x.value, 0) / (ser.length || 1)
     return (
       <FnScreen code="DY" ticker={ticker} title="Dividend Yield" source={SRC_CVM} note="DY 12m = soma dos proventos (dividendos + JCP brutos, por data-ex) nos 12 meses anteriores ÷ preço bruto do dia. Proventos e preço sem ajuste.">
-        <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 380px' }}>
+        <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 380px' }}>
           <div><div className="flex gap-4 text-[12px] pb-1"><span>DY 12m atual <b style={{ color: C.amber }}>{pf(cur, 2, false)}</b></span><span style={{ color: C.muted }}>média 10a {pf(avg, 2, false)}</span></div>
             <FnChart height={520} panes={[{ series: [{ kind: 'area', data: ser, color: C.amber, title: 'DY 12m', pct: true, lines: [{ price: avg, color: '#888', title: 'Média' }] }] }]} /></div>
           <Panel title="Por ano"><Grid cols={[{ k: 'y', label: 'Ano' }, { k: 'n', label: 'Nº', align: 'r' }, { k: 'tot', label: 'R$/ação', align: 'r', fmt: v => nf(v, 4) }, { k: 'end', label: 'Preço fim', align: 'r', fmt: (v: any) => nf(v) }, { k: 'dyEnd', label: 'DY fim', align: 'r', fmt: v => pf(v, 2, false), color: () => C.amber }, { k: 'dyAvg', label: 'DY méd.', align: 'r', fmt: v => pf(v, 2, false) }]} rows={yr} /></Panel>
@@ -184,7 +184,7 @@ export function DVDView({ ticker }: { ticker: string }) {
     return (
       <FnScreen code="DVD" ticker={ticker} title="Dividend / Split History" tabs={['Histórico de proventos', 'Avisos na CVM (IPE)']} tab={tab} setTab={setTab} source={SRC_CVM}
         note="Yahoo fornece só data-ex e valor bruto por ação. Datas de declaração/registro/pagamento e o tipo (dividendo × JCP) estão nos avisos da CVM (aba 2), com link para o documento original.">
-        {tab === 0 ? <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        {tab === 0 ? <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
           <Panel title={`Proventos (${rows.length})`}><Grid maxH={560} cols={[{ k: 'ex', label: 'Data-ex', fmt: dBRfull }, { k: 'amt', label: 'Valor R$', align: 'r', fmt: v => nf(v, 6), color: () => C.amber }, { k: 'px', label: 'Preço ant.', align: 'r', fmt: (v: any) => nf(v) }, { k: 'y', label: 'Yield', align: 'r', fmt: v => pf(v, 2, false) }, { k: 'type', label: 'Tipo' }]} rows={rows} /></Panel>
           <Panel title="Total por ano (R$/ação)"><FnChart height={560} panes={[{ series: [{ kind: 'hist', data: Array.from(byY.entries()).sort().map(([y, v]) => ({ time: `${y}-12-31`, value: v })), color: C.amber, title: 'R$/ação', decimals: 3 }] }]} /></Panel>
         </div> : <Panel title="Avisos de proventos / reuniões"><Grid maxH={600} cols={[{ k: 'date', label: 'Data', fmt: dBRfull }, { k: 'cat', label: 'Categoria' }, { k: 'subject', label: 'Assunto', fmt: (v, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: C.cyan }}>{v || r.type}</a> }]} rows={relat} /></Panel>}
@@ -202,7 +202,7 @@ export function SPLITView({ ticker }: { ticker: string }) {
     const months = raw.filter((_, i) => i % 5 === 0)
     return (
       <FnScreen code="SPLIT" ticker={ticker} title="Desdobramentos / grupamentos" source={SRC_CVM} note="Eventos de split do Yahoo (razão = ações novas por ação antiga). Gráfico: preço bruto (como negociado) com marcadores nas datas dos eventos. Bonificações em ações também aparecem como split fracionário.">
-        <div className="grid gap-2" style={{ gridTemplateColumns: '420px 1fr' }}>
+        <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '420px 1fr' }}>
           <Panel title={`Eventos (${rows.length})`}>
             {rows.length ? <Grid cols={[{ k: 'date', label: 'Data-ex', fmt: dBRfull }, { k: 'desc', label: 'Evento', color: () => C.amber }, { k: 'factor', label: 'Fator', align: 'r', fmt: v => nf(v, 4) }]} rows={rows} /> : <div className="p-2 text-[12px]" style={{ color: C.muted }}>Nenhum evento no histórico disponível.</div>}
             <KV rows={[['Fator acumulado', nf(cum, 4), C.amber], ['1 ação antes do 1º evento =', `${nf(cum, 2)} ações hoje`]]} />

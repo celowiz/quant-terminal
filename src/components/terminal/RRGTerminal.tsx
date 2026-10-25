@@ -60,7 +60,8 @@ export default function RRGTerminal() {
       const top = el.getBoundingClientRect().top + window.scrollY
       const desk = window.matchMedia('(min-width: 1024px)').matches
       const fh = desk ? (document.querySelector('footer') as HTMLElement | null)?.offsetHeight || 0 : 0
-      setSize({ w: el.clientWidth, h: Math.max(desk ? 300 : 420, window.innerHeight - top - fh - 6) })
+      // mobile/tablet: gráfico em largura total, quase quadrado; painel de ativos abaixo
+      setSize({ w: el.clientWidth, h: desk ? Math.max(300, window.innerHeight - top - fh - 6) : Math.round(Math.min(560, Math.max(340, el.clientWidth * 1.05))) })
     }
     fit()
     const ro = new ResizeObserver(fit); ro.observe(el)
@@ -109,14 +110,17 @@ export default function RRGTerminal() {
   return (
     <div className="w-full -mt-4 sm:-mt-6 bg-black" style={{ fontFamily: MONO }}>
       {/* barra de título */}
-      <div className="flex items-center gap-4 flex-wrap px-3 py-1 border-b border-[#3a3a3a] text-[13px]">
-        <span className="font-bold text-black bg-[#FFA028] px-2">RRG</span>
-        <span className="text-[#d9d9d9]">Relative Rotation Graph · vs <b className="text-[#FFA028]">{label(bench)}</b> · semanal (sexta)</span>
-        <span className="text-[#8a8a8a]">{endDate ? `Semana de ${fmtD(endDate)} · cauda ${tail} sem.` : ''}</span>
-        <span className="ml-auto text-[#8a8a8a] text-[11px]">Fonte: Yahoo Finance · uso educacional, não é recomendação</span>
+      {/* mobile: 2 linhas — título truncado / semana + fonte numa faixa rolável; desktop: linha única como antes */}
+      <div className="flex items-center gap-4 flex-wrap px-3 py-1 border-b border-[#3a3a3a] text-[13px] max-lg:gap-x-2 max-lg:gap-y-[2px]">
+        <span className="font-bold text-black bg-[#FFA028] px-2 max-lg:shrink-0">RRG</span>
+        <span className="text-[#d9d9d9] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate">Relative Rotation Graph · vs <b className="text-[#FFA028]">{label(bench)}</b> · semanal (sexta)</span>
+        <div className="lg:contents max-lg:w-full max-lg:flex max-lg:items-center max-lg:gap-4 max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0 max-lg:text-[12px] fn-strip">
+          <span className="text-[#8a8a8a]">{endDate ? `Semana de ${fmtD(endDate)} · cauda ${tail} sem.` : ''}</span>
+          <span className="ml-auto text-[#8a8a8a] text-[11px] max-lg:ml-0">Fonte: Yahoo Finance · uso educacional, não é recomendação</span>
+        </div>
       </div>
       {/* controles */}
-      <div className="flex items-center gap-3 flex-wrap px-3 py-1 border-b border-[#3a3a3a] bg-[#0a0a0a] text-[12px] text-[#8a8a8a]">
+      <div className="flex items-center gap-3 flex-wrap px-3 py-1 border-b border-[#3a3a3a] bg-[#0a0a0a] text-[12px] text-[#8a8a8a] fn-strip max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0">
         <label className="flex items-center gap-1">Benchmark
           <select className={box} value={bench} onChange={e => setBench(e.target.value)}>
             {available.map(k => <option key={k} value={k}>{label(k)}</option>)}
@@ -140,12 +144,12 @@ export default function RRGTerminal() {
         <button className={btn(playing)} onClick={() => { if (!playing && endOff === 0) setEndOff(Math.min(maxOff, 26)); setPlaying(p => !p) }}>{playing ? '❚❚ Pausar' : '▶ Animar'}</button>
       </div>
 
-      <div className="flex w-full">
+      <div className="flex w-full max-lg:flex-col">
         {/* gráfico */}
         <div ref={boxRef} className="relative flex-1 min-w-0" style={{ height: size.h }}>
           {err && <div className="absolute inset-0 flex items-center justify-center text-[#FF4D4D]">{err}</div>}
           <svg width={W} height={H} className="block select-none" onMouseLeave={() => setHover(null)}>
-            <rect x={0} y={0} width={W} height={H} fill="#000" />
+            <rect x={0} y={0} width={W} height={H} fill="#000" onClick={() => setHover(null)} />
             {([['Improving', m.l, m.t, cx - m.l, cy - m.t], ['Leading', cx, m.t, W - m.r - cx, cy - m.t], ['Lagging', m.l, cy, cx - m.l, H - m.b - cy], ['Weakening', cx, cy, W - m.r - cx, H - m.b - cy]] as [string, number, number, number, number][])
               .map(([k, x, y, w, h]) => <rect key={k} x={x} y={y} width={Math.max(0, w)} height={Math.max(0, h)} fill={Q[k].c} opacity={0.075} />)}
             {ticks(ex, stx).map(v => <g key={`x${v}`}><line x1={sx(v)} x2={sx(v)} y1={m.t} y2={H - m.b} stroke="#1f1f1f" strokeDasharray="1 3" /><text x={sx(v)} y={H - m.b + 15} textAnchor="middle" fontSize={10} fill="#8a8a8a">{v.toFixed(dp(stx))}</text></g>)}
@@ -172,11 +176,11 @@ export default function RRGTerminal() {
                   {P.slice(0, -1).map((q, i) => {
                     const p = v.pts[i], age = (n - 1 - i) / Math.max(1, n - 1)
                     return <circle key={i} cx={q[0]} cy={q[1]} r={2.6} fill={c} opacity={0.25 + 0.75 * Math.pow(1 - age, 1.3)}
-                      onMouseEnter={() => setHover({ x: q[0], y: q[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum })} onMouseLeave={() => setHover(null)} />
+                      onMouseEnter={() => setHover({ x: q[0], y: q[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum })} onClick={() => setHover({ x: q[0], y: q[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum })} onMouseLeave={() => setHover(null)} />
                   })}
                   {n > 1 && <polygon fill={c} points={[[head[0] + Math.cos(an) * 12, head[1] + Math.sin(an) * 12], [head[0] + Math.cos(an) * 5 + Math.cos(an + 1.57) * 5, head[1] + Math.sin(an) * 5 + Math.sin(an + 1.57) * 5], [head[0] + Math.cos(an) * 5 - Math.cos(an + 1.57) * 5, head[1] + Math.sin(an) * 5 - Math.sin(an + 1.57) * 5]].map(p => p.join(',')).join(' ')} />}
                   <circle cx={head[0]} cy={head[1]} r={6.5} fill={c} stroke="#000" strokeWidth={2}
-                    onMouseEnter={() => { const p = v.pts[n - 1]; setHover({ x: head[0], y: head[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum }) }} onMouseLeave={() => setHover(null)} />
+                    onMouseEnter={() => { const p = v.pts[n - 1]; setHover({ x: head[0], y: head[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum }) }} onClick={() => { const p = v.pts[n - 1]; setHover({ x: head[0], y: head[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum }) }} onMouseLeave={() => setHover(null)} />
                   <text x={head[0] + (Math.cos(an) >= 0 ? 11 : -11)} y={head[1] - 9} textAnchor={Math.cos(an) >= 0 ? 'start' : 'end'} fontSize={12} fontWeight={700} fill={c} stroke="#000" strokeWidth={3} paintOrder="stroke">{label(v.t)}</text>
                 </g>
               )
@@ -194,7 +198,7 @@ export default function RRGTerminal() {
         </div>
 
         {/* painel lateral */}
-        <div className="w-[300px] shrink-0 border-l border-[#3a3a3a] bg-[#050505] text-[12px] overflow-y-auto" style={{ height: size.h }}>
+        <div className="w-[300px] shrink-0 border-l border-[#3a3a3a] bg-[#050505] text-[12px] overflow-y-auto max-lg:w-full max-lg:!h-auto max-lg:border-l-0 max-lg:border-t" style={{ height: size.h }}>
           <div className="px-2 py-1 text-black bg-[#FFA028] font-bold">ATIVOS</div>
           <table className="w-full">
             <thead><tr className="text-[#8a8a8a] text-left"><th className="px-2 py-1 font-normal"> </th><th className="font-normal">Ticker</th><th className="font-normal text-right">Ratio</th><th className="font-normal text-right">Mom</th><th className="font-normal text-right pr-2">Quad.</th></tr></thead>

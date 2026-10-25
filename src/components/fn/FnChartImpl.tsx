@@ -1,8 +1,8 @@
 'use client'
 /** Gráfico genérico multi-painel (lightweight-charts v5) no estilo do terminal. */
-import { useEffect, useRef } from 'react'
-import { createChart, LineSeries, HistogramSeries, AreaSeries, CandlestickSeries, BaselineSeries, LineStyle, CrosshairMode, createSeriesMarkers } from 'lightweight-charts'
-import { C, MONO, useFitH } from './kit'
+import { useEffect, useRef, useState } from 'react'
+import { TrackingModeExitMode, createChart, LineSeries, HistogramSeries, AreaSeries, CandlestickSeries, BaselineSeries, LineStyle, CrosshairMode, createSeriesMarkers } from 'lightweight-charts'
+import { C, MONO, useFit, useFitH } from './kit'
 
 export type Pt = { time: string; value: number; color?: string }
 export type SeriesDef = {
@@ -18,7 +18,10 @@ const fmt = (d = 2, pct = false) => ({ type: 'custom', minMove: 1 / 10 ** d, for
 
 export default function FnChartImpl({ panes, height = 420, log = false, intraday = false }: { panes: PaneDef[]; height?: number; log?: boolean; intraday?: boolean }) {
   const ref = useRef<HTMLDivElement | null>(null)
-  const h = useFitH(height, 120)
+  const fitH = useFitH(height, 120)
+  const { active } = useFit()
+  // mobile/tablet (<1024px): altura fixa — ~300px no painel de preço + ~110px por painel inferior (volume/indicador)
+  const h = active ? fitH : Math.min(height, 300 + 110 * Math.max(0, panes.length - 1))
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -31,11 +34,14 @@ export default function FnChartImpl({ panes, height = 420, log = false, intraday
       timeScale: { borderColor: '#3a3a3a', rightOffset: 3, fixLeftEdge: true, timeVisible: intraday, secondsVisible: false },
       crosshair: { mode: CrosshairMode.Normal, vertLine: { color: '#777', style: LineStyle.Dashed, labelBackgroundColor: C.amber }, horzLine: { color: '#777', style: LineStyle.Dashed, labelBackgroundColor: C.amber } },
       localization: { locale: 'pt-BR' },
+      // toque: arrastar na vertical rola a página; toque longo ativa a mira (some ao soltar). Sem efeito no mouse/desktop.
+      handleScroll: { vertTouchDrag: false },
+      trackingMode: { exitMode: TrackingModeExitMode.OnTouchEnd },
     })
     panes.forEach((p, pi) => {
       p.series.forEach(s => {
         const priceFormat = fmt(s.decimals ?? 2, s.pct)
-        const common = { priceFormat, priceLineVisible: false, lastValueVisible: s.lastValue ?? true, title: s.title || '' }
+        const common = { priceFormat, priceLineVisible: false, lastValueVisible: s.lastValue ?? true, title: active ? s.title || '' : '' } // mobile: nome da série fica na legenda acima do gráfico, não sobre o plot
         let ser: any
         if (s.kind === 'line') ser = chart.addSeries(LineSeries, { ...common, color: s.color || C.white, lineWidth: (s.width || 1) as any, lineStyle: s.dashed ? LineStyle.Dashed : LineStyle.Solid, crosshairMarkerVisible: true }, pi)
         else if (s.kind === 'hist') ser = chart.addSeries(HistogramSeries, { ...common, color: s.color || C.blue }, pi)
@@ -57,6 +63,15 @@ export default function FnChartImpl({ panes, height = 420, log = false, intraday
     panes.forEach((p, i) => ps[i] && p.stretch && ps[i].setStretchFactor(p.stretch))
     chart.timeScale().fitContent()
     return () => chart.remove()
-  }, [panes, log])
-  return <div ref={ref} style={{ height: h, position: 'relative' }} />
+  }, [panes, log, active])
+  const [legOpen, setLegOpen] = useState(false)
+  if (active) return <div ref={ref} style={{ height: h, position: 'relative' }} />
+  const leg = panes.flatMap(p => p.series).filter(s => s.title).map(s => ({ t: s.title as string, c: s.color || (s.kind === 'hist' ? C.blue : s.kind === 'baseline' ? C.up : C.white) }))
+  return (
+    <div>
+      {leg.length > 3 && <button className="px-1 pb-[2px] text-[11px]" style={{ color: C.amber }} onClick={() => setLegOpen(!legOpen)}>Legenda {legOpen ? '▾' : '▸'}</button>}
+      {leg.length > 0 && (leg.length <= 3 || legOpen) && <div className="flex flex-wrap gap-x-3 px-1 pb-[2px] text-[11px]">{leg.map(l => <span key={l.t} style={{ color: l.c }}>■ <span style={{ color: C.text }}>{l.t}</span></span>)}</div>}
+      <div ref={ref} style={{ height: h, position: 'relative' }} />
+    </div>
+  )
 }

@@ -38,7 +38,7 @@ export function CDIEView() {
   return (
     <FnScreen code="CDIE" title="Expectativa de CDI / Copom implícita no DI futuro" tabs={['Reuniões do Copom', 'Contratos DI1', 'Histórico']} tab={tab} setTab={setTab}
       source={d.source} note={<>{d.method} A taxa implícita é a precificada pelo mercado (não é previsão); inclui prêmio de risco, que cresce com o prazo. Focus = mediana da Selic por reunião (BCB).</>}>
-      <div className="mb-2 grid gap-2 text-[12px]" style={{ gridTemplateColumns: 'repeat(6,minmax(0,1fr))' }}>
+      <div className="mb-2 grid gap-2 text-[12px] fn-kpi" style={{ gridTemplateColumns: 'repeat(6,minmax(0,1fr))' }}>
         {[
           ['Data de referência (ajuste)', dBRfull(d.ref_date), C.text],
           ['CDI atual (% a.a.)', nf(d.cdi, 2), C.amber],
@@ -48,7 +48,7 @@ export function CDIEView() {
           [`Acumulado até ${v.path[v.path.length - 1]?.label ?? '—'} (pb)`, bp(v.cum), clr(v.cum)],
         ].map(([k, val, c]) => <div key={k as string} className="border px-2 py-1" style={{ borderColor: C.line, background: C.panel }}><div style={{ color: C.muted }}>{k}</div><div className="text-[16px]" style={{ color: c as string }}>{val}</div></div>)}
       </div>
-      {tab === 0 && <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1.05fr) minmax(0,1fr)' }}>
+      {tab === 0 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.05fr) minmax(0,1fr)' }}>
         <Panel title="Caminho implícito por reunião">
           <Grid rows={v.path} cols={[
             { k: 'label', label: 'Reunião', color: () => C.amber },
@@ -75,7 +75,7 @@ export function CDIEView() {
           <HBars rows={v.path.map((r: any) => ({ label: `${r.label} ${dBR(r.decision)}`, v: r.move_bp }))} fmt={x => bp(x)} />
         </div>
       </div>}
-      {tab === 1 && <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1fr)' }}>
+      {tab === 1 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1fr)' }}>
         <Panel title={`DI1 – ajuste de ${dBRfull(d.ref_date)}`}>
           <Grid maxH={560} rows={d.contracts} cols={[
             { k: 'code', label: 'Contrato', color: () => C.amber },
@@ -176,6 +176,7 @@ export function EQSView() {
   const { data: s, err } = useJSON<any>('screener.json')
   const [f, setF] = useState<Flt>({ sector: '', mcap: 0, pe: 0, pb: 0, dy: 0, roe: 0, nd: 0, liq: 0, q: '' })
   const [sort, setSort] = useState<{ k: string; asc: boolean }>({ k: 'mcap', asc: false })
+  const [drawer, setDrawer] = useState(false) // mobile: filtros num painel recolhível
   const rows = useMemo(() => {
     if (!s) return []
     const r = (s.rows as any[]).filter(x =>
@@ -191,12 +192,18 @@ export function EQSView() {
   return (
     <FnScreen code="EQS" title="Equity Screening – Ibovespa (fundamentos CVM + mercado)" right={<CsvBtn onClick={exp} />}
       source={s.source} note={<>{s.note} Fundamentos: últimos 12 meses (soma de 4 trimestres) do ITR/DFP mais recente de cada empresa; PL e dívida do último balanço. Clique no cabeçalho para ordenar.</>}>
-      <div className="mb-2 flex flex-wrap items-end gap-3 border p-2" style={{ borderColor: C.line, background: C.panel }}>
+      <div className="mb-2 flex items-center gap-2 lg:hidden">
+        <button className="px-3 py-1 text-[12px] border font-bold" style={{ borderColor: drawer ? C.amber : C.line, color: drawer ? '#000' : C.amber, background: drawer ? C.amber : C.panel }} onClick={() => setDrawer(!drawer)}>
+          Filtros{(() => { const n = Object.values(f).filter(v => v !== '' && v !== 0).length; return n ? ` (${n})` : '' })()} {drawer ? '▾' : '▸'}
+        </button>
+        <span className="ml-auto text-[12px]" style={{ color: C.amber }}>{rows.length} de {s.rows.length} ações</span>
+      </div>
+      <div className={`mb-2 flex flex-wrap items-end gap-3 border p-2 ${drawer ? '' : 'max-lg:hidden'}`} style={{ borderColor: C.line, background: C.panel }}>
         <Field label="Busca"><input className={inputCls + ' w-28'} style={inputStyle} value={f.q} onChange={e => setF({ ...f, q: e.target.value })} /></Field>
         <Field label="Setor"><select className={inputCls} style={inputStyle} value={f.sector} onChange={e => setF({ ...f, sector: e.target.value })}><option value="">Todos</option>{sectors.map(x => <option key={x}>{x}</option>)}</select></Field>
         {num('mcap', 'Valor merc. ≥ (R$ bi)')}{num('liq', 'Liq. 30d ≥ (R$ mi)')}{num('pe', 'P/L ≤')}{num('pb', 'P/VPA ≤', 'w-16', 0.1)}{num('dy', 'DY ≥ %', 'w-16', 0.5)}{num('roe', 'ROE ≥ %')}{num('nd', 'DL/EBITDA ≤', 'w-16', 0.5)}
         <button className="px-2 py-[1px] text-[12px] border" style={{ borderColor: C.line, color: C.muted }} onClick={() => setF({ sector: '', mcap: 0, pe: 0, pb: 0, dy: 0, roe: 0, nd: 0, liq: 0, q: '' })}>Limpar</button>
-        <span className="ml-auto text-[12px]" style={{ color: C.amber }}>{rows.length} de {s.rows.length} ações</span>
+        <span className="ml-auto text-[12px] max-lg:hidden" style={{ color: C.amber }}>{rows.length} de {s.rows.length} ações</span>
       </div>
       <Grid maxH={600} rows={rows} cols={EQ_COLS.map(c => ({
         k: c.k, align: c.num ? 'r' : 'l', w: c.k === 'name' ? '170px' : c.k === 'sector' ? '150px' : undefined,
@@ -244,7 +251,7 @@ export function GCView() {
       right={<>{tab === 1 && <Btns opts={[{ v: 'pre', l: 'Prefixado' }, { v: 'ipca', l: 'IPCA+' }]} value={td} onChange={setTd} />}<span className="text-[12px]" style={{ color: C.muted }}>Comparar:</span>{avail.map(k => <button key={k} onClick={() => toggle(k)} className="px-2 py-[1px] text-[12px] border" style={{ borderColor: COLS[k], color: cmp.includes(k) ? '#000' : COLS[k], background: cmp.includes(k) ? COLS[k] : 'transparent' }}>{LBL[k]}</button>)}</>}
       source={tab === 0 ? 'B3 – Boletim Diário (taxa de ajuste DI1), via cdie.json' : tab === 1 ? g.td_source : 'FRED – Treasury constant maturity (DGS1MO…DGS30)'}
       note={tab === 0 ? 'Eixo X em anos úteis (du/252). O histórico DI1 só cobre as sessões já coletadas do Boletim Diário; comparações mais longas aparecem conforme o pipeline acumula pregões.' : tab === 1 ? 'Títulos sem cupom (Tesouro Prefixado / Tesouro IPCA+), taxa de compra da manhã divulgada pelo Tesouro; eixo X em anos corridos até o vencimento.' : 'Curva par de Treasuries (constant maturity), eixo X em anos.'}>
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)' }}>
         <XYChart height={440} legend xLabel={tab === 0 ? 'anos úteis' : 'anos'} yLabel={unit} xFmt={x => nf(x, 1)} yFmt={y => nf(y, 2)} series={shown.flatMap(k => [
           { name: `${LBL[k]} (${dBR(curves[k].date)})`, points: curves[k].pts.map(p => [p.x, p.y] as [number, number]), color: COLS[k], width: k === 'now' ? 2 : 1, dash: k === 'now' ? undefined : '4 3' },
         ])} />
@@ -256,7 +263,7 @@ export function GCView() {
           ]} />
         </Panel>
       </div>
-      {tab === 2 && <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))' }}>{Object.entries(g.us_money).map(([k, v]: any) => <Panel key={k} title={`${({ DFF: 'Fed Funds efetiva', SOFR: 'SOFR', DTB3: 'T-bill 3 meses' } as any)[k] || k} · ${nf(v.last, 2)}% (${dBR(v.date)})`}><FnChart height={140} panes={[{ series: [{ kind: 'line', data: v.series.map((p: any) => ({ time: p[0], value: p[1] })), color: C.amber, decimals: 2 }] }]} /></Panel>)}</div>}
+      {tab === 2 && <div className="mt-2 grid gap-2 fn-grid" style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))' }}>{Object.entries(g.us_money).map(([k, v]: any) => <Panel key={k} title={`${({ DFF: 'Fed Funds efetiva', SOFR: 'SOFR', DTB3: 'T-bill 3 meses' } as any)[k] || k} · ${nf(v.last, 2)}% (${dBR(v.date)})`}><FnChart height={140} panes={[{ series: [{ kind: 'line', data: v.series.map((p: any) => ({ time: p[0], value: p[1] })), color: C.amber, decimals: 2 }] }]} /></Panel>)}</div>}
     </FnScreen>
   )
 }
@@ -280,7 +287,7 @@ export function ECFCView() {
         ...refs.map(y => ({ k: y, label: y, align: 'r' as const, fmt: (x: any, r: any) => <>{nf(x, 2)}<span style={{ color: r[y + 'd'] > 0 ? C.up : C.down }}>{arrow(r[y + 'd'])}</span></> })),
         { k: 'date', label: 'Data', align: 'r', fmt: x => dBR(x) },
       ]} />
-      <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.3fr)' }}>
+      <div className="mt-2 grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.3fr)' }}>
         <Panel title={`${sel} — dispersão das projeções (${dBR(I.date)})`}>
           <Grid rows={refs.map(y => ({ y, ...(I.snap?.[y] || {}) }))} cols={[
             { k: 'y', label: 'Ano', color: () => C.amber }, { k: 'median', label: 'Mediana', align: 'r', fmt: x => nf(x, 2), color: () => C.amber }, { k: 'mean', label: 'Média', align: 'r', fmt: x => nf(x, 2) },
@@ -343,7 +350,7 @@ export function ECSTView() {
     <FnScreen code="ECST" title="Estatísticas econômicas – Brasil e EUA"
       source="BCB SGS, IBGE SIDRA (PIB, PNAD Contínua, PIM, PMC, PMS, IPCA-15) e FRED (EUA)."
       note="Último dado divulgado de cada indicador, o anterior e a variação; mini-gráfico com as últimas 24 observações. Séries diárias são amostradas no fim de cada mês. Clique numa linha para o histórico completo.">
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,1fr)' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,1fr)' }}>
         <Grid maxH={640} onRow={(r: any) => setSel(r.label)} rowStyle={(r: any) => r.label === cur.label ? { background: '#2a1d08' } : undefined}
           rows={rows.map(r => { const n = r.pts.length, l = r.pts[n - 1], p = r.pts[n - 2]; return { ...r, last: l[1], prev: p?.[1], per: r.period(l[0]), chg: p ? l[1] - p[1] : null, spark: r.pts.slice(-24).map(x => x[1]) } })}
           cols={[
@@ -384,7 +391,7 @@ export function WCRSView() {
     <FnScreen code="WCRS" title={`Ranking de moedas vs ${base === 'USD' ? 'dólar' : 'real'}`}
       right={<><Field label="Base"><Btns opts={[{ v: 'USD', l: 'USD' }, { v: 'BRL', l: 'BRL' }]} value={base} onChange={setBase} /></Field><Field label="Ordenar por"><Btns opts={P} value={per} onChange={setPer} /></Field></>}
       source={d.source} note={`Variação do valor de 1 unidade de cada moeda medido em ${base} (positivo = a moeda se valorizou contra o ${base}). Cotações de fechamento diário (spot), cruzadas via dólar. Data: ${dBRfull(T.date)}.`}>
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1.3fr) minmax(0,1fr)' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.3fr) minmax(0,1fr)' }}>
         <Grid rows={T.rows.map((r, i) => ({ ...r, rk: i + 1 }))} cols={[
           { k: 'rk', label: '#', align: 'r', color: () => C.muted }, { k: 'c', label: 'Moeda', color: () => C.amber }, { k: 'name', label: 'Nome' },
           { k: 'v', label: `Cotação (${base})`, align: 'r', fmt: x => nf(x, x < 0.01 ? 6 : x < 1 ? 4 : 4) },
@@ -466,7 +473,7 @@ export function BTMMView() {
     <FnScreen code="BTMM" title="Monitor de juros e mercado monetário – Brasil e EUA"
       source="B3 (DI1, Boletim Diário), BCB (Selic, CDI, Copom), Tesouro Transparente (Tesouro Direto), FRED (Fed Funds, SOFR, T-bills, Treasuries), Yahoo (câmbio e commodities)."
       note={`Δ do DI1 vs sessão anterior (${dBR(v.prevK)}); Tesouro e Treasuries vs 1 semana; money market EUA vs dado anterior. Sem coluna de consenso de mercado (não há fonte aberta).`}>
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(4,minmax(0,1fr))' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'repeat(4,minmax(0,1fr))' }}>
         <Panel title="Brasil – política monetária">
           <KV rows={[['Selic meta', `${nf(d.selic, 2)}%`, C.amber], ['CDI', `${nf(d.cdi, 2)}%`, C.amber], ['Spread Selic−CDI', `${nf(d.spread_selic_cdi, 2)} p.p.`], ['Próxima reunião', d.path?.[0] ? `${d.path[0].label} ${dBR(d.path[0].decision)}` : '—'], ['Mov. implícito', d.path?.[0] ? `${bp(d.path[0].move_bp)} pb` : '—', clr(d.path?.[0]?.move_bp)], ['Acum. 12 meses', h ? `${bp(h.cum_12m_bp)} pb` : '—', clr(h?.cum_12m_bp)], ['CDI impl. fim do ano', h ? `${nf(h.year_end_cdi, 2)}%` : '—'], ['Focus Selic próx. reunião', d.path?.[0]?.focus ? `${nf(d.path[0].focus.median, 2)}%` : '—', C.purple]]} />
         </Panel>
@@ -474,7 +481,7 @@ export function BTMMView() {
         <Panel title={`Tesouro Direto (${dBR(cv.data.td.pre?.now?.date)})`}>{tbl([...v.pre, ...v.ipca], 'bp')}</Panel>
         <Panel title="EUA – money market">{tbl(v.mm, 'bp')}<div className="mt-1" />{tbl([...fxr, ...com], '%', 2)}</Panel>
       </div>
-      <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.6fr)' }}>
+      <div className="mt-2 grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.6fr)' }}>
         <Panel title={`Treasuries (${dBR(cv.data.us.now.date)})`}>{tbl(v.us, 'bp')}</Panel>
         <Panel title="Selic meta vs Fed Funds efetiva (% a.a.)">
           <FnChart height={280} panes={[{ series: [

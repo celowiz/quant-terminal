@@ -1,5 +1,6 @@
 "use client"
 import React, { useRef, useState, useEffect } from 'react'
+import { useDesktop } from './fn/kit'
 
 type TickerRecord = { ticker: string }
 
@@ -32,6 +33,7 @@ export default function TickerSelector({
 }: TickerSelectorProps) {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const desk = useDesktop()
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1)
 
   useEffect(() => {
@@ -89,7 +91,7 @@ export default function TickerSelector({
 		<div ref={containerRef} className="ticker-selector-combo relative inline-flex items-center">
 			<input
 				ref={inputRef}
-				className={`ticker-combo-box font-bold h-10 px-3 rounded-none border-0 focus:outline-none focus:ring-2 min-w-[160px] ${
+				className={`ticker-combo-box font-bold h-10 px-3 rounded-none border-0 focus:outline-none focus:ring-2 min-w-[160px] max-lg:min-w-0 max-lg:w-[96px] max-lg:h-11 max-lg:px-2 ${
 					disabled 
 						? 'bg-gray-500 text-gray-700 placeholder:text-gray-600 cursor-not-allowed' 
 						: 'bg-[#FFA028] text-black placeholder:text-black focus:ring-bb-blue/40'
@@ -98,7 +100,7 @@ export default function TickerSelector({
 				value={tickerSearch}
 				onChange={handleTickerSearch}
 				onKeyDown={handleTickerKeyDown}
-				placeholder="Digite um ticker"
+				placeholder={desk ? 'Digite um ticker' : 'Ticker'}
 				autoComplete="off"
 				disabled={disabled}
 			/>
@@ -118,13 +120,13 @@ export default function TickerSelector({
 				</div>
 			)}
 			{selectedTicker && tickerName && (
-				<div className="ticker-name-label absolute left-full ml-2 whitespace-nowrap pointer-events-none font-bold flex items-center gap-2">
-					<span>{tickerName}</span>
+				<div className="ticker-name-label absolute left-full ml-2 whitespace-nowrap pointer-events-none font-bold flex items-center gap-2 max-lg:max-w-[calc(100vw-120px-96px-52px)] md:max-lg:max-w-[calc(100vw-220px-96px-52px)] max-lg:overflow-hidden max-lg:text-[12px]">
+					<span className="max-lg:truncate max-lg:min-w-0">{tickerName}</span>
 					{tickerLogo && (
 						<img 
 							src={tickerLogo} 
 							alt={`${selectedTicker} logo`}
-							className="w-6 h-6 object-contain rounded-sm"
+							className="w-6 h-6 object-contain rounded-sm max-lg:shrink-0 max-lg:w-5 max-lg:h-5"
 							onError={(e) => {
 								// Hide image if it fails to load
 								const target = e.target as HTMLImageElement;
