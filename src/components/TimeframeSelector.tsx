@@ -6,18 +6,18 @@ type TimeframeSelectorProps = {
 }
 
 const timeframeOptions = [
-  { value: 'd', label: 'Diário' },
-  { value: 'w', label: 'Semanal' },
-  { value: 'm', label: 'Mensal' },
-  { value: 'q', label: 'Trimestral' },
-  { value: 'y', label: 'Anual' }
+  { value: 'd', label: 'Daily' },
+  { value: 'w', label: 'Weekly' },
+  { value: 'm', label: 'Monthly' },
+  { value: 'q', label: 'Quarterly' },
+  { value: 'y', label: 'Yearly' }
 ]
 
 export default function TimeframeSelector({ timeframe, setTimeframe }: TimeframeSelectorProps) {
   return (
     <div className="flex items-center gap-2">
       <label className="text-white text-sm font-bold whitespace-nowrap">
-        Período:
+        Period:
       </label>
       <select 
         value={timeframe}

@@ -16,7 +16,7 @@ export default function DateRange({ startDate, setStartDate, endDate, setEndDate
     <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
           <label className="text-white text-sm font-bold whitespace-nowrap">
-            Data Inicial:
+            Start date:
           </label>
           <input
             type="date"
@@ -30,7 +30,7 @@ export default function DateRange({ startDate, setStartDate, endDate, setEndDate
         
         <div className="flex items-center gap-2">
           <label className="text-white text-sm font-bold whitespace-nowrap">
-            Data Final:
+            End date:
           </label>
           <input
             type="date"

@@ -1,10 +1,16 @@
 "use client"
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { Settings, Share2 } from 'lucide-react'
+import ShareMenu from './ShareMenu'
+import SettingsPanel from './SettingsPanel'
+import { isPanelOpen, setPanelOpen } from '../lib/settings'
+import { t } from '../lib/i18n'
 import Header from './Header'
 import TickerSelector from './TickerSelector'
 import { listTickers, tickerMeta, go, pathParts } from '../lib/static'
+import { navTicker } from '../lib/track'
 import { usePageTitle } from '../hooks/usePageTitle'
-import { FUNCTION_LIST } from '../constants/functions'
+import { fnNameByCode } from '../constants/functions'
 // Using location-based navigation to avoid Next import types
 
 type TickerRecord = { ticker: string }
@@ -23,7 +29,11 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
   const [tickerLogo, setTickerLogo] = useState<string>('')
   const [tickerSearch, setTickerSearch] = useState<string>('')
   const [filteredTickers, setFilteredTickers] = useState<TickerRecord[]>([])
-  const [showSettings, setShowSettings] = useState(false)
+  const [showSettings, setShowSettings] = useState(isPanelOpen)
+  const toggleSettings = (v: boolean) => { setPanelOpen(v); setShowSettings(v) }
+  const closeSettings = useCallback(() => { setPanelOpen(false); setShowSettings(false) }, [])
+  const [showShare, setShowShare] = useState(false)
+  const closeShare = useCallback(() => setShowShare(false), [])
 
   const [currentCodeFromPath, setCurrentCodeFromPath] = useState('')
   const [currentTickerFromPath, setCurrentTickerFromPath] = useState('')
@@ -31,8 +41,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
   // Atualizar título da página baseado na função
   const effectiveCode = functionInput || currentCodeFromPath
   const getPageTitle = (code: string): string => {
-    const func = FUNCTION_LIST.find(f => f.code === code.toUpperCase())
-    return func ? func.desc : (code || 'Homepage')
+    return code ? fnNameByCode(code) : fnNameByCode('')
   }
   const functionName = getPageTitle(effectiveCode)
   usePageTitle(functionName)
@@ -61,7 +70,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
         const list = await listTickers()
         const mapped = list.map(t => ({ ticker: t }))
         setTickers(mapped)
-        setFilteredTickers(mapped)
+        // a lista só abre quando o usuário digita (antes abria sozinha ao carregar /fn/TICKER/)
       } catch (error) {
         // noop
       }
@@ -125,6 +134,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
     setSelectedTicker(ticker)
     setTickerSearch(ticker)
     setFilteredTickers([])
+    navTicker(ticker)
     if (onTickerChange) onTickerChange(ticker)
 
     const effectiveCode = (functionInput || currentCodeFromPath).toUpperCase()
@@ -143,7 +153,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
   }
 
   return (
-    <div className="w-full max-lg:flex max-lg:items-stretch max-lg:h-11">
+    <div className="relative w-full max-lg:flex max-lg:items-stretch max-lg:h-11">
       <Header
         functionInput={functionInput}
         setFunctionInput={setFunctionInput}
@@ -167,22 +177,20 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
         </div>
         <div className="flex-1 h-10 max-lg:h-11 max-lg:pr-3 border-0 flex items-center justify-end pr-4" style={{ backgroundImage: 'linear-gradient(to right, #8E0D0D, #4D0A0A)' }}>
 
-          <button type="button" aria-label="Settings" className="text-slate-100 hover:text-[#FFA028]" onClick={() => setShowSettings(true)}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-              <path fillRule="evenodd" d="M11.983 2.25a1 1 0 01.94.658l.678 1.81a8.967 8.967 0 012.06.85l1.87-.726a1 1 0 011.238.45l1.5 2.598a1 1 0 01-.298 1.28l-1.6 1.2c.053.359.08.726.08 1.1 0 .374-.027.741-.08 1.1l1.6 1.2a1 1 0 01.298 1.28l-1.5 2.598a1 1 0 01-1.238.45l-1.87-.726a8.967 8.967 0 01-2.06.85l-.678 1.81a1 1 0 01-.94.658h-3a1 1 0 01-.94-.658l-.678-1.81a8.967 8.967 0 01-2.06-.85l-1.87.726a1 1 0 01-1.238-.45l-1.5-2.598a1 1 0 01-.298-1.28l1.6-1.2A8.969 8.969 0 013.5 12c0-.374.027-.741.08-1.1l-1.6-1.2a1 1 0 01-.298-1.28l1.5-2.598a1 1 0 01-.298-1.28l1.6-1.2A8.969 8.969 0 013.5 12c0-.374.027-.741.08-1.1l-1.6-1.2a1 1 0 01-.298-1.28l1.5-2.598a1 1 0 01.238-.45l1.87.726a8.967 8.967 0 012.06-.85l.678-1.81a1 1 0 01.94-.658h3zm.017 6.75a3 3 0 100 6 3 3 0 000-6z" clipRule="evenodd" />
-            </svg>
+          <button type="button" data-share-toggle aria-label={t('share.open')} title={t('share.title')} aria-haspopup="menu" aria-expanded={showShare} aria-controls="qt-share"
+            className={`p-1 mr-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA028] ${showShare ? 'text-white' : 'text-[#FFA028] hover:text-white'}`}
+            onClick={() => { setShowShare(!showShare); if (!showShare) toggleSettings(false) }}>
+            <Share2 className="w-5 h-5" aria-hidden strokeWidth={2} />
+          </button>
+          <button type="button" data-settings-toggle aria-label={t('set.open')} title={t('set.title')} aria-haspopup="dialog" aria-expanded={showSettings} aria-controls="qt-settings"
+            className={`p-1 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA028] ${showSettings ? 'text-white' : 'text-[#FFA028] hover:text-white'}`}
+            onClick={() => { toggleSettings(!showSettings); setShowShare(false) }}>
+            <Settings className="w-5 h-5" aria-hidden strokeWidth={2} />
           </button>
         </div>
       </div>
-      {showSettings && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSettings(false)} />
-          <div className="relative z-[61] bg-[#0f1115] border border-[#3a3a3a] px-6 py-6 text-slate-100 flex items-center justify-center min-w-[260px]">
-            <button type="button" aria-label="Fechar" className="absolute top-2 right-2 text-slate-300 hover:text-white" onClick={() => setShowSettings(false)}>×</button>
-            <div className="text-center">❓ Help Help em desenvolvimento ❓</div>
-          </div>
-        </div>
-      )}
+      {showSettings && <SettingsPanel onClose={closeSettings} />}
+      {showShare && <ShareMenu onClose={closeShare} />}
     </div>
   )
 }

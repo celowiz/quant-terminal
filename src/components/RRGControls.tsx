@@ -28,7 +28,7 @@ export function RRGControls({ formData, onSubmit, loading }: RRGControlsProps) {
       const response = await rrgAPI.getAvailableTickers()
       setAvailableTickers(response.tickers)
     } catch (error) {
-      console.error('Erro ao carregar tickers disponíveis:', error)
+      console.error('Error loading available tickers:', error)
     }
   }
 
@@ -60,13 +60,13 @@ export function RRGControls({ formData, onSubmit, loading }: RRGControlsProps) {
     <div className="bg-black rounded-lg p-6 border border-gray-700">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-white text-center flex-1">Configurações RRG</h2>
+          <h2 className="text-xl font-semibold text-white text-center flex-1">RRG Settings</h2>
           <button
             type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}
             className="text-blue-400 hover:text-blue-300 text-sm"
           >
-            {showAdvanced ? 'Ocultar' : 'Mostrar'} configurações avançadas
+            {showAdvanced ? 'Hide' : 'Show'} advanced settings
           </button>
         </div>
 
@@ -92,7 +92,7 @@ export function RRGControls({ formData, onSubmit, loading }: RRGControlsProps) {
           {/* Tail */}
           <div>
             <label htmlFor="tail" className="block text-sm font-medium text-gray-300 mb-2">
-              Semanas de Trilha
+              Trail weeks
             </label>
             <input
               type="number"
@@ -108,7 +108,7 @@ export function RRGControls({ formData, onSubmit, loading }: RRGControlsProps) {
           {/* EMA Toggle */}
           <div>
             <label htmlFor="use_ema" className="block text-sm font-medium text-gray-300 mb-2">
-              Suavização
+              Smoothing
             </label>
             <select
               id="use_ema"
@@ -128,7 +128,7 @@ export function RRGControls({ formData, onSubmit, loading }: RRGControlsProps) {
               disabled={loading}
               className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white font-medium rounded-md transition-colors"
             >
-              {loading ? 'Carregando...' : 'Atualizar'}
+              {loading ? 'Loading...' : 'Atualizar'}
             </button>
           </div>
         </div>
@@ -151,7 +151,7 @@ export function RRGControls({ formData, onSubmit, loading }: RRGControlsProps) {
                   onChange={(e) => handleInputChange('lookback_ratio', parseInt(e.target.value))}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">Semanas para normalização do RS</p>
+                <p className="text-xs text-gray-500 mt-1">Weeks for RS normalization</p>
               </div>
 
               {/* Lookback Momentum */}
@@ -168,7 +168,7 @@ export function RRGControls({ formData, onSubmit, loading }: RRGControlsProps) {
                   onChange={(e) => handleInputChange('lookback_mom', parseInt(e.target.value))}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">Semanas para cálculo do momentum</p>
+                <p className="text-xs text-gray-500 mt-1">Weeks for momentum calculation</p>
               </div>
 
               {/* Custom Tickers */}
@@ -184,7 +184,7 @@ export function RRGControls({ formData, onSubmit, loading }: RRGControlsProps) {
                   onChange={(e) => handleInputChange('tickers', e.target.value)}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">Separados por vírgula (opcional)</p>
+                <p className="text-xs text-gray-500 mt-1">Comma-separated (optional)</p>
               </div>
             </div>
 
@@ -194,7 +194,7 @@ export function RRGControls({ formData, onSubmit, loading }: RRGControlsProps) {
                 onClick={handleReset}
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-md transition-colors"
               >
-                Resetar para Padrão
+                Reset to default
               </button>
             </div>
           </div>

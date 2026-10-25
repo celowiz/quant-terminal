@@ -2,16 +2,19 @@
 /** Utilidades compartilhadas pelas funções da v4 (CSV, datas numéricas, mapa de calor, barras). */
 import React from 'react'
 import { C, nf } from '@/components/fn/kit'
+import { getSettings } from '@/lib/settings'
 
 export function downloadCSV(name: string, header: string[], rows: (string | number | null | undefined)[][]) {
-  const esc = (v: any) => v == null ? '' : typeof v === 'number' ? String(v).replace('.', ',') : /[;"\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v)
-  const txt = '\uFEFF' + [header, ...rows].map(r => r.map(esc).join(';')).join('\n')
+  // Number format 1.234,56 → CSV com ';' e vírgula decimal (Excel pt-BR); 1,234.56 → ',' e ponto decimal
+  const pt = getSettings().num === 'pt', sep = pt ? ';' : ','
+  const esc = (v: any) => v == null ? '' : typeof v === 'number' ? (pt ? String(v).replace('.', ',') : String(v)) : new RegExp(`[${sep}"\\n]`).test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v)
+  const txt = '\uFEFF' + [header, ...rows].map(r => r.map(esc).join(sep)).join('\n')
   const url = URL.createObjectURL(new Blob([txt], { type: 'text/csv;charset=utf-8' }))
   const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 export function CsvBtn({ onClick }: { onClick: () => void }) {
-  return <button onClick={onClick} className="px-2 py-[1px] text-[12px] border" style={{ borderColor: C.amber, color: C.amber }}>Exportar CSV</button>
+  return <button onClick={onClick} className="px-2 py-[1px] text-[12px] border" style={{ borderColor: C.amber, color: C.amber }}>Export CSV</button>
 }
 /** dias desde 1970 (para eixos X numéricos) */
 export const dayNum = (iso: string) => Math.round(Date.parse(iso + 'T00:00:00Z') / 864e5)
@@ -41,7 +44,7 @@ export function HBars({ rows, fmt = v => nf(v, 2), hi, height = 18 }: { rows: { 
     </div>
   )
 }
-export const PERIODS: { v: string; l: string }[] = [{ v: '1M', l: '1M' }, { v: '3M', l: '3M' }, { v: '6M', l: '6M' }, { v: 'YTD', l: 'YTD' }, { v: '1A', l: '1A' }, { v: '3A', l: '3A' }, { v: '5A', l: '5A' }, { v: '10A', l: '10A' }]
+export const PERIODS: { v: string; l: string }[] = [{ v: '1M', l: '1M' }, { v: '3M', l: '3M' }, { v: '6M', l: '6M' }, { v: 'YTD', l: 'YTD' }, { v: '1A', l: '1Y' }, { v: '3A', l: '3Y' }, { v: '5A', l: '5Y' }, { v: '10A', l: '10Y' }]
 export function periodStart(last: string, p: string) {
   const d = new Date(last + 'T12:00:00Z')
   if (p === 'YTD') return `${last.slice(0, 4)}-01-01`
