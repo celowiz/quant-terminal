@@ -113,6 +113,12 @@ NEXT_PUBLIC_BASE_PATH=/quant-terminal npx next build   # gera out/
 
 Só `public/data/tickers.json` fica versionado (o build precisa dele para pré-gerar as páginas por ticker); o resto de `public/data/` é gerado pelo pipeline e fica fora do git.
 
+## Manutenção
+
+- **Keepalive mensal:** o GitHub desativa workflows agendados após 60 dias sem atividade no repositório. O workflow `.github/workflows/keepalive.yml` roda todo dia 1 às 09:53 BRT (`53 12 1 * *` UTC) e também pode ser disparado à mão (`workflow_dispatch`). Ele grava o horário UTC atual em `.github/keepalive` e faz o commit `chore: keepalive mensal` na `main` como `github-actions[bot]`, só se o arquivo mudou.
+- Ele fica num workflow separado, o único com `contents: write`. O `pages.yml` (pipeline + deploy) continua só com leitura do conteúdo.
+- Commits feitos com o `GITHUB_TOKEN` não disparam outros workflows, então o keepalive não gera deploy extra. O deploy diário segue no cron do `pages.yml`.
+
 ## Estrutura
 
 ```

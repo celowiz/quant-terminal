@@ -1,0 +1,36 @@
+name: keepalive
+
+# O GitHub desativa workflows agendados (pages.yml) após 60 dias sem atividade no repo.
+# Este workflow faz um commit mensal mínimo em .github/keepalive na main para manter o repo ativo.
+# Fica separado do pages.yml para que o deploy continue só com permissão de leitura do conteúdo.
+on:
+  schedule:
+    - cron: '53 12 1 * *'   # dia 1 de cada mês, 12:53 UTC = 09:53 BRT
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Atualizar .github/keepalive
+        run: date -u +%Y-%m-%dT%H:%M:%SZ > .github/keepalive
+      - name: Commit (só se mudou)
+        run: |
+          if git diff --quiet -- .github/keepalive; then
+            echo "sem mudança"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/keepalive
+          git commit -m "chore: keepalive mensal"
+          git push origin HEAD:main
