@@ -3,7 +3,7 @@ indicadores econômicos (ECON), CDI (CDIE) e renda fixa mundial (WFI).
 Fontes: B3 (carteira teórica do IBOV), Yahoo Finance (yfinance), BCB SGS/Olinda (PTAX, Focus), FRED."""
 import io, json, datetime as dt, base64
 import pandas as pd, yfinance as yf
-from common import save, get, get_json, load_prev, clean, step, now_iso, today_brt
+from common import save, get, get_json, load_prev, clean, step, now_iso, today_brt, fred_csv
 
 TODAY = today_brt()
 
@@ -104,8 +104,7 @@ def fred(ids, start='2005-01-01'):
     cols = {}
     for i in ids:  # uma série por requisição (o CSV multi-série do FRED mistura frequências)
         try:
-            r = get(f'https://fred.stlouisfed.org/graph/fredgraph.csv?id={i}&cosd={start}')
-            df = pd.read_csv(io.StringIO(r.text), na_values=['.'])
+            df = pd.read_csv(io.StringIO(fred_csv(i, start)), na_values=['.'])
             cols[i] = pd.Series(df.iloc[:, 1].values, index=pd.to_datetime(df.iloc[:, 0]))
         except Exception as e: print('fred', i, e)
     return pd.DataFrame(cols)

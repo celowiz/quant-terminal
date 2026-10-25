@@ -38,6 +38,26 @@ def get(url, tries=3, timeout=60, **kw):
         time.sleep(2 * (i + 1))
     raise RuntimeError(f'{url}: {last}')
 
+# FRED (fredgraph.csv) com disjuntor: desde 24/10/2026 o FRED não responde aos runners do GitHub Actions
+# (ReadTimeout em toda série), e cada série custava 3 × 60 s — markets/rates/macro estouravam o limite de 20 min da etapa.
+# Depois de FRED_MAX_FAILS falhas seguidas, as séries restantes falham na hora e cada etapa segue com o que tiver
+# (ou com a fonte alternativa, quando existe). QT_NO_FRED=1 simula a queda (testes/local).
+FRED_MAX_FAILS = 2
+_FRED = {'fails': 0}
+
+def fred_csv(series_id, start):
+    """Texto do CSV de uma série do FRED; RuntimeError rápido se o FRED estiver fora (disjuntor aberto)."""
+    if os.environ.get('QT_NO_FRED') or _FRED['fails'] >= FRED_MAX_FAILS:
+        raise RuntimeError('FRED indisponível (disjuntor aberto)')
+    try:
+        r = get(f'https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}&cosd={start}', tries=2, timeout=(10, 30))
+    except Exception:
+        _FRED['fails'] += 1
+        if _FRED['fails'] >= FRED_MAX_FAILS: print(f'FRED: {FRED_MAX_FAILS} falhas seguidas, pulando as demais séries do FRED')
+        raise
+    _FRED['fails'] = 0
+    return r.text
+
 def cached(url, name, max_age_h=12):
     """Baixa um arquivo grande com cache local (CVM/B3)."""
     p = os.path.join(CACHE, name)

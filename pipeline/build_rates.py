@@ -7,7 +7,7 @@ Fontes (todas públicas e gratuitas):
 Dias úteis: base 252 com feriados nacionais calculados aqui (conferidos com o du implícito no PU da B3)."""
 import io, math, datetime as dt
 import pandas as pd, requests
-from common import save, get, get_json, load_prev, clean, step, now_iso, UA, today_brt
+from common import save, get, get_json, load_prev, clean, step, now_iso, UA, today_brt, fred_csv
 
 TODAY = today_brt()
 MONTHS = 'FGHJKMNQUVXZ'
@@ -219,8 +219,7 @@ def fred(ids, start):
     cols = {}
     for i in ids:
         try:
-            r = get(f'https://fred.stlouisfed.org/graph/fredgraph.csv?id={i}&cosd={start}')
-            df = pd.read_csv(io.StringIO(r.text), na_values=['.'])
+            df = pd.read_csv(io.StringIO(fred_csv(i, start)), na_values=['.'])
             cols[i] = pd.Series(df.iloc[:, 1].values, index=pd.to_datetime(df.iloc[:, 0]))
         except Exception as e: print('fred', i, e)
     return pd.DataFrame(cols)

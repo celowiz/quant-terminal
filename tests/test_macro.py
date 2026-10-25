@@ -146,3 +146,36 @@ def test_chg_block():
     r = bm.chg_block(d, [4.0] * (len(d) - 1) + [4.1], 'bp')
     assert r['d1'] == pytest.approx(10.0) and r['kind'] == 'bp'
     assert bm.chg_block(d[:2], [1, 2], 'pct') is None
+
+
+# ---- FRED fora do ar no CI: disjuntor e fontes alternativas -------------------------------------------------------
+def test_parse_treasury_csv():
+    txt = ('Date,"1 Mo","1.5 Month","2 Mo","3 Mo","4 Mo","6 Mo","1 Yr","2 Yr","3 Yr","5 Yr","7 Yr","10 Yr","20 Yr","30 Yr"\n'
+           '10/23/2026,4.11,4.11,4.16,4.22,4.30,4.30,4.44,4.69,4.75,4.82,4.89,5.00,5.37,5.33\n'
+           '10/22/2026,4.11,4.10,4.16,4.22,4.29,4.29,4.41,4.65,4.72,4.78,4.86,4.96,5.32,5.29\n')
+    f = bm.parse_treasury_csv(txt)
+    assert set(f) == {'DGS2', 'DGS5', 'DGS10', 'DGS30'}
+    assert list(f['DGS10'].index.strftime('%Y-%m-%d')) == ['2026-10-22', '2026-10-23']   # ordenado
+    assert f['DGS10'].iloc[-1] == 5.00 and f['DGS2'].iloc[0] == 4.65
+
+
+def test_parse_nyfed_effr():
+    d = {'refRates': [
+        {'effectiveDate': '2026-10-22', 'type': 'EFFR', 'percentRate': 3.88, 'targetRateFrom': 3.75, 'targetRateTo': 4.00},
+        {'effectiveDate': '2026-09-16', 'type': 'EFFR', 'percentRate': 4.08, 'targetRateFrom': 4.00, 'targetRateTo': 4.25}]}
+    f = bm.parse_nyfed_effr(d)
+    assert f['DFF'].iloc[-1] == 3.88 and f['DFEDTARU'].iloc[0] == 4.25 and f['DFEDTARL'].iloc[-1] == 3.75
+    assert f['DFF'].index[0] < f['DFF'].index[-1]
+
+
+def test_fred_breaker(monkeypatch):
+    import common
+    calls = []
+    def boom(url, **kw): calls.append(url); raise RuntimeError('ReadTimeout')
+    monkeypatch.setattr(common, 'get', boom)
+    monkeypatch.setitem(common._FRED, 'fails', 0)
+    monkeypatch.delenv('QT_NO_FRED', raising=False)
+    out = bm.fred(['A', 'B', 'C', 'D'], '2026-01-01')
+    assert out == {} and len(calls) == common.FRED_MAX_FAILS   # depois de 2 falhas, as demais séries nem tentam
+    monkeypatch.setenv('QT_NO_FRED', '1'); monkeypatch.setitem(common._FRED, 'fails', 0)
+    assert bm.fred(['A'], '2026-01-01') == {} and len(calls) == common.FRED_MAX_FAILS
