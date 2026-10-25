@@ -29,10 +29,10 @@ export function ECOView() {
       .sort((x, y) => x.time.localeCompare(y.time))
     return { ev, a, b: wk === 9 ? null : addDays(b, -1) }
   }, [d, cty, key, wk])
-  if (!d || !v) return <FnScreen en code="ECO" title={S.title}><Loading2 err={err} /></FnScreen>
+  if (!d || !v) return <FnScreen code="ECO" title={S.title}><Loading2 err={err} /></FnScreen>
   let last = ''
   return (
-    <FnScreen en code="ECO" title={S.title}
+    <FnScreen code="ECO" title={S.title}
       right={<>
         <Field label={S.week}><Btns opts={S.weeks} value={wk} onChange={setWk} /></Field>
         <Field label={S.country}><Btns opts={[{ v: 'All', l: S.all }, { v: 'BR', l: 'BR' }, { v: 'US', l: 'US' }]} value={cty} onChange={setCty} /></Field>
@@ -63,12 +63,12 @@ export function GMMView() {
   const { data: d, err } = useJSON<any>('gmm.json')
   const [m, setM] = useState<'d1' | 'w1' | 'mtd' | 'ytd'>('d1'), [srt, setSrt] = useState('def')
   const S = S_GMM
-  if (!d) return <FnScreen en code="GMM" title={S.title}><Loading2 err={err} /></FnScreen>
+  if (!d) return <FnScreen code="GMM" title={S.title}><Loading2 err={err} /></FnScreen>
   const fmtC = (t: any) => t[m] == null ? '—' : t.kind === 'bp' ? `${bps(t[m], 0)}bp` : pc(t[m], 2)
   const all = (d.groups as any[]).flatMap(g => g.tiles.filter((t: any) => t.kind === 'pct' && t[m] != null))
   const best = all.reduce((a: any, b: any) => !a || b[m] > a[m] ? b : a, null), worst = all.reduce((a: any, b: any) => !a || b[m] < a[m] ? b : a, null)
   return (
-    <FnScreen en code="GMM" title={S.title}
+    <FnScreen code="GMM" title={S.title}
       right={<><Field label={S.metric}><Btns opts={S.ms} value={m} onChange={setM} /></Field><Field label={S.sort}><Btns opts={S.sorts} value={srt} onChange={setSrt} /></Field></>}
       source={d.source} note={d.note}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'repeat(2,minmax(0,1fr))' }}>
@@ -98,7 +98,7 @@ export function FXCView() {
   const { data: d, err } = useJSON<any>('fxc.json')
   const [mode, setMode] = useState<'last' | 'd1' | 'w1'>('last'), [hi, setHi] = useState<string | null>(null)
   const S = S_FXC
-  if (!d) return <FnScreen en code="FXC" title={S.title}><Loading2 err={err} /></FnScreen>
+  if (!d) return <FnScreen code="FXC" title={S.title}><Loading2 err={err} /></FnScreen>
   const u = (o: any, c: string) => c === 'USD' ? 1 : o?.[c]
   const cross = (o: any, r: string, c: string) => u(o, r) && u(o, c) ? u(o, c) / u(o, r) : null
   const val = (r: string, c: string) => {
@@ -107,7 +107,7 @@ export function FXCView() {
   }
   const ccys: string[] = d.ccys
   return (
-    <FnScreen en code="FXC" title={S.title} right={<Field label={S.mode}><Btns opts={S.modes} value={mode} onChange={setMode} /></Field>} source={d.source} note={d.note}>
+    <FnScreen code="FXC" title={S.title} right={<Field label={S.mode}><Btns opts={S.modes} value={mode} onChange={setMode} /></Field>} source={d.source} note={d.note}>
       <Kpis items={[['Date', dUSfull(d.date), C.white], ['Prev', dUSfull(d.prev_date)], ['1W ref', dUSfull(d.week_date)], ['USD/BRL', auto(d.usd_per.BRL), C.amber], ['EUR/USD', auto(cross(d.usd_per, 'EUR', 'USD')), C.amber], ['USD/JPY', auto(d.usd_per.JPY), C.amber]]} />
       <Panel title={`${S.modes.find(x => x.v === mode)!.l} · ${S.base}`}>
         <div className="overflow-auto fn-scroll" style={{ maxHeight: 480 }}>
@@ -147,8 +147,8 @@ export function FXFCView() {
   const { data: d, err } = useJSON<any>('fxfc.json')
   const [tab, setTab] = useState(0), [sel, setSel] = useState<string | null>(null)
   const S = S_FXFC
-  if (!d) return <FnScreen en code="FXFC" title={S.title}><Loading2 err={err} /></FnScreen>
-  if (!d.monthly?.length && !d.annual?.length) return <FnScreen en code="FXFC" title={S.title}><Unavailable what="Focus FX survey" /></FnScreen>
+  if (!d) return <FnScreen code="FXFC" title={S.title}><Loading2 err={err} /></FnScreen>
+  if (!d.monthly?.length && !d.annual?.length) return <FnScreen code="FXFC" title={S.title}><Unavailable what="Focus FX survey" /></FnScreen>
   const list: any[] = tab === 0 ? d.monthly : d.annual
   const cur = list.find(x => x.ref === sel) || list[0]
   const ye = d.annual?.[0]
@@ -160,7 +160,7 @@ export function FXFCView() {
   ]
   const fx = (v: number) => dUS(new Date(v * 864e5).toISOString().slice(0, 10))
   return (
-    <FnScreen en code="FXFC" title={S.title} tabs={S.tabs} tab={tab} setTab={t => { setTab(t); setSel(null) }} source={d.source} note={d.note}>
+    <FnScreen code="FXFC" title={S.title} tabs={S.tabs} tab={tab} setTab={t => { setTab(t); setSel(null) }} source={d.source} note={d.note}>
       <Kpis items={[[S.k.spot, `${n(d.spot, 4)} (${dUS(d.spot_date)})`, C.white], [S.k.survey, dUSfull(d.survey_date)], [S.k.ye, ye ? `${ye.ref}: ${n(ye.median, 4)}` : '—', C.amber], [S.k.fwd, ye?.forward != null ? n(ye.forward, 4) : '—', C.cyan], [S.k.n, ye?.n ?? '—']]} />
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.2fr) minmax(0,1fr)' }}>
         <div className="min-w-0">

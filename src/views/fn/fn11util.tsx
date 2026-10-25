@@ -2,10 +2,12 @@
 /** Utilidades das 11 funções novas (WIRP, ECO, GMM, TAYL, WB, FOMC, DRSK, ECTR, FXC, FXFC, YAS): formatação en-US e peças de UI. */
 import React, { useEffect, useRef, useState } from 'react'
 import { C, MONO, useFitH, useFit } from '@/components/fn/kit'
+import { numLocale } from '@/lib/settings'
+import { t } from '@/lib/i18n'
 
 const ok = (v: any) => v != null && v !== '' && isFinite(+v)
-/** número en-US com d casas */
-export const n = (v: any, d = 2) => !ok(v) ? '—' : (+v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+/** número no formato escolhido em Settings (padrão en-US) */
+export const n = (v: any, d = 2) => !ok(v) ? '—' : (+v).toLocaleString(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: d })
 /** com sinal */
 export const sn = (v: any, d = 2) => !ok(v) ? '—' : `${+v > 0 ? '+' : ''}${n(v, d)}`
 export const pc = (v: any, d = 2, sign = true) => !ok(v) ? '—' : `${sign ? sn(v, d) : n(v, d)}%`
@@ -38,11 +40,11 @@ export const addDays = (iso: string, k: number) => fromN(dayN(iso) + k)
 export const todaySP = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
 
 export function Loading2({ err }: { err?: string | null }) {
-  return <div className="p-4 text-[12px]" style={{ fontFamily: MONO, color: err ? C.down : C.muted }}>{err ? `Data unavailable: ${err}` : 'Loading…'}</div>
+  return <div className="p-4 text-[12px]" style={{ fontFamily: MONO, color: err ? C.down : C.muted }}>{err ? `${t('fn.dataNA')}: ${err}` : t('fn.loading')}</div>
 }
 /** estado honesto de indisponibilidade */
 export function Unavailable({ what, note }: { what: string; note?: string }) {
-  return <div className="p-6 text-[13px]" style={{ fontFamily: MONO, color: C.muted }}><span style={{ color: C.down }}>N/A</span> — {what} is unavailable in the latest data run.{note && <div className="mt-2 text-[12px]">{note}</div>}</div>
+  return <div className="p-6 text-[13px]" style={{ fontFamily: MONO, color: C.muted }}><span style={{ color: C.down }}>N/A</span> — {what} {t('fn.na')}{note && <div className="mt-2 text-[12px]">{note}</div>}</div>
 }
 
 /** faixa de KPIs */

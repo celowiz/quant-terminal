@@ -23,11 +23,11 @@ export function WIRPView() {
   const [rg, setRg] = useState<'br' | 'us'>('br')
   const [tab, setTab] = useState(0)
   const S = S_WIRP
-  if (!d) return <FnScreen en code="WIRP" title={S.title}><Loading2 err={err} /></FnScreen>
+  if (!d) return <FnScreen code="WIRP" title={S.title}><Loading2 err={err} /></FnScreen>
   const r = d[rg]
   const models = (['br', 'us'] as const).filter(k => d[k]?.meetings?.length).map(k => ({ k, name: k === 'br' ? 'BR – DI1 fut' : 'US – ZQ fut', m: d[k].meetings[0] }))
   return (
-    <FnScreen en code="WIRP" title={S.title} tabs={S.tabs} tab={tab} setTab={setTab}
+    <FnScreen code="WIRP" title={S.title} tabs={S.tabs} tab={tab} setTab={setTab}
       right={<Field label={S.region}><Btns opts={[{ v: 'br', l: 'Brazil' }, { v: 'us', l: 'US' }]} value={rg} onChange={setRg} /></Field>}
       source={<>{d.br?.source}; {d.us?.source}</>} note={<>{d.method} {S.noteBr} {S.noteUs}</>}>
       {!r?.meetings?.length ? <Unavailable what={rg === 'br' ? S.br : S.us} /> : <>
@@ -113,12 +113,12 @@ export function FOMCView() {
     cop.filter((m: any) => m.selic != null && m.decided).forEach((m: any) => selicPts.push({ time: m.decision, value: m.selic }))
     return { fed: flt(fed), cop: flt(cop), nf, nc, selicPts }
   }, [d, w.data, show])
-  if (!d || !v) return <FnScreen en code="FOMC" title={S.title}><Loading2 err={err} /></FnScreen>
+  if (!d || !v) return <FnScreen code="FOMC" title={S.title}><Loading2 err={err} /></FnScreen>
   const rowSt = (m: any) => m.decision >= today ? (m === v.nf || m === v.nc ? { background: '#2a1d05' } : undefined) : { opacity: 0.85 }
   const chg = { k: 'change_bp', label: S.c.change, align: 'r' as const, fmt: (x: any, m: any) => m.decided ? bps(x, 0) : '—', color: (x: any) => cl(x) }
   const imp = { k: 'implied', label: S.c.implied, align: 'r' as const, fmt: (x: any) => x == null ? '' : bps(x), color: () => C.cyan }
   return (
-    <FnScreen en code="FOMC" title={S.title} tabs={S.tabs} tab={tab} setTab={setTab}
+    <FnScreen code="FOMC" title={S.title} tabs={S.tabs} tab={tab} setTab={setTab}
       right={tab === 0 && <Field label={S.range}><Btns opts={[{ v: 'all', l: S.all }, { v: 'up', l: S.upcoming }, { v: 'past', l: S.decided }]} value={show} onChange={setShow} /></Field>}
       source={d.source} note={S.note}>
       <Kpis items={[
@@ -198,11 +198,11 @@ export function TAYLView() {
       return { date: x.date, rate: x.rate, infl: pi, gap: p.gap === 'none' ? null : gap, taylor: t, diff: t != null && x.rate != null ? (x.rate - t) * 100 : null }
     })
   }, [r, JSON.stringify(p), rg])
-  if (!d) return <FnScreen en code="TAYL" title={S.title}><Loading2 err={err} /></FnScreen>
-  if (!r?.rows?.length) return <FnScreen en code="TAYL" title={S.title}><Unavailable what="Taylor rule data" /></FnScreen>
+  if (!d) return <FnScreen code="TAYL" title={S.title}><Loading2 err={err} /></FnScreen>
+  if (!r?.rows?.length) return <FnScreen code="TAYL" title={S.title}><Unavailable what="Taylor rule data" /></FnScreen>
   const last = [...rows].reverse().find(x => x.taylor != null)
   return (
-    <FnScreen en code="TAYL" title={S.title} tabs={S.tabs} tab={tab} setTab={setTab}
+    <FnScreen code="TAYL" title={S.title} tabs={S.tabs} tab={tab} setTab={setTab}
       right={<Field label={S.region}><Btns opts={[{ v: 'us', l: 'US' }, { v: 'br', l: 'Brazil' }]} value={rg} onChange={setRg} /></Field>}
       source={r.source} note={<>{d.method} {rg === 'us' ? S.rstarUs : S.rstarBr} {rg === 'br' && S.brGapNote}</>}>
       <div className="mb-2 flex flex-wrap items-center gap-3 text-[12px] border px-2 py-1" style={{ borderColor: C.line, background: C.panel }}>
@@ -249,12 +249,12 @@ export function WBView() {
   const rows = useMemo(() => !d ? [] : (d.countries as any[]).filter(c => c.tenors[ten] && (reg === 'All' || c.region === reg))
     .map(c => ({ cc: c.cc, name: c.name, region: c.region, src: c.source, ...c.tenors[ten], all: c.tenors }))
     .sort((a, b) => a.region.localeCompare(b.region) || (b.yld ?? 0) - (a.yld ?? 0)), [d, ten, reg])
-  if (!d) return <FnScreen en code="WB" title={S.title}><Loading2 err={err} /></FnScreen>
+  if (!d) return <FnScreen code="WB" title={S.title}><Loading2 err={err} /></FnScreen>
   const s = (d.countries as any[]).find(c => c.cc === sel)
   const regions = ['All', ...Array.from(new Set((d.countries as any[]).map(c => c.region)))]
   const rngBar = (x: any) => { if (x.lo3m == null || x.hi3m == null || x.yld == null) return '—'; const f = Math.max(0, Math.min(1, (x.yld - x.lo3m) / ((x.hi3m - x.lo3m) || 1))); return <span className="inline-flex items-center gap-1"><span style={{ color: C.muted }}>{n(x.lo3m, 2)}</span><span className="relative inline-block w-12 h-[6px]" style={{ background: '#333' }}><span className="absolute top-[-2px] w-[3px] h-[10px]" style={{ left: `calc(${f * 100}% - 1px)`, background: C.amber }} /></span><span style={{ color: C.muted }}>{n(x.hi3m, 2)}</span></span> }
   return (
-    <FnScreen en code="WB" title={S.title}
+    <FnScreen code="WB" title={S.title}
       right={<><Field label={S.tenor}><Btns opts={d.tenors} value={ten} onChange={setTen} /></Field><Field label={S.region}><Btns opts={regions.map(r => ({ v: r, l: r === 'All' ? S.all : r }))} value={reg} onChange={setReg} /></Field></>}
       source={d.source} note={d.note}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.55fr) minmax(0,1fr)' }}>

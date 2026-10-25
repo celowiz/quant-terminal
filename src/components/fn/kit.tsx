@@ -5,6 +5,9 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { flushSync } from 'react-dom'
 import { getJSON, href, tickerKey } from '../../lib/static'
 import { FUNCTION_LIST } from '../../constants/functions'
+import { lang, numLocale } from '../../lib/settings'
+import { t } from '../../lib/i18n'
+import { trackPeriod } from '../../lib/track'
 
 export const C = {
   bg: '#000000', panel: '#0d0d0d', panel2: '#151515', line: '#2a2a2a', text: '#e6e6e6', muted: '#8a8a8a',
@@ -14,8 +17,8 @@ export const C = {
 export const MONO = "'IBM Plex Mono','Roboto Mono','SFMono-Regular',Menlo,Consolas,ui-monospace,monospace"
 export const PALETTE = ['#FFFFFF', '#FFA028', '#2F7BFF', '#3DDC84', '#FF4D4D', '#C77DFF', '#4FC3F7', '#FFE14D', '#FF7AB6', '#9CCC65', '#B0BEC5', '#FF8A65']
 
-// ---------- formatação pt-BR ----------
-export const nf = (v: any, d = 2) => v == null || v === '' || Number.isNaN(+v) || !isFinite(+v) ? '—' : (+v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d })
+// ---------- formatação de números (Settings → Number format: 1,234.56 ou 1.234,56) ----------
+export const nf = (v: any, d = 2) => v == null || v === '' || Number.isNaN(+v) || !isFinite(+v) ? '—' : (+v).toLocaleString(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: d })
 export const pf = (v: any, d = 2, sign = true) => v == null || Number.isNaN(+v) || !isFinite(+v) ? '—' : `${sign && +v > 0 ? '+' : ''}${nf(v, d)}%`
 export const big = (v: any, d = 2) => {
   if (v == null || Number.isNaN(+v)) return '—'
@@ -106,16 +109,12 @@ export function FitArea({ children, className = '' }: { children: React.ReactNod
 }
 
 // ---------- layout ----------
-const FOOT_PT = { src: 'Fonte', edu: 'Conteúdo educacional — não é recomendação de investimento.', notes: 'Fonte e notas' }
-const FOOT_EN = { src: 'Source', edu: 'Educational content only — not investment advice.', notes: 'Source & notes' }
-export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, children, source, note, en = false }: {
+export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, children, source, note }: {
   code: string; ticker?: string; title?: string; tabs?: string[]; tab?: number; setTab?: (i: number) => void
   right?: React.ReactNode; children: React.ReactNode; source?: React.ReactNode; note?: React.ReactNode
-  /** rodapé em inglês (telas com strings em inglês) */
-  en?: boolean
 }) {
-  const F = en ? FOOT_EN : FOOT_PT
-  const desc = title || FUNCTION_LIST.find(f => f.code === code)?.desc || code
+  const fi = FUNCTION_LIST.find(f => f.code === code)
+  const desc = lang() === 'pt' && fi ? fi.pt : title || fi?.desc || code
   return (
     <div className="w-full px-2 pb-3 lg:pb-1 -mt-4 sm:-mt-6 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col" style={{ fontFamily: MONO, color: C.text }}>
       {/* mobile (<1024px): 2 linhas — código+título / controles numa faixa com rolagem horizontal */}
@@ -139,16 +138,16 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
       {(source || note) && (
         <div className="mt-2 lg:mt-1 text-[11px] leading-snug shrink-0 max-lg:hidden" style={{ color: C.muted }}>
           {note && <div className="mb-1">{note}</div>}
-          {source && <div>{F.src}: {source}</div>}
-          <div>{F.edu}</div>
+          {source && <div>{t('fn.source')}: {source}</div>}
+          <div>{t('fn.edu')}</div>
         </div>
       )}
       {(source || note) && (
         <details className="group mt-2 text-[11px] leading-snug lg:hidden" style={{ color: C.muted }}>
-          <summary className="cursor-pointer list-none select-none py-1 text-[12px] [&::-webkit-details-marker]:hidden" style={{ color: C.amber }}>{F.notes} <span className="inline-block transition-transform group-open:rotate-90">▸</span></summary>
+          <summary className="cursor-pointer list-none select-none py-1 text-[12px] [&::-webkit-details-marker]:hidden" style={{ color: C.amber }}>{t('fn.sourceNotes')} <span className="inline-block transition-transform group-open:rotate-90">▸</span></summary>
           {note && <div className="mb-1">{note}</div>}
-          {source && <div>{F.src}: {source}</div>}
-          <div>{F.edu}</div>
+          {source && <div>{t('fn.source')}: {source}</div>}
+          <div>{t('fn.edu')}</div>
         </details>
       )}
     </div>
@@ -199,13 +198,15 @@ export function Grid<R = any>({ cols, rows, dense = true, onRow, maxH, rowStyle 
   return <div className="relative">{body}{more && <div className="pointer-events-none absolute top-0 right-0 bottom-0 w-8" style={{ zIndex: 5, background: 'linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.9))' }} />}</div>
 }
 
+/** rótulo de período: códigos internos em PT (1S, 1A, 5A) exibidos como 1W, 1Y, 5Y */
+export const perLabel = (x: any) => String(x).replace(/^(\d+)A$/, '$1Y').replace(/^(\d+)S$/, '$1W')
 export function Btns({ opts, value, onChange }: { opts: { v: any; l: string }[] | (string | number)[]; value: any; onChange: (v: any) => void }) {
-  const list = (opts as any[]).map(o => typeof o === 'object' ? o : { v: o, l: String(o) })
+  const list = (opts as any[]).map(o => typeof o === 'object' ? o : { v: o, l: perLabel(o) })
   return (
     <div className="flex gap-0 border" style={{ borderColor: C.line }}>
       {list.map(o => (
-        <button key={String(o.v)} onClick={() => onChange(o.v)} className="px-2 py-[1px] text-[12px] border-r last:border-r-0"
-          style={{ borderColor: C.line, background: value === o.v ? C.amber : 'transparent', color: value === o.v ? '#000' : C.amber }}>{o.l}</button>
+        <button key={String(o.v)} onClick={() => { if (value !== o.v) trackPeriod(o.v); onChange(o.v) }} className="px-2 py-[1px] text-[12px] border-r last:border-r-0"
+          style={{ borderColor: C.line, background: value === o.v ? C.amber : 'transparent', color: value === o.v ? '#000' : C.amber }}>{perLabel(o.l)}</button>
       ))}
     </div>
   )
@@ -230,13 +231,13 @@ export function KV({ rows, cols = 1 }: { rows: [string, React.ReactNode, string?
 }
 
 export function Loading({ err }: { err?: string | null }) {
-  return <div className="p-4 text-[12px]" style={{ fontFamily: MONO, color: err ? C.down : C.muted }}>{err ? `Erro: ${err}` : 'Carregando…'}</div>
+  return <div className="p-4 text-[12px]" style={{ fontFamily: MONO, color: err ? C.down : C.muted }}>{err ? `${t('fn.error')}: ${err}` : t('fn.loading')}</div>
 }
 export function NA({ ticker, what, code }: { ticker: string; what: string; code: string }) {
   return (
     <div className="p-6 text-[13px]" style={{ fontFamily: MONO, color: C.muted }}>
-      N/A — {what} não disponível para <span style={{ color: C.amber }}>{short(ticker)}</span>.
-      <div className="mt-2">Ações com dados corporativos no mock: {EQUITIES.map(t => <a key={t} className="mr-2 underline" style={{ color: C.amber }} href={href(`/${code.toLowerCase()}/${t}/`)}>{short(t)}</a>)}</div>
+      N/A — {what} not available for <span style={{ color: C.amber }}>{short(ticker)}</span>.
+      <div className="mt-2">Stocks with corporate data: {EQUITIES.map(t => <a key={t} className="mr-2 underline" style={{ color: C.amber }} href={href(`/${code.toLowerCase()}/${t}/`)}>{short(t)}</a>)}</div>
     </div>
   )
 }

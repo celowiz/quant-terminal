@@ -6,6 +6,7 @@
  *  - GPC: candle de alta "vazio" (contorno branco), de baixa preenchido em azul
  *  - painel de volume embaixo; legenda no canto superior esquerdo (Last Price / High on / Average / Low on)
  */
+import { numLocale } from '../../lib/settings'
 import { useEffect, useRef } from 'react'
 import {
   createChart, TrackingModeExitMode, CandlestickSeries, AreaSeries, LineSeries, HistogramSeries, LineStyle, CrosshairMode,
@@ -78,7 +79,7 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
         horzLine: { color: '#777', style: LineStyle.Dashed, labelBackgroundColor: T.amber },
       },
       localization: {
-        locale: 'pt-BR',
+        locale: numLocale(),
       },
       // toque: arrasto vertical rola a página; toque longo liga a mira (some ao soltar). Mouse/desktop inalterado.
       handleScroll: { vertTouchDrag: false },
@@ -86,7 +87,7 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
     })
     chartRef.current = chart
 
-    const pf = { type: 'custom', minMove: 0.0001, formatter: (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(v) < 10 ? 4 : 2 }) } as any
+    const pf = { type: 'custom', minMove: 0.0001, formatter: (v: number) => v.toLocaleString(numLocale(), { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(v) < 10 ? 4 : 2 }) } as any
     const price = mode === 'candle'
       ? chart.addSeries(CandlestickSeries, {
           upColor: 'rgba(0,0,0,0)', borderUpColor: T.up, wickUpColor: T.up,
@@ -123,7 +124,7 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
 
     if (showVolume) {
       const vol = chart.addSeries(HistogramSeries, {
-        priceFormat: { type: 'custom', minMove: 1, formatter: (v: number) => v >= 1e9 ? (v/1e9).toLocaleString('pt-BR',{maximumFractionDigits:2})+'B' : v >= 1e6 ? (v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+'M' : v >= 1e3 ? (v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0})+'K' : String(Math.round(v)) } as any, priceLineVisible: false, lastValueVisible: true,
+        priceFormat: { type: 'custom', minMove: 1, formatter: (v: number) => v >= 1e9 ? (v/1e9).toLocaleString(numLocale(),{maximumFractionDigits:2})+'B' : v >= 1e6 ? (v/1e6).toLocaleString(numLocale(),{maximumFractionDigits:1})+'M' : v >= 1e3 ? (v/1e3).toLocaleString(numLocale(),{maximumFractionDigits:0})+'K' : String(Math.round(v)) } as any, priceLineVisible: false, lastValueVisible: true,
       }, 1)
       vol.setData(rows.map((r, i) => {
         const up = mode === 'candle' ? r.close >= r.open : i === 0 || r.close >= rows[i - 1].close

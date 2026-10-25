@@ -62,12 +62,12 @@ export function YASView() {
     const rows = f.map(([du, cf, dt]) => { const p = cf / Math.pow(yy, t(du)); return { date: dt, du, cf, pv: p, w: p / P * 100 } })
     return { P, mac, mod: mac / yy, cvx, dv1, unit, qty, di, z, rows, be: b.bond === 'NTN-B' && di != null ? ((1 + di / 100) / (1 + y / 100) - 1) * 100 : null }
   }, [b?.id, y, face, d])
-  if (!d) return <FnScreen en code="YAS" title={S.title}><Loading2 err={err} /></FnScreen>
-  if (!bonds.length) return <FnScreen en code="YAS" title={S.title} source={d.source}><Unavailable what="ANBIMA bond prices" note={d.note} /></FnScreen>
+  if (!d) return <FnScreen code="YAS" title={S.title}><Loading2 err={err} /></FnScreen>
+  if (!bonds.length) return <FnScreen code="YAS" title={S.title} source={d.source}><Unavailable what="ANBIMA bond prices" note={d.note} /></FnScreen>
   const types = ['All', 'LTN', 'NTN-F', 'NTN-B', 'LFT']
   const isPre = b.bond === 'LTN' || b.bond === 'NTN-F'
   return (
-    <FnScreen en code="YAS" title={S.title} right={<Field label={S.type}><Btns opts={types.map(t => ({ v: t, l: t === 'All' ? S.all : t }))} value={typ} onChange={setTyp} /></Field>}
+    <FnScreen code="YAS" title={S.title} right={<Field label={S.type}><Btns opts={types.map(t => ({ v: t, l: t === 'All' ? S.all : t }))} value={typ} onChange={setTyp} /></Field>}
       source={d.source} note={<>Pricing date {dUSfull(d.ref_date)}; DI1 curve {dUSfull(d.di_ref_date)}. {Object.entries(d.conventions || {}).map(([k, v]) => `${k}: ${v}`).join(' · ')}{d.status !== 'ok' && d.note ? ` · ${d.note}` : ''}</>}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,0.95fr) minmax(0,1.05fr) minmax(0,1fr)' }}>
         <Panel title={S.bonds}>
@@ -145,12 +145,12 @@ export function DRSKView() {
   const { data: d, err } = useJSON<any>('drsk.json')
   const [sec, setSec] = useState('All'), [cod, setCod] = useState<string | null>(null)
   const S = S_DRSK
-  if (!d) return <FnScreen en code="DRSK" title={S.title}><Loading2 err={err} /></FnScreen>
-  if (!d.rows?.length) return <FnScreen en code="DRSK" title={S.title} source={d.source}><Unavailable what="Distance-to-default" note={d.note} /></FnScreen>
+  if (!d) return <FnScreen code="DRSK" title={S.title}><Loading2 err={err} /></FnScreen>
+  if (!d.rows?.length) return <FnScreen code="DRSK" title={S.title} source={d.source}><Unavailable what="Distance-to-default" note={d.note} /></FnScreen>
   const rows = (d.rows as any[]).filter(r => sec === 'All' || r.sector === sec).slice().sort((a, b) => (a.dd ?? 99) - (b.dd ?? 99))
   const r = (d.rows as any[]).find(x => x.cod === cod) || rows[0]
   return (
-    <FnScreen en code="DRSK" title={S.title}
+    <FnScreen code="DRSK" title={S.title}
       right={<Field label={S.sector}><select className="bg-black border px-1 py-[1px] text-[12px] outline-none" style={{ borderColor: C.line, color: C.amber, fontFamily: MONO }} value={sec} onChange={e => setSec(e.target.value)}>
         <option value="All">{S.all}</option>{(d.sectors as any[]).map(s => <option key={s.sector} value={s.sector}>{s.sector}</option>)}</select></Field>}
       source={d.source} note={<>{d.method} {S.skipped}: {(d.skipped || []).map((s: any) => `${s.cod} (${s.reason})`).join('; ')}. {S.banks}: {(d.banks_excluded || []).join(', ')}.</>}>
@@ -213,11 +213,11 @@ export function ECTRView() {
     const other = { country: S.other, exp: rest.reduce((s, r) => s + r.exp, 0), imp: rest.reduce((s, r) => s + r.imp, 0) }
     return { rows, chord: [...top, other], tot: (d.totals as any[]).find(t => t.year === year) }
   }, [d, year, flow])
-  if (!d) return <FnScreen en code="ECTR" title={S.title}><Loading2 err={err} /></FnScreen>
-  if (!v) return <FnScreen en code="ECTR" title={S.title} source={d.source}><Unavailable what="Comex Stat trade data" note={d.note} /></FnScreen>
+  if (!d) return <FnScreen code="ECTR" title={S.title}><Loading2 err={err} /></FnScreen>
+  if (!v) return <FnScreen code="ECTR" title={S.title} source={d.source}><Unavailable what="Comex Stat trade data" note={d.note} /></FnScreen>
   const yrs = (d.years as number[]).slice(-6)
   return (
-    <FnScreen en code="ECTR" title={S.title} tabs={S.tabs} tab={tab} setTab={setTab}
+    <FnScreen code="ECTR" title={S.title} tabs={S.tabs} tab={tab} setTab={setTab}
       right={<><Field label={S.year}><Btns opts={yrs.map(y => ({ v: y, l: y === d.last_year && d.last_month < 12 ? `${y} ${S.partial}` : String(y) }))} value={year} onChange={setYr} /></Field>
         {tab === 0 && <Field label={S.flow}><Btns opts={S.flows} value={flow} onChange={setFlow} /></Field>}</>}
       source={d.source} note={<>{d.unit}. {d.status !== 'ok' && d.note ? d.note : ''} {year === d.last_year && d.last_month < 12 ? `${year}: Jan–${mLab(`${year}-${String(d.last_month).padStart(2, '0')}-01`)} only; YoY compares with the full prior year.` : ''}</>}>

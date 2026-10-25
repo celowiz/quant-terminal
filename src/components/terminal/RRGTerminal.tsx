@@ -11,10 +11,10 @@ import type { RRGResponse } from '../../types/rrg'
 import { MONO } from './PriceChart'
 
 const Q: Record<string, { c: string; n: string; d: string }> = {
-  Leading:   { c: '#3DDC84', n: 'LEADING',   d: 'Força relativa e momentum acima de 100' },
-  Weakening: { c: '#FFD23F', n: 'WEAKENING', d: 'Força acima de 100, momentum perdendo fôlego' },
-  Lagging:   { c: '#FF4D4D', n: 'LAGGING',   d: 'Força relativa e momentum abaixo de 100' },
-  Improving: { c: '#4FA3FF', n: 'IMPROVING', d: 'Força abaixo de 100, momentum melhorando' },
+  Leading:   { c: '#3DDC84', n: 'LEADING',   d: 'Relative strength and momentum above 100' },
+  Weakening: { c: '#FFD23F', n: 'WEAKENING', d: 'Strength above 100, momentum fading' },
+  Lagging:   { c: '#FF4D4D', n: 'LAGGING',   d: 'Relative strength and momentum below 100' },
+  Improving: { c: '#4FA3FF', n: 'IMPROVING', d: 'Strength below 100, momentum improving' },
 }
 const PALETTE = ['#FFA028', '#FFFFFF', '#4FC3F7', '#FF5BD6', '#7CFC00', '#FFD400', '#FF7F50', '#B388FF', '#00E5C0', '#C0C0C0', '#F06292']
 const MAX_HIST = 104 // semanas calculadas; a cauda exibida é só um recorte (não altera o cálculo)
@@ -115,8 +115,8 @@ export default function RRGTerminal() {
         <span className="font-bold text-black bg-[#FFA028] px-2 max-lg:shrink-0">RRG</span>
         <span className="text-[#d9d9d9] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate">Relative Rotation Graph · vs <b className="text-[#FFA028]">{label(bench)}</b> · semanal (sexta)</span>
         <div className="lg:contents max-lg:w-full max-lg:flex max-lg:items-center max-lg:gap-4 max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0 max-lg:text-[12px] fn-strip">
-          <span className="text-[#8a8a8a]">{endDate ? `Semana de ${fmtD(endDate)} · cauda ${tail} sem.` : ''}</span>
-          <span className="ml-auto text-[#8a8a8a] text-[11px] max-lg:ml-0">Fonte: Yahoo Finance · uso educacional, não é recomendação</span>
+          <span className="text-[#8a8a8a]">{endDate ? `Week of ${fmtD(endDate)} · tail ${tail} wk` : ''}</span>
+          <span className="ml-auto text-[#8a8a8a] text-[11px] max-lg:ml-0">Source: Yahoo Finance · educational use, not a recommendation</span>
         </div>
       </div>
       {/* controles */}
@@ -133,12 +133,12 @@ export default function RRGTerminal() {
           <input type="number" min={1} max={52} value={lbM} onChange={e => setLbM(Math.max(1, +e.target.value || 10))} className={`${box} w-12`} />
         </label>
         <div className="flex gap-[2px]"><button className={btn(ema)} onClick={() => setEma(true)}>EMA</button><button className={btn(!ema)} onClick={() => setEma(false)}>SMA</button></div>
-        <label className="flex items-center gap-2">Semanas
+        <label className="flex items-center gap-2">Weeks
           <input type="range" min={1} max={26} value={tail} onChange={e => setTail(+e.target.value)} className="accent-[#FFA028] w-28" />
           <b className="text-[#FFA028] w-5">{tail}</b>
         </label>
         <div className="flex gap-[2px]">{[4, 8, 12, 26].map(n => <button key={n} className={btn(tail === n)} onClick={() => setTail(n)}>{n}S</button>)}</div>
-        <label className="flex items-center gap-2">Data
+        <label className="flex items-center gap-2">Date
           <input type="range" min={0} max={maxOff} value={maxOff - endOff} onChange={e => { setPlaying(false); setEndOff(maxOff - +e.target.value) }} className="accent-[#FFA028] w-36" />
         </label>
         <button className={btn(playing)} onClick={() => { if (!playing && endOff === 0) setEndOff(Math.min(maxOff, 26)); setPlaying(p => !p) }}>{playing ? '❚❚ Pausar' : '▶ Animar'}</button>
@@ -189,7 +189,7 @@ export default function RRGTerminal() {
           {hover && (
             <div className="absolute z-20 pointer-events-none text-[12px] leading-[17px] px-2 py-1 border" style={{ left: Math.min(hover.x + 14, W - 210), top: Math.max(4, hover.y - 70), background: '#0a0a0a', borderColor: colorOf[hover.t], color: '#d9d9d9' }}>
               <div className="font-bold" style={{ color: colorOf[hover.t] }}>{label(hover.t)} <span className="text-[#8a8a8a] font-normal">vs {label(bench)}</span></div>
-              <div>Semana <b className="text-white">{fmtD(hover.date)}</b></div>
+              <div>Week <b className="text-white">{fmtD(hover.date)}</b></div>
               <div>RS-Ratio <b className="text-white">{hover.r.toFixed(2)}</b></div>
               <div>RS-Momentum <b className="text-white">{hover.m.toFixed(2)}</b></div>
               <div style={{ color: Q[quad(hover.r, hover.m)].c }}>{Q[quad(hover.r, hover.m)].n}</div>
@@ -199,7 +199,7 @@ export default function RRGTerminal() {
 
         {/* painel lateral */}
         <div className="w-[300px] shrink-0 border-l border-[#3a3a3a] bg-[#050505] text-[12px] overflow-y-auto max-lg:w-full max-lg:!h-auto max-lg:border-l-0 max-lg:border-t" style={{ height: size.h }}>
-          <div className="px-2 py-1 text-black bg-[#FFA028] font-bold">ATIVOS</div>
+          <div className="px-2 py-1 text-black bg-[#FFA028] font-bold">ASSETS</div>
           <table className="w-full">
             <thead><tr className="text-[#8a8a8a] text-left"><th className="px-2 py-1 font-normal"> </th><th className="font-normal">Ticker</th><th className="font-normal text-right">Ratio</th><th className="font-normal text-right">Mom</th><th className="font-normal text-right pr-2">Quad.</th></tr></thead>
             <tbody>
@@ -219,7 +219,7 @@ export default function RRGTerminal() {
               })}
             </tbody>
           </table>
-          <div className="px-2 pt-3 pb-1 text-[#FFA028] font-bold border-b border-[#3a3a3a]">ADICIONAR / REMOVER</div>
+          <div className="px-2 pt-3 pb-1 text-[#FFA028] font-bold border-b border-[#3a3a3a]">ADD / REMOVE</div>
           <div className="flex flex-wrap gap-1 p-2">
             {available.filter(k => k !== bench).map(k => (
               <button key={k} className={btn(sel.includes(k))} onClick={() => setSel(s => s.includes(k) ? s.filter(x => x !== k) : [...s, k])}>{label(k)}</button>
@@ -228,8 +228,8 @@ export default function RRGTerminal() {
           <div className="px-2 pt-3 pb-1 text-[#FFA028] font-bold border-b border-[#3a3a3a]">QUADRANTES</div>
           <div className="p-2 space-y-1 text-[#bdbdbd]">
             {['Leading', 'Weakening', 'Lagging', 'Improving'].map(k => <div key={k}><b style={{ color: Q[k].c }}>{Q[k].n}</b> — {Q[k].d}</div>)}
-            <div className="pt-2 text-[#8a8a8a]">Rotação típica no sentido horário: Improving → Leading → Weakening → Lagging. Cada ponto = 1 semana; o ponto maior com seta é a semana atual. O tamanho da cauda é só visual e não altera o cálculo.</div>
-            <div className="pt-1 text-[#8a8a8a]">Clique num ativo da tabela para ocultar/mostrar; passe o mouse para destacar.</div>
+            <div className="pt-2 text-[#8a8a8a]">Typical clockwise rotation: Improving → Leading → Weakening → Lagging. Each point = 1 week; the larger point with an arrow is the current week. Tail length is visual only and does not change the calculation.</div>
+            <div className="pt-1 text-[#8a8a8a]">Click an asset in the table to hide/show it; hover to highlight.</div>
           </div>
         </div>
       </div>

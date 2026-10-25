@@ -1,5 +1,6 @@
 "use client"
 import React, { useRef, useState, useEffect } from 'react'
+import { t } from '../lib/i18n'
 import { useDesktop } from './fn/kit'
 
 type TickerRecord = { ticker: string }
@@ -100,7 +101,7 @@ export default function TickerSelector({
 				value={tickerSearch}
 				onChange={handleTickerSearch}
 				onKeyDown={handleTickerKeyDown}
-				placeholder={desk ? 'Digite um ticker' : 'Ticker'}
+				placeholder={desk ? t('hdr.tickerPlaceholder') : 'Ticker'}
 				autoComplete="off"
 				disabled={disabled}
 			/>
@@ -120,7 +121,7 @@ export default function TickerSelector({
 				</div>
 			)}
 			{selectedTicker && tickerName && (
-				<div className="ticker-name-label absolute left-full ml-2 whitespace-nowrap pointer-events-none font-bold flex items-center gap-2 max-lg:max-w-[calc(100vw-120px-96px-52px)] md:max-lg:max-w-[calc(100vw-220px-96px-52px)] max-lg:overflow-hidden max-lg:text-[12px]">
+				<div className="ticker-name-label absolute left-full ml-2 whitespace-nowrap pointer-events-none font-bold flex items-center gap-2 max-lg:max-w-[calc(100vw-120px-96px-84px)] md:max-lg:max-w-[calc(100vw-220px-96px-84px)] max-lg:overflow-hidden max-lg:text-[12px]">
 					<span className="max-lg:truncate max-lg:min-w-0">{tickerName}</span>
 					{tickerLogo && (
 						<img 
