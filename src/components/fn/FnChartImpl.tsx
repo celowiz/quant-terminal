@@ -1,8 +1,8 @@
 'use client'
 /** Gráfico genérico multi-painel (lightweight-charts v5) no estilo do terminal. */
 import { useEffect, useRef } from 'react'
-import { createChart, LineSeries, HistogramSeries, AreaSeries, CandlestickSeries, BaselineSeries, LineStyle, CrosshairMode, createSeriesMarkers } from 'lightweight-charts'
-import { C, MONO, useFitH } from './kit'
+import { TrackingModeExitMode, createChart, LineSeries, HistogramSeries, AreaSeries, CandlestickSeries, BaselineSeries, LineStyle, CrosshairMode, createSeriesMarkers } from 'lightweight-charts'
+import { C, MONO, useFit, useFitH } from './kit'
 
 export type Pt = { time: string; value: number; color?: string }
 export type SeriesDef = {
@@ -18,7 +18,10 @@ const fmt = (d = 2, pct = false) => ({ type: 'custom', minMove: 1 / 10 ** d, for
 
 export default function FnChartImpl({ panes, height = 420, log = false, intraday = false }: { panes: PaneDef[]; height?: number; log?: boolean; intraday?: boolean }) {
   const ref = useRef<HTMLDivElement | null>(null)
-  const h = useFitH(height, 120)
+  const fitH = useFitH(height, 120)
+  const { active } = useFit()
+  // mobile/tablet (<1024px): altura fixa — ~300px no painel de preço + ~110px por painel inferior (volume/indicador)
+  const h = active ? fitH : Math.min(height, 300 + 110 * Math.max(0, panes.length - 1))
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -31,6 +34,9 @@ export default function FnChartImpl({ panes, height = 420, log = false, intraday
       timeScale: { borderColor: '#3a3a3a', rightOffset: 3, fixLeftEdge: true, timeVisible: intraday, secondsVisible: false },
       crosshair: { mode: CrosshairMode.Normal, vertLine: { color: '#777', style: LineStyle.Dashed, labelBackgroundColor: C.amber }, horzLine: { color: '#777', style: LineStyle.Dashed, labelBackgroundColor: C.amber } },
       localization: { locale: 'pt-BR' },
+      // toque: arrastar na vertical rola a página; toque longo ativa a mira (some ao soltar). Sem efeito no mouse/desktop.
+      handleScroll: { vertTouchDrag: false },
+      trackingMode: { exitMode: TrackingModeExitMode.OnTouchEnd },
     })
     panes.forEach((p, pi) => {
       p.series.forEach(s => {

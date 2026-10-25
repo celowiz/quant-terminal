@@ -22,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className="h-full">
       <body className="min-h-screen lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden bg-[#0b0c10] font-sans antialiased flex flex-col" suppressHydrationWarning={true}>
-        <header className="shrink-0">
+        <header className="shrink-0 max-lg:sticky max-lg:top-0 max-lg:z-40">
           <TopBar />
         </header>
         <main className="flex-1 lg:min-h-0 lg:flex lg:flex-col lg:overflow-hidden text-slate-100 pt-4 sm:pt-6">{children}</main>

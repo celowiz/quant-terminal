@@ -75,12 +75,12 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
   }, [functionInput])
 
   return (
-    <div className="terminal-header bg-bb-panel border-b-bb-border border-b px-0 py-0 relative">
+    <div className="terminal-header bg-bb-panel border-b-bb-border border-b px-0 py-0 relative max-lg:w-[120px] md:max-lg:w-[220px] max-lg:shrink-0 max-lg:border-b-0">
       <div className="flex items-center w-full relative">
-        <div className="function-autocomplete relative my-2 w-[360px]">
+        <div className="function-autocomplete relative my-2 w-[360px] max-lg:w-full max-lg:my-0">
           <input
             ref={functionInputRef}
-            className="function-input-box bg-bb-panel border border-[#3a3a3a] text-slate-100 px-3 py-2 rounded-none placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-bb-blue/40 w-full caret-transparent"
+            className="function-input-box bg-bb-panel border border-[#3a3a3a] text-slate-100 px-3 py-2 rounded-none placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-bb-blue/40 w-full caret-transparent max-lg:h-11 max-lg:py-0 max-lg:px-2 max-lg:text-[13px]"
             type="text"
             value={functionInput}
             onChange={handleFunctionInput}
@@ -91,7 +91,7 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
             autoComplete="off"
           />
           {showAutocomplete && (
-            <div className="function-autocomplete-list tooltip-below absolute left-0 top-full mt-1 z-50 w-full max-h-72 overflow-auto bg-black border border-[#3a3a3a] shadow-lg">
+            <div className="function-autocomplete-list tooltip-below absolute left-0 top-full mt-1 z-50 w-full max-lg:w-[min(360px,calc(100vw-8px))] max-h-72 overflow-auto bg-black border border-[#3a3a3a] shadow-lg">
               {filteredFunctions.map((f, idx) => (
                 <div
                   key={f.code + f.desc}
@@ -112,10 +112,10 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
             </div>
           )}
         </div>
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center max-lg:hidden">
           <span className="!text-[#FFA028] font-bold text-xl md:text-2xl whitespace-nowrap">{pageTitle}</span>
         </div>
-        <div className="w-[360px] mr-4" />
+        <div className="w-[360px] mr-4 max-lg:hidden" />
       </div>
     </div>
   )

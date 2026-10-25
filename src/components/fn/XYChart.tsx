@@ -1,7 +1,7 @@
 'use client'
 /** Gráfico XY numérico em SVG (sazonalidade, cone de vol, curvas de juros, dispersão). */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { C, MONO, useFitH } from './kit'
+import { C, MONO, useFit, useFitH } from './kit'
 
 export type XYSeries = { name: string; points: [number, number | null][]; color: string; width?: number; dash?: string; scatter?: boolean; band?: [number, number, number][]; opacity?: number }
 
@@ -12,11 +12,15 @@ export default function XYChart({ series, height = 360, xTicks, xFmt = v => Stri
   const [W, setW] = useState(1000)
   useEffect(() => {
     const el = box.current; if (!el) return
-    const ro = new ResizeObserver(() => setW(Math.max(300, el.clientWidth)))
-    ro.observe(el); setW(Math.max(300, el.clientWidth))
+    // mobile: o gráfico acompanha a largura do painel (mín. 260px); desktop como antes (mín. 300px)
+    const minW = () => (window.matchMedia('(min-width: 1024px)').matches ? 300 : 260)
+    const ro = new ResizeObserver(() => setW(Math.max(minW(), el.clientWidth)))
+    ro.observe(el); setW(Math.max(minW(), el.clientWidth))
     return () => ro.disconnect()
   }, [])
-  const H = useFitH(height, 120), m = { l: 10, r: 64, t: 10, b: 26 }
+  const fitH = useFitH(height, 120), { active } = useFit()
+  const [legOpen, setLegOpen] = useState(false)
+  const H = active ? fitH : Math.min(height, 300), m = { l: 10, r: 64, t: 10, b: 26 }
   const [hx, setHx] = useState<number | null>(null)
   const { x0, x1, y0, y1 } = useMemo(() => {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity
@@ -32,6 +36,9 @@ export default function XYChart({ series, height = 360, xTicks, xFmt = v => Stri
   const sy = (y: number) => m.t + (1 - (y - y0) / (y1 - y0)) * (H - m.t - m.b)
   const yt = Array.from({ length: 6 }, (_, i) => y0 + ((y1 - y0) * i) / 5)
   const xt = xTicks || Array.from({ length: 7 }, (_, i) => ({ v: x0 + ((x1 - x0) * i) / 6, l: xFmt(x0 + ((x1 - x0) * i) / 6) }))
+  // mobile: menos rótulos no eixo X para não sobrepor
+  const maxT = Math.max(2, Math.floor((W - m.l - m.r) / 72))
+  const xtv = active || xt.length <= maxT ? xt : xt.filter((_, i) => i % Math.ceil(xt.length / maxT) === 0)
   const path = (pts: [number, number | null][]) => {
     let d = '', pen = false
     pts.forEach(([x, y]) => { if (y == null || !isFinite(y)) { pen = false; return } d += `${pen ? 'L' : 'M'}${sx(x).toFixed(1)},${sy(y).toFixed(1)}`; pen = true })
@@ -42,17 +49,33 @@ export default function XYChart({ series, height = 360, xTicks, xFmt = v => Stri
     const px = ((e.clientX - r.left) / r.width) * W
     setHx(x0 + ((px - m.l) / (W - m.l - m.r)) * (x1 - x0))
   }
+  // toque longo (~350ms) liga a mira; arrastar move; soltar desliga. Rolagem normal da página continua funcionando.
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  const geo = useRef({ W, x0, x1, m })
+  geo.current = { W, x0, x1, m }
+  useEffect(() => {
+    const el = svgRef.current; if (!el) return
+    let timer: any = null, tracking = false, sx0 = 0, sy0 = 0
+    const at = (cx: number) => { const g = geo.current, r = el.getBoundingClientRect(); const px = ((cx - r.left) / r.width) * g.W; setHx(g.x0 + ((px - g.m.l) / (g.W - g.m.l - g.m.r)) * (g.x1 - g.x0)) }
+    const start = (e: TouchEvent) => { const t = e.touches[0]; sx0 = t.clientX; sy0 = t.clientY; clearTimeout(timer); timer = setTimeout(() => { tracking = true; at(sx0) }, 350) }
+    const move = (e: TouchEvent) => { const t = e.touches[0]; if (tracking) { e.preventDefault(); at(t.clientX) } else if (Math.abs(t.clientX - sx0) + Math.abs(t.clientY - sy0) > 8) clearTimeout(timer) }
+    const end = () => { clearTimeout(timer); if (tracking) { tracking = false; setHx(null) } }
+    el.addEventListener('touchstart', start, { passive: true }); el.addEventListener('touchmove', move, { passive: false })
+    el.addEventListener('touchend', end); el.addEventListener('touchcancel', end)
+    return () => { clearTimeout(timer); el.removeEventListener('touchstart', start); el.removeEventListener('touchmove', move); el.removeEventListener('touchend', end); el.removeEventListener('touchcancel', end) }
+  }, [])
   const hv = hx == null ? null : series.filter(s => !s.scatter).map(s => {
     let best: [number, number | null] | null = null
     s.points.forEach(p => { if (p[1] != null && (!best || Math.abs(p[0] - hx) < Math.abs(best[0] - hx))) best = p })
     return { s, p: best as [number, number | null] | null }
   })
   return (
-    <div ref={box} style={{ fontFamily: MONO, background: '#101010', position: 'relative' }}>
-      {legend && <div className="flex flex-wrap gap-3 px-2 pt-1 text-[11px]">{series.filter(s => s.name).map(s => <span key={s.name} style={{ color: s.color }}>■ <span style={{ color: C.text }}>{s.name}</span>{hv && (() => { const h = hv.find(x => x.s === s); return h?.p && h.p[1] != null ? <span style={{ color: s.color }}> {yFmt(h.p[1])}</span> : null })()}</span>)}</div>}
-      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} onMouseMove={onMove} onMouseLeave={() => setHx(null)}>
+    <div ref={box} className="max-lg:overflow-hidden" style={{ fontFamily: MONO, background: '#101010', position: 'relative' }}>
+      {legend && !active && series.filter(s => s.name).length > 3 && !hv && <button className="px-2 pt-1 text-[11px]" style={{ color: C.amber }} onClick={() => setLegOpen(!legOpen)}>Legenda {legOpen ? '▾' : '▸'}</button>}
+      {legend && (active || series.filter(s => s.name).length <= 3 || legOpen || hv) && <div className="flex flex-wrap gap-3 px-2 pt-1 text-[11px]">{series.filter(s => s.name).map(s => <span key={s.name} style={{ color: s.color }}>■ <span style={{ color: C.text }}>{s.name}</span>{hv && (() => { const h = hv.find(x => x.s === s); return h?.p && h.p[1] != null ? <span style={{ color: s.color }}> {yFmt(h.p[1])}</span> : null })()}</span>)}</div>}
+      <svg ref={svgRef} className="max-lg:block" viewBox={`0 0 ${W} ${H}`} width={W} height={H} onMouseMove={onMove} onMouseLeave={() => setHx(null)}>
         {yt.map((y, i) => <g key={i}><line x1={m.l} x2={W - m.r} y1={sy(y)} y2={sy(y)} stroke="#262626" strokeDasharray="2,3" /><text x={W - m.r + 4} y={sy(y) + 4} fill="#8a8a8a" fontSize={11}>{yFmt(y)}</text></g>)}
-        {xt.map((t, i) => <g key={i}><line x1={sx(t.v)} x2={sx(t.v)} y1={m.t} y2={H - m.b} stroke="#262626" strokeDasharray="2,3" /><text x={sx(t.v)} y={H - 8} fill="#8a8a8a" fontSize={11} textAnchor="middle">{t.l}</text></g>)}
+        {xtv.map((t, i) => <g key={i}><line x1={sx(t.v)} x2={sx(t.v)} y1={m.t} y2={H - m.b} stroke="#262626" strokeDasharray="2,3" /><text x={sx(t.v)} y={H - 8} fill="#8a8a8a" fontSize={11} textAnchor="middle">{t.l}</text></g>)}
         {zeroLine && <line x1={m.l} x2={W - m.r} y1={sy(0)} y2={sy(0)} stroke="#666" />}
         {series.map(s => s.band && <path key={s.name + 'b'} d={s.band.map(([x, , hi], i) => `${i ? 'L' : 'M'}${sx(x)},${sy(hi)}`).join('') + s.band.slice().reverse().map(([x, lo]) => `L${sx(x)},${sy(lo)}`).join('') + 'Z'} fill={s.color} opacity={0.15} />)}
         {series.map(s => s.scatter

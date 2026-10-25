@@ -21,7 +21,7 @@ export function WEIView() {
   const cur = sel || d.regions[0].rows.find((x: any) => x.ticker === '^BVSP') || d.regions[0].rows[0]
   return (
     <FnScreen code="WEI" title="World Equity Indices" source="Yahoo Finance via yfinance (fechamentos diários dos índices), tools/pipeline/build_markets.py." note="Valores de fechamento (não tempo real). Clique numa linha para ver o gráfico de 2 anos. Sparkline = último mês.">
-      <div className="grid gap-2" style={{ gridTemplateColumns: '1.4fr 1fr' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1.4fr 1fr' }}>
         <div className="flex flex-col gap-2">{d.regions.map((r: any) => (
           <Panel key={r.region} title={r.region}>
             <Grid onRow={(x: any) => setSel(x)} rowStyle={(x: any) => x.ticker === cur.ticker ? { background: '#1a1205' } : undefined} cols={[
@@ -48,15 +48,15 @@ export function WFIView() {
     <FnScreen code="WFI" title="World Fixed Income" tabs={['Curva EUA', 'Soberanos 10 anos', 'Crédito (índices / spreads)', 'Brasil']} tab={tab} setTab={setTab}
       source="FRED (St. Louis Fed): Treasuries (DGS*), OCDE 10 anos (IRLTLT01*), ICE BofA índices e OAS; BCB SGS (Selic/CDI)."
       note="Curva de juros brasileira (DI/NTN) ausente: o Tesouro Direto e a B3 não oferecem mais arquivo público estável para automação. Soberanos OCDE são médias mensais.">
-      {tab === 0 && <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 360px' }}>
+      {tab === 0 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 360px' }}>
         <XYChart height={480} series={[['y1', '#555', '1 ano atrás'], ['m1', '#888', '1 mês atrás'], ['w1', C.blue, '1 semana atrás'], ['now', C.amber, 'Atual']].map(([k, c, n]) => ({ name: `${n} (${dBR(uc[k].date)})`, points: tn.map((t, i) => [t, uc[k].y[i]] as [number, number]), color: c, width: k === 'now' ? 2.5 : 1.3 }))} xTicks={tn.filter(t => t >= 1 || t === tn[0]).map((t, i) => ({ v: t, l: uc.labels[tn.indexOf(t)] }))} xFmt={v => `${nf(v, 1)}a`} yFmt={v => nf(v, 2) + '%'} />
         <Panel title="US Treasuries"><Grid cols={[{ k: 'l', label: 'Prazo', color: () => C.amber }, { k: 'now', label: 'Taxa', align: 'r', fmt: v => nf(v, 2) }, { k: 'w', label: '1S bp', align: 'r', fmt: v => nf(v, 0), color: clr }, { k: 'm', label: '1M bp', align: 'r', fmt: v => nf(v, 0), color: clr }, { k: 'y', label: '1A bp', align: 'r', fmt: v => nf(v, 0), color: clr }]} rows={tn.map((_, i) => ({ l: uc.labels[i], now: uc.now.y[i], w: (uc.now.y[i] - uc.w1.y[i]) * 100, m: (uc.now.y[i] - uc.m1.y[i]) * 100, y: (uc.now.y[i] - uc.y1.y[i]) * 100 }))} /></Panel>
       </div>}
-      {tab === 1 && <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      {tab === 1 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <Panel title="Rendimento 10 anos (% a.a.)"><Grid cols={[{ k: 'name', label: 'País', color: () => C.amber }, { k: 'last', label: 'Último', align: 'r', fmt: v => nf(v, 2) }, { k: 'date', label: 'Ref.', align: 'r', fmt: v => v?.slice(0, 7) }, { k: 'm1', label: '1M bp', align: 'r', fmt: v => nf(v, 0), color: clr }, { k: 'y1', label: '1A bp', align: 'r', fmt: v => nf(v, 0), color: clr }, { k: 'sp', label: '24M', align: 'c', fmt: v => <Spark data={v} w={80} h={14} /> }]} rows={d.sovereign10y.map((s: any) => ({ name: s.name, last: s.points[s.points.length - 1][1], date: s.points[s.points.length - 1][0], m1: chgBp(s.points, 1), y1: chgBp(s.points, 12), sp: s.points.slice(-24).map((p: any) => p[1]) }))} /></Panel>
         <Panel title="Histórico (países selecionados)"><FnChart height={440} panes={[{ series: d.sovereign10y.filter((s: any) => ['US', 'DE', 'JP', 'GB', 'IT', 'MX'].includes(s.country)).map((s: any, i: number) => ({ kind: 'line' as const, data: s.points.map((p: any) => ({ time: p[0], value: p[1] })), color: PALETTE[i], title: s.country, pct: true })) }]} /></Panel>
       </div>}
-      {tab === 2 && <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      {tab === 2 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <Panel title="Índices de retorno total (ICE BofA)"><Grid cols={[{ k: 'name', label: 'Índice', color: () => C.amber }, { k: 'last', label: 'Nível', align: 'r', fmt: v => nf(v, 1) }, { k: 'm1', label: '1M%', align: 'r', fmt: v => pf(v), color: clr }, { k: 'ytd', label: 'Ano%', align: 'r', fmt: v => pf(v), color: clr }, { k: 'y1', label: '12M%', align: 'r', fmt: v => pf(v), color: clr }]} rows={d.indexes.map((s: any) => { const p = s.points; const lt = p[p.length - 1]; return { name: s.name, last: lt[1], m1: ret(p, 1), y1: ret(p, 12), ytd: retSince(p.map((x: any) => x[0]), p.map((x: any) => x[1]), `${lt[0].slice(0, 4)}-01-00`) } })} />
           <div className="mt-2"><Grid cols={[{ k: 'name', label: 'Spread (OAS)', color: () => C.amber }, { k: 'last', label: 'bp', align: 'r', fmt: v => nf(v, 0) }, { k: 'm1', label: '1M bp', align: 'r', fmt: v => nf(v, 0), color: clr }, { k: 'y1', label: '1A bp', align: 'r', fmt: v => nf(v, 0), color: clr }]} rows={d.spreads.map((s: any) => ({ name: s.name, last: s.points[s.points.length - 1][1] * 100, m1: chgBp(s.points, 1), y1: chgBp(s.points, 12) }))} /></div></Panel>
         <Panel title="Spreads OAS (p.p.)"><FnChart height={440} panes={[{ series: d.spreads.map((s: any, i: number) => ({ kind: 'line' as const, data: s.points.map((p: any) => ({ time: p[0], value: p[1] })), color: [C.amber, C.down, C.blue][i], title: s.id })) }]} /></Panel>
@@ -78,7 +78,7 @@ export function ECONView() {
   const fInd = Array.from(new Set(focus.map(f => f.indicator))), fYears = Array.from(new Set(focus.map(f => f.year))).sort()
   return (
     <FnScreen code="ECON" title="Economic Indicators / Expectativas" source="BCB SGS e Relatório Focus (API Olinda), FRED; tools/pipeline/build_markets.py." note="Clique num indicador para ver o histórico. Não há calendário de divulgações com consenso/previsão por evento (dado proprietário); a coluna de expectativas usa as medianas do Focus.">
-      <div className="grid gap-2" style={{ gridTemplateColumns: '1.3fr 1fr' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1.3fr 1fr' }}>
         <div className="flex flex-col gap-2">
           <Panel title="Brasil"><Grid onRow={(r: any) => setSel(r.id)} rowStyle={(r: any) => r.id === sel ? { background: '#1a1205' } : undefined} cols={cols} rows={rows('BR')} /></Panel>
           <Panel title="Estados Unidos"><Grid onRow={(r: any) => setSel(r.id)} rowStyle={(r: any) => r.id === sel ? { background: '#1a1205' } : undefined} cols={cols} rows={rows('US')} /></Panel>
@@ -115,7 +115,7 @@ export function FXView() {
         <thead><tr><th className="px-2 py-1" style={{ color: C.muted }}>{dBRfull(d.dates[L])}</th>{CCY.map(c => <th key={c} className="px-2 py-1 text-right" style={{ color: C.amber }}>{c}</th>)}</tr></thead>
         <tbody>{CCY.map(r => <tr key={r} className="border-t" style={{ borderColor: '#1a1a1a' }}><td className="px-2 py-1 font-bold" style={{ color: C.amber }}>{r}</td>{CCY.map(c => { if (r === c) return <td key={c} className="px-2 py-1 text-right" style={{ background: '#111', color: C.muted }}>—</td>; const v = x(r, c, L), p = x(r, c, L - 1), ch = (v / p - 1) * 100; return <td key={c} className="px-2 py-1 text-right border border-[#151515]" style={tab === 1 ? { background: `rgba(${ch >= 0 ? '61,220,132' : '255,77,77'},${Math.min(0.8, Math.abs(ch) / 1.5)})` } : undefined}>{tab === 0 ? nf(v, v >= 100 ? 2 : 4) : pf(ch)}</td> })}</tr>)}</tbody>
       </table></div>}
-      {tab === 2 && <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      {tab === 2 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <Panel title="PTAX — último boletim"><Grid cols={[{ k: 'c', label: 'Moeda', color: () => C.amber }, { k: 'date', label: 'Data', fmt: dBRfull }, { k: 'buy', label: 'Compra', align: 'r', fmt: v => nf(v, 4) }, { k: 'sell', label: 'Venda', align: 'r', fmt: v => nf(v, 4) }, { k: 'ch', label: 'Var%', align: 'r', fmt: v => pf(v), color: clr }]} rows={Object.entries(d.ptax).map(([c, a]: any) => ({ c, ...a[a.length - 1], ch: a.length > 1 ? (a[a.length - 1].sell / a[a.length - 2].sell - 1) * 100 : null }))} /></Panel>
         <Panel title="PTAX USD venda"><FnChart height={380} panes={[{ series: [{ kind: 'line', data: ptax.map((p: any) => ({ time: p.date, value: p.sell })), color: C.amber, title: 'PTAX', decimals: 4 }] }]} /></Panel>
       </div>}
@@ -163,18 +163,23 @@ function HeatMap({ rows, scale }: { rows: any[]; scale: number }) {
   const ref = useRef<HTMLDivElement | null>(null)
   const [bw, setBw] = useState(1400)
   useEffect(() => { const el = ref.current; if (!el) return; const f = () => setBw(el.clientWidth || 1400); f(); const ro = new ResizeObserver(f); ro.observe(el); return () => ro.disconnect() }, [])
-  const W = active ? Math.max(600, bw) : 1400, H = active ? Math.max(260, Math.round(720 * s)) : 720
+  // mobile/tablet (<1024px): largura do painel e altura fixa legível (retrato), toque mostra o detalhe
+  const [tip, setTip] = useState<any>(null)
+  const W = active ? Math.max(600, bw) : Math.max(300, bw), H = active ? Math.max(260, Math.round(720 * s)) : Math.round(Math.min(680, Math.max(420, bw * 1.35)))
   const sectors = Array.from(new Set(rows.map((r: any) => r.sector))).map(s => ({ s, v: rows.filter((r: any) => r.sector === s).reduce((p: number, r: any) => p + r.weight, 0) }))
   const secRects = squarify(sectors as any[], { x: 0, y: 0, w: W, h: H })
   return <div ref={ref} style={{ width: '100%' }}>
+      {!active && <div className="mb-1 min-h-[34px] px-2 py-1 text-[12px] leading-[16px] border" style={{ borderColor: C.line, background: C.panel, color: C.text }}>
+        {tip ? <><b style={{ color: C.amber }}>{tip.cod}</b> {tip.name}<br /><span style={{ color: clr(tip.chg) }}>{pf(tip.chg)}</span> · peso {nf(tip.weight, 2)}% · R$ {nf(tip.last)}</> : <span style={{ color: C.muted }}>Toque num papel para ver variação, peso e preço.</span>}
+      </div>}
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={active ? H : undefined} style={{ display: 'block', background: '#000', fontFamily: 'inherit' }}>
         {secRects.map((sr: any) => {
           const items = squarify(rows.filter((r: any) => r.sector === sr.s).map((r: any) => ({ ...r, v: r.weight })), { x: sr.x + 1, y: sr.y + 16, w: sr.w - 2, h: sr.h - 17 })
           return <g key={sr.s}>
             <rect x={sr.x} y={sr.y} width={sr.w} height={sr.h} fill="#000" stroke="#000" />
             <text x={sr.x + 4} y={sr.y + 12} fontSize={11} fill={C.amber}>{sr.s} {nf(sr.v, 1)}%</text>
-            {items.map((it: any) => <g key={it.cod}><title>{`${it.cod} ${it.name}\n${pf(it.chg)} | peso ${nf(it.weight, 2)}% | R$ ${nf(it.last)}`}</title>
-              <rect x={it.x} y={it.y} width={Math.max(0, it.w - 1)} height={Math.max(0, it.h - 1)} fill={heatColor(it.chg, scale)} />
+            {items.map((it: any) => <g key={it.cod} onClick={active ? undefined : () => setTip(it)} style={active ? undefined : { cursor: 'pointer' }}><title>{`${it.cod} ${it.name}\n${pf(it.chg)} | peso ${nf(it.weight, 2)}% | R$ ${nf(it.last)}`}</title>
+              <rect x={it.x} y={it.y} width={Math.max(0, it.w - 1)} height={Math.max(0, it.h - 1)} fill={heatColor(it.chg, scale)} stroke={!active && tip?.cod === it.cod ? C.amber : undefined} strokeWidth={!active && tip?.cod === it.cod ? 2 : undefined} />
               {it.w > 38 && it.h > 22 && <><text x={it.x + it.w / 2} y={it.y + it.h / 2 - 1} textAnchor="middle" fontSize={Math.min(16, Math.max(9, it.w / 6))} fill="#fff" fontWeight={700}>{it.cod}</text><text x={it.x + it.w / 2} y={it.y + it.h / 2 + 12} textAnchor="middle" fontSize={Math.min(13, Math.max(8, it.w / 7))} fill="#fff">{pf(it.chg, 1)}</text></>}
             </g>)}
           </g>
@@ -209,7 +214,7 @@ export function TOPView() {
   return (
     <FnScreen code="TOP" title="Maiores altas / baixas — Ibovespa" right={<><span>Altas <b style={{ color: C.up }}>{adv}</b> · Baixas <b style={{ color: C.down }}>{dec}</b></span><span>IBOV <span style={{ color: clr(ibov?.chg) }}>{pf(ibov?.chg)}</span></span><Btns opts={PER} value={per} onChange={setPer} /></>}
       source="B3 (carteira teórica do Ibovespa) + Yahoo Finance (fechamento); volume financeiro médio 30d." note="Universo: componentes do Ibovespa. Fechamentos, não tempo real.">
-      <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
         <Panel title="▲ Maiores altas"><Grid cols={cols} rows={up} /></Panel>
         <Panel title="▼ Maiores baixas"><Grid cols={cols} rows={dn} /></Panel>
         <Panel title="Mais negociadas (vol. fin. 30d)"><Grid cols={[cols[0], { k: 'vol', label: 'R$/dia', align: 'r' as const, fmt: (x: number) => big(x) }, cols[3]]} rows={act} /></Panel>
@@ -328,7 +333,7 @@ export function PORTView() {
   return (
     <FnScreen code="PORT" title="Portfolio — backtest de carteira" right={<><Field label="Rebalancear"><Btns opts={[{ v: 'd', l: 'Diário' }, { v: 'm', l: 'Mensal' }, { v: 'n', l: 'Nunca' }] as any} value={reb} onChange={setReb as any} /></Field></>}
       source="B3 (componentes do Ibovespa) + Yahoo Finance (fechamento ajustado) + BCB SGS 12 (CDI)." note="Simulação sem custos, impostos ou slippage. Carteira salva só no seu navegador (localStorage). Sharpe = (retorno anual − CDI anual) ÷ volatilidade.">
-      <div className="grid gap-2" style={{ gridTemplateColumns: '380px 1fr' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '380px 1fr' }}>
         <Panel title="Posições (pesos-alvo %)">
           <div className="flex items-center gap-2 p-2 text-[12px]"><select className={inputCls} style={inputStyle} value={add} onChange={e => setAdd(e.target.value)}>{codes.map((c: string) => <option key={c}>{c}</option>)}</select>
             <button className="px-2 border text-[12px]" style={{ borderColor: C.amber, color: C.amber }} onClick={() => !pos.find(p => p.cod === add) && setPos([...pos, { cod: add, w: 10 }])}>+ adicionar</button>
@@ -359,7 +364,7 @@ export function ALERTView() {
   const tickers = ['PETR4.SA', 'PETR3.SA', 'VALE3.SA', 'ITUB4.SA', 'ITUB3.SA', 'B3SA3.SA', '^BVSP', 'BRL=X', 'EURUSD=X', 'DX-Y.NYB']
   return (
     <FnScreen code="ALERT" title="Alertas de preço" source={d.source} note="Regras do repositório (alerts.yaml) são avaliadas no fechamento pelo GitHub Actions; quando disparam, o workflow abre uma issue (notificação por e-mail do GitHub). Alertas locais ficam só no seu navegador e são checados ao abrir esta página. Não há push em tempo real.">
-      <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <Panel title={`Regras do pipeline (alerts.yaml) — ${dBRfull(d.generated_at?.slice(0, 10))}`}>
           <Grid rowStyle={(r: any) => r.triggered ? { background: '#2a1010' } : undefined} cols={[{ k: 'triggered', label: '', fmt: (v: boolean) => v ? '🔔' : '·', w: '24px' }, { k: 'ticker', label: 'Ativo', color: () => C.amber }, { k: 'op', label: 'Condição', fmt: (v: string, r: any) => opL(v, r.value) }, { k: 'last', label: 'Último', align: 'r', fmt: (v: number) => nf(v) }, { k: 'change_pct', label: 'Var%', align: 'r', fmt: (v: number) => pf(v), color: clr }, { k: 'note', label: 'Descrição', color: () => C.muted }, { k: 'triggered', label: 'Status', fmt: (v: boolean) => v ? 'DISPARADO' : 'aguardando', color: (v: boolean) => v ? C.down : C.muted }]} rows={d.rules} />
         </Panel>

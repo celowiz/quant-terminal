@@ -143,13 +143,13 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full max-lg:flex max-lg:items-stretch max-lg:h-11">
       <Header
         functionInput={functionInput}
         setFunctionInput={setFunctionInput}
         onFunctionEnter={handleFunctionEnter}
       />
-      <div className="w-full flex items-stretch gap-0 px-0 py-0">
+      <div className="w-full flex items-stretch gap-0 px-0 py-0 max-lg:flex-1 max-lg:min-w-0">
         <div className="py-0">
           <TickerSelector
             tickers={tickers}
@@ -165,7 +165,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
             disabled={isTickerDisabled()}
           />
         </div>
-        <div className="flex-1 h-10 border-0 flex items-center justify-end pr-4" style={{ backgroundImage: 'linear-gradient(to right, #8E0D0D, #4D0A0A)' }}>
+        <div className="flex-1 h-10 max-lg:h-11 max-lg:pr-3 border-0 flex items-center justify-end pr-4" style={{ backgroundImage: 'linear-gradient(to right, #8E0D0D, #4D0A0A)' }}>
 
           <button type="button" aria-label="Settings" className="text-slate-100 hover:text-[#FFA028]" onClick={() => setShowSettings(true)}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">

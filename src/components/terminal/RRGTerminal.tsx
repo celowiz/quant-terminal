@@ -60,7 +60,8 @@ export default function RRGTerminal() {
       const top = el.getBoundingClientRect().top + window.scrollY
       const desk = window.matchMedia('(min-width: 1024px)').matches
       const fh = desk ? (document.querySelector('footer') as HTMLElement | null)?.offsetHeight || 0 : 0
-      setSize({ w: el.clientWidth, h: Math.max(desk ? 300 : 420, window.innerHeight - top - fh - 6) })
+      // mobile/tablet: gráfico em largura total, quase quadrado; painel de ativos abaixo
+      setSize({ w: el.clientWidth, h: desk ? Math.max(300, window.innerHeight - top - fh - 6) : Math.round(Math.min(560, Math.max(340, el.clientWidth * 1.05))) })
     }
     fit()
     const ro = new ResizeObserver(fit); ro.observe(el)
@@ -140,12 +141,12 @@ export default function RRGTerminal() {
         <button className={btn(playing)} onClick={() => { if (!playing && endOff === 0) setEndOff(Math.min(maxOff, 26)); setPlaying(p => !p) }}>{playing ? '❚❚ Pausar' : '▶ Animar'}</button>
       </div>
 
-      <div className="flex w-full">
+      <div className="flex w-full max-lg:flex-col">
         {/* gráfico */}
         <div ref={boxRef} className="relative flex-1 min-w-0" style={{ height: size.h }}>
           {err && <div className="absolute inset-0 flex items-center justify-center text-[#FF4D4D]">{err}</div>}
           <svg width={W} height={H} className="block select-none" onMouseLeave={() => setHover(null)}>
-            <rect x={0} y={0} width={W} height={H} fill="#000" />
+            <rect x={0} y={0} width={W} height={H} fill="#000" onClick={() => setHover(null)} />
             {([['Improving', m.l, m.t, cx - m.l, cy - m.t], ['Leading', cx, m.t, W - m.r - cx, cy - m.t], ['Lagging', m.l, cy, cx - m.l, H - m.b - cy], ['Weakening', cx, cy, W - m.r - cx, H - m.b - cy]] as [string, number, number, number, number][])
               .map(([k, x, y, w, h]) => <rect key={k} x={x} y={y} width={Math.max(0, w)} height={Math.max(0, h)} fill={Q[k].c} opacity={0.075} />)}
             {ticks(ex, stx).map(v => <g key={`x${v}`}><line x1={sx(v)} x2={sx(v)} y1={m.t} y2={H - m.b} stroke="#1f1f1f" strokeDasharray="1 3" /><text x={sx(v)} y={H - m.b + 15} textAnchor="middle" fontSize={10} fill="#8a8a8a">{v.toFixed(dp(stx))}</text></g>)}
@@ -172,11 +173,11 @@ export default function RRGTerminal() {
                   {P.slice(0, -1).map((q, i) => {
                     const p = v.pts[i], age = (n - 1 - i) / Math.max(1, n - 1)
                     return <circle key={i} cx={q[0]} cy={q[1]} r={2.6} fill={c} opacity={0.25 + 0.75 * Math.pow(1 - age, 1.3)}
-                      onMouseEnter={() => setHover({ x: q[0], y: q[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum })} onMouseLeave={() => setHover(null)} />
+                      onMouseEnter={() => setHover({ x: q[0], y: q[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum })} onClick={() => setHover({ x: q[0], y: q[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum })} onMouseLeave={() => setHover(null)} />
                   })}
                   {n > 1 && <polygon fill={c} points={[[head[0] + Math.cos(an) * 12, head[1] + Math.sin(an) * 12], [head[0] + Math.cos(an) * 5 + Math.cos(an + 1.57) * 5, head[1] + Math.sin(an) * 5 + Math.sin(an + 1.57) * 5], [head[0] + Math.cos(an) * 5 - Math.cos(an + 1.57) * 5, head[1] + Math.sin(an) * 5 - Math.sin(an + 1.57) * 5]].map(p => p.join(',')).join(' ')} />}
                   <circle cx={head[0]} cy={head[1]} r={6.5} fill={c} stroke="#000" strokeWidth={2}
-                    onMouseEnter={() => { const p = v.pts[n - 1]; setHover({ x: head[0], y: head[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum }) }} onMouseLeave={() => setHover(null)} />
+                    onMouseEnter={() => { const p = v.pts[n - 1]; setHover({ x: head[0], y: head[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum }) }} onClick={() => { const p = v.pts[n - 1]; setHover({ x: head[0], y: head[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum }) }} onMouseLeave={() => setHover(null)} />
                   <text x={head[0] + (Math.cos(an) >= 0 ? 11 : -11)} y={head[1] - 9} textAnchor={Math.cos(an) >= 0 ? 'start' : 'end'} fontSize={12} fontWeight={700} fill={c} stroke="#000" strokeWidth={3} paintOrder="stroke">{label(v.t)}</text>
                 </g>
               )
@@ -194,7 +195,7 @@ export default function RRGTerminal() {
         </div>
 
         {/* painel lateral */}
-        <div className="w-[300px] shrink-0 border-l border-[#3a3a3a] bg-[#050505] text-[12px] overflow-y-auto" style={{ height: size.h }}>
+        <div className="w-[300px] shrink-0 border-l border-[#3a3a3a] bg-[#050505] text-[12px] overflow-y-auto max-lg:w-full max-lg:!h-auto max-lg:border-l-0 max-lg:border-t" style={{ height: size.h }}>
           <div className="px-2 py-1 text-black bg-[#FFA028] font-bold">ATIVOS</div>
           <table className="w-full">
             <thead><tr className="text-[#8a8a8a] text-left"><th className="px-2 py-1 font-normal"> </th><th className="font-normal">Ticker</th><th className="font-normal text-right">Ratio</th><th className="font-normal text-right">Mom</th><th className="font-normal text-right pr-2">Quad.</th></tr></thead>

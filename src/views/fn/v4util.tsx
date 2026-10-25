@@ -26,7 +26,7 @@ export function HBars({ rows, fmt = v => nf(v, 2), hi, height = 18 }: { rows: { 
     <div className="text-[12px]">
       {rows.map(r => (
         <div key={r.label} className="flex items-center gap-2" style={{ height }}>
-          <div className="w-28 shrink-0 truncate text-right" style={{ color: r.label === hi ? C.amber : C.text }}>{r.label}</div>
+          <div className="w-28 max-lg:w-20 shrink-0 truncate text-right" style={{ color: r.label === hi ? C.amber : C.text }}>{r.label}</div>
           <div className="relative flex-1 h-[70%]">
             {neg && <div className="absolute top-0 bottom-0" style={{ left: '50%', width: 1, background: '#444' }} />}
             {r.v != null && <div className="absolute top-0 bottom-0" style={{
@@ -35,7 +35,7 @@ export function HBars({ rows, fmt = v => nf(v, 2), hi, height = 18 }: { rows: { 
               width: `${Math.abs(r.v) / max * (neg ? 50 : 100)}%`,
             }} />}
           </div>
-          <div className="w-20 shrink-0 text-right" style={{ color: r.v == null ? C.muted : (r.color || (r.v >= 0 ? C.up : C.down)) }}>{r.v == null ? '—' : fmt(r.v)}</div>
+          <div className="w-20 max-lg:w-16 shrink-0 text-right" style={{ color: r.v == null ? C.muted : (r.color || (r.v >= 0 ? C.up : C.down)) }}>{r.v == null ? '—' : fmt(r.v)}</div>
         </div>
       ))}
     </div>

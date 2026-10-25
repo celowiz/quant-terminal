@@ -55,7 +55,7 @@ export function MACDView({ ticker }: { ticker: string }) {
         <span style={{ color: C.amber }}>Sinal {nf(calc.last.sig, 3)}</span>
         <span style={{ color: clr(calc.last.hist) }}>Hist {nf(calc.last.hist, 3)}</span>
       </div>
-      <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 260px' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 260px' }}>
         <FnChart panes={calc.panes} height={620} />
         <Panel title="Cruzamentos recentes">
           <Grid cols={[{ k: 'time', label: 'Data', fmt: dBR }, { k: 'text', label: 'Sinal', align: 'c', color: (_, r: any) => r.color, fmt: (v: string) => v === '▲' ? '▲ compra' : '▼ venda' }]} rows={calc.cross} />
@@ -91,7 +91,7 @@ export function RSIView({ ticker }: { ticker: string }) {
         <Field label="Sobrevenda"><input className={inputCls + ' w-10'} style={inputStyle} type="number" value={os} onChange={e => setOs(+e.target.value || 30)} /></Field>
         <Btns opts={PERIODS} value={period} onChange={setPeriod} /></>}
       source={SRC_PX} note={`RSI de Wilder (${n} períodos, suavização exponencial 1/${n}). Linha muda de cor acima de ${ob} (vermelho) e abaixo de ${os} (verde).`}>
-      <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 240px' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 240px' }}>
         <FnChart panes={calc.panes} height={620} />
         <Panel title="Estatísticas do período">
           <KV rows={[['Data', dBR(calc.date)], [`RSI ${n} atual`, nf(calc.last), calc.last! >= ob ? C.down : calc.last! <= os ? C.up : C.amber], ['Máximo', nf(calc.mx)], ['Mínimo', nf(calc.mn)], ['Média', nf(calc.avg)], [`% dias ≥ ${ob}`, pf(calc.pctOb, 1, false)], [`% dias ≤ ${os}`, pf(calc.pctOs, 1, false)]]} />
@@ -135,7 +135,7 @@ export function SEAGView({ ticker }: { ticker: string }) {
     <FnScreen code="SEAG" ticker={ticker} title="Seasonality Graph"
       right={<><Field label="Anos"><Btns opts={[3, 5, 10]} value={nY} onChange={setNY} /></Field><Btns opts={[{ v: 'lines', l: 'Anos' }, { v: 'hla', l: 'Máx/Mín/Média' }] as any} value={mode} onChange={setMode as any} /></>}
       source={SRC_PX} note="Retorno acumulado no ano (base = fechamento do último pregão do ano anterior) por dia do ano. Ano corrente destacado em âmbar; média tracejada.">
-      <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 280px' }}>
+      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 280px' }}>
         <XYChart series={calc.series} height={600} zeroLine xTicks={MONTHS.map((m, i) => ({ v: doy(`2021-${String(i + 1).padStart(2, '0')}-01`), l: m }))} xFmt={v => { const d = new Date(Date.UTC(2021, 0, Math.round(v))); return `${String(d.getUTCDate()).padStart(2, '0')}/${MONTHS[d.getUTCMonth()]}` }} yFmt={v => nf(v, 1) + '%'} />
         <Panel title="Retorno por ano"><Grid cols={[{ k: 'y', label: 'Ano' }, { k: 'ytd', label: 'Ret. ano', align: 'r', fmt: v => pf(v), color: clr }, { k: 'max', label: 'Máx', align: 'r', fmt: v => pf(v, 1) }, { k: 'min', label: 'Mín', align: 'r', fmt: v => pf(v, 1) }]} rows={calc.table} /></Panel>
       </div>
@@ -203,7 +203,7 @@ export function VOLView({ ticker }: { ticker: string }) {
     <FnScreen code="VOL" ticker={ticker} title="Historical Volatility" right={<Btns opts={PERIODS} value={period} onChange={setPeriod} />}
       source={SRC_PX} note="Volatilidade histórica = desvio-padrão dos log-retornos diários na janela × √252 (anualizada, %). Cone: distribuição histórica de cada janela em toda a série disponível; ponto âmbar = valor atual.">
       <FnChart panes={calc.panes} height={430} />
-      <div className="grid gap-2 mt-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      <div className="grid gap-2 mt-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <Panel title="Cone de volatilidade (% a.a.)">
           <XYChart height={250} series={[
             { name: 'Máx', points: calc.cone.map(c => [c.w, c.max]), color: C.down, width: 1 },
@@ -268,7 +268,7 @@ export function BETAView({ ticker }: { ticker: string }) {
       source={tab === 0 ? SRC_PX : 'B3 (carteira teórica do Ibovespa) + Yahoo Finance; correlação de retornos diários, último ano.'}
       note={tab === 0 ? 'Regressão OLS dos retornos do ativo (Y) contra o índice (X). Beta ajustado = 0,67 × bruto + 0,33 (ajuste de Blume, o mesmo usado por terminais comerciais). Padrão: semanal, 2 anos.' : 'Top 12 componentes do Ibovespa por peso + o índice. Verde = correlação alta.'}>
       {tab === 0 ? (
-        <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 300px' }}>
+        <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 300px' }}>
           <div>
             <XYChart height={400} legend xLabel={`Retorno ${short(bench)} (%)`} yLabel={`Retorno ${short(ticker)} (%)`} zeroLine series={[
               { name: `${freq === 'w' ? 'Semanas' : 'Dias'} (${calc.n})`, points: calc.x.map((v, i) => [v, calc.y[i]]), color: C.amber, scatter: true, opacity: 0.65 },
@@ -324,7 +324,7 @@ export function GRView({ ticker }: { ticker: string }) {
       right={<><Field label="vs"><select className={inputCls} style={inputStyle} value={other} onChange={e => setOther(e.target.value)}>{list.filter(t => t !== ticker).map(t => <option key={t}>{t}</option>)}</select></Field><Btns opts={PERIODS} value={period} onChange={setPeriod} /></>}
       source={SRC_PX} note="Painel 1: preços rebaseados a 100 no início do período. Painel 2: razão de preços com média e bandas de ±2 desvios. Estatísticas de regressão sobre retornos diários.">
       {!calc ? <Loading err={a.err || b.err} /> : (
-        <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 260px' }}>
+        <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 260px' }}>
           <FnChart panes={calc.panes} height={620} />
           <Panel title="Relação">
             <KV rows={[[`Retorno ${short(ticker)}`, pf(calc.perfA), clr(calc.perfA)], [`Retorno ${short(other)}`, pf(calc.perfB), clr(calc.perfB)], ['Razão atual', nf(calc.lastR, 4), C.amber], ['Média da razão', nf(calc.rm, 4)], ['Desvio-padrão', nf(calc.rs, 4)], ['Z-score', nf(calc.z, 2), calc.z > 2 ? C.down : calc.z < -2 ? C.up : C.text], ['Correlação', nf(calc.reg.corr, 3)], ['Beta (Y=ativo)', nf(calc.reg.beta, 3)], ['R²', nf(calc.reg.r2, 3)]]} />

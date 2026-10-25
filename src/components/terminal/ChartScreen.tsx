@@ -36,6 +36,7 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
   const [err, setErr] = useState<string | null>(null)
   const boxRef = useRef<HTMLDivElement | null>(null)
   const [h, setH] = useState(600)
+  const [legOpen, setLegOpen] = useState(false)
 
   // altura = viewport inteira abaixo do cabeçalho/barra de comando
   useLayoutEffect(() => {
@@ -45,12 +46,14 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
       const top = el.getBoundingClientRect().top + window.scrollY
       const desk = window.matchMedia('(min-width: 1024px)').matches
       const fh = desk ? (document.querySelector('footer') as HTMLElement | null)?.offsetHeight || 0 : 0
-      setH(Math.max(desk ? 240 : 360, window.innerHeight - top - fh - 6))
+      // celular: altura fixa (~300px preço + ~110px volume), a página rola; tablet: preenche a tela; desktop: preenche a viewport
+      const tab = window.matchMedia('(min-width: 768px)').matches
+      setH(desk ? Math.max(240, window.innerHeight - top - fh - 6) : tab ? Math.max(410, window.innerHeight - top - 6) : showVol ? 410 : 300)
     }
     fit()
     window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)
-  }, [meta])
+  }, [meta, showVol])
 
   useEffect(() => {
     let alive = true
@@ -122,7 +125,7 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
       {/* Barra do ativo */}
       <div className="flex items-center gap-x-5 gap-y-1 flex-wrap px-3 py-1 border-b border-[#3a3a3a] text-[13px]" style={{ background: '#000' }}>
         <span className="font-bold text-black bg-[#FFA028] px-2">{ticker}</span>
-        <span className="text-[#d9d9d9] truncate max-w-[320px]">{meta?.name || ''}</span>
+        <span className="text-[#d9d9d9] truncate max-w-[320px] max-lg:max-w-[52vw]">{meta?.name || ''}</span>
         <span className="font-bold text-white text-[15px]">{nf(obs?.close, dec)}</span>
         <span style={{ color: chgColor }}>{chg == null ? '' : `${chg > 0 ? '+' : ''}${nf(chg, dec)}`}</span>
         <span style={{ color: chgColor }}>{chgPct == null ? '' : `${chgPct > 0 ? '+' : ''}${nf(chgPct)}%`}</span>
@@ -135,7 +138,7 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
         <span className="ml-auto text-[#FFA028] text-[12px]">{mode === 'candle' ? 'GPC · Candle Chart' : 'GP · Line Chart'}</span>
       </div>
       {/* Barra de ferramentas */}
-      <div className="flex items-center gap-3 flex-wrap px-3 py-1 border-b border-[#3a3a3a] bg-[#0a0a0a] text-[12px]">
+      <div className="flex items-center gap-3 flex-wrap px-3 py-1 border-b border-[#3a3a3a] bg-[#0a0a0a] text-[12px] fn-strip max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:[&>*]:shrink-0 max-lg:whitespace-nowrap">
         <div className="flex gap-[2px]">{PERIODS.map(p => <button key={p.k} className={btn(period === p.k)} onClick={() => pickPeriod(p.k)}>{p.label}</button>)}</div>
         <div className="flex items-center gap-1 text-[#8a8a8a]">
           <input type="date" value={start} onChange={e => { setStart(e.target.value); setPeriod('') }} className="bg-black text-[#FFA028] border border-[#5a3d12] px-1 py-[1px] outline-none focus:border-[#FFA028]" />
@@ -162,11 +165,14 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
           <PriceChart rows={rows} history={history} mode={mode} showVolume={showVol} smas={smaOn} onHover={setHover} highLow={highLow} />
         )}
         {legend.length > 0 && (
-          <div className="absolute top-2 left-2 z-10 pointer-events-none text-[12px] leading-[17px] px-2 py-1" style={{ background: 'rgba(0,0,0,0.72)', border: '1px solid #2a2a2a' }}>
+          <button type="button" className="lg:hidden absolute top-1 left-1 z-20 text-[11px] px-2 py-[1px]" style={{ background: 'rgba(0,0,0,0.72)', border: '1px solid #2a2a2a', color: '#FFA028' }} onClick={() => setLegOpen(o => !o)}>Legenda {legOpen ? '▾' : '▸'}</button>
+        )}
+        {legend.length > 0 && (
+          <div className={`absolute top-2 left-2 z-10 pointer-events-none text-[12px] leading-[17px] px-2 py-1 max-lg:top-7 max-lg:left-1 max-lg:text-[11px] max-lg:leading-[15px] ${legOpen ? '' : 'max-lg:hidden'}`} style={{ background: 'rgba(0,0,0,0.72)', border: '1px solid #2a2a2a' }}>
             {legend.map(r => (
               <div key={r.l} className="flex items-center gap-2">
                 <span className="inline-block w-[9px] h-[9px]" style={{ background: r.c, border: r.c === T.up && mode === 'candle' ? '1px solid #fff' : undefined }} />
-                <span className="text-[#d9d9d9] min-w-[170px]">{r.l}</span>
+                <span className="text-[#d9d9d9] min-w-[170px] max-lg:min-w-[104px]">{r.l}</span>
                 <span className="font-bold" style={{ color: r.c === '#9e9e9e' ? '#d9d9d9' : r.c }}>{r.v}</span>
               </div>
             ))}

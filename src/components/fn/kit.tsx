@@ -113,16 +113,17 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
   const desc = title || FUNCTION_LIST.find(f => f.code === code)?.desc || code
   return (
     <div className="w-full px-2 pb-3 lg:pb-1 -mt-4 sm:-mt-6 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col" style={{ fontFamily: MONO, color: C.text }}>
-      <div className="flex items-center gap-0 border-b shrink-0" style={{ borderColor: C.line, background: C.panel }}>
-        {ticker && <span className="px-2 py-1 text-[13px] font-bold" style={{ background: C.amber, color: '#000' }}>{short(ticker)}</span>}
-        <span className="px-2 py-1 text-[13px] font-bold" style={{ color: C.amber }}>{code}</span>
-        <span className="px-2 py-1 text-[13px]" style={{ color: C.text }}>{desc}</span>
-        <div className="ml-auto flex items-center gap-2 pr-2 text-[12px]">{right}</div>
+      {/* mobile (<1024px): 2 linhas — código+título / controles numa faixa com rolagem horizontal */}
+      <div className="flex items-center gap-0 border-b shrink-0 max-lg:flex-wrap" style={{ borderColor: C.line, background: C.panel }}>
+        {ticker && <span className="px-2 py-1 text-[13px] font-bold max-lg:shrink-0" style={{ background: C.amber, color: '#000' }}>{short(ticker)}</span>}
+        <span className="px-2 py-1 text-[13px] font-bold max-lg:shrink-0" style={{ color: C.amber }}>{code}</span>
+        <span className="px-2 py-1 text-[13px] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate" style={{ color: C.text }} title={desc}>{desc}</span>
+        <div className={`ml-auto flex items-center gap-2 pr-2 text-[12px] fn-strip max-lg:ml-0 max-lg:w-full max-lg:pl-2 max-lg:py-1 max-lg:border-t max-lg:border-[#2a2a2a] max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0 ${right ? '' : 'max-lg:hidden'}`}>{right}</div>
       </div>
       {tabs && tabs.length > 0 && (
-        <div className="flex flex-wrap gap-0 border-b shrink-0" style={{ borderColor: C.line, background: '#050505' }}>
+        <div className="flex flex-wrap gap-0 border-b shrink-0 fn-strip max-lg:flex-nowrap max-lg:overflow-x-auto" style={{ borderColor: C.line, background: '#050505' }}>
           {tabs.map((t, i) => (
-            <button key={t} onClick={() => setTab && setTab(i)} className="px-3 py-1 text-[12px] border-r"
+            <button key={t} onClick={() => setTab && setTab(i)} className="px-3 py-1 text-[12px] border-r max-lg:shrink-0 max-lg:whitespace-nowrap"
               style={{ borderColor: C.line, color: tab === i ? '#000' : C.amber, background: tab === i ? C.amber : 'transparent' }}>
               <span style={{ color: tab === i ? '#000' : C.white }}>{i + 1})</span> {t}
             </button>
@@ -131,11 +132,19 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
       )}
       <FitArea className="pt-2">{children}</FitArea>
       {(source || note) && (
-        <div className="mt-2 lg:mt-1 text-[11px] leading-snug shrink-0" style={{ color: C.muted }}>
+        <div className="mt-2 lg:mt-1 text-[11px] leading-snug shrink-0 max-lg:hidden" style={{ color: C.muted }}>
           {note && <div className="mb-1">{note}</div>}
           {source && <div>Fonte: {source}</div>}
           <div>Conteúdo educacional — não é recomendação de investimento.</div>
         </div>
+      )}
+      {(source || note) && (
+        <details className="group mt-2 text-[11px] leading-snug lg:hidden" style={{ color: C.muted }}>
+          <summary className="cursor-pointer list-none select-none py-1 text-[12px] [&::-webkit-details-marker]:hidden" style={{ color: C.amber }}>Fonte e notas <span className="inline-block transition-transform group-open:rotate-90">▸</span></summary>
+          {note && <div className="mb-1">{note}</div>}
+          {source && <div>Fonte: {source}</div>}
+          <div>Conteúdo educacional — não é recomendação de investimento.</div>
+        </details>
       )}
     </div>
   )
@@ -155,17 +164,17 @@ export function Grid<R = any>({ cols, rows, dense = true, onRow, maxH, rowStyle 
   const fit = useFit()
   const mh = fit.active ? Math.max(90, Math.round((maxH ?? 480) * fit.s)) : maxH
   return (
-    <div className="overflow-auto" style={{ maxHeight: mh }}>
-      <table className="w-full border-collapse text-[12px]">
+    <div className="overflow-auto fn-gridwrap" style={{ maxHeight: mh }}>
+      <table className="w-full border-collapse text-[12px] fn-table">
         <thead className="sticky top-0" style={{ background: C.panel2 }}>
-          <tr>{cols.map(c => <th key={c.k} className={`${dense ? 'px-2 py-[3px]' : 'px-3 py-1.5'} font-normal whitespace-nowrap border-b ${c.align === 'r' ? 'text-right' : c.align === 'c' ? 'text-center' : 'text-left'}`} style={{ color: C.amber, borderColor: C.line, width: c.w }}>{c.label}</th>)}</tr>
+          <tr>{cols.map(c => <th key={c.k} className={`${dense ? 'px-2 py-[3px]' : 'px-3 py-1.5'} font-normal whitespace-nowrap border-b ${c.align === 'r' ? 'text-right' : c.align === 'c' ? 'text-center' : 'text-left'}`} style={{ color: C.amber, borderColor: C.line, width: c.w, ['--rb' as any]: C.panel2 }}>{c.label}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((r: any, i) => (
             <tr key={i} onClick={() => onRow && onRow(r)} className={onRow ? 'cursor-pointer hover:bg-[#1d1d1d]' : ''} style={{ background: i % 2 ? '#0a0a0a' : 'transparent', ...(rowStyle ? rowStyle(r, i) : {}) }}>
               {cols.map(c => (
                 <td key={c.k} className={`${dense ? 'px-2 py-[2px]' : 'px-3 py-1'} whitespace-nowrap border-b ${c.align === 'r' ? 'text-right' : c.align === 'c' ? 'text-center' : 'text-left'}`}
-                  style={{ borderColor: '#1a1a1a', color: c.color ? c.color(r[c.k], r) : C.text }}>
+                  style={{ borderColor: '#1a1a1a', color: c.color ? c.color(r[c.k], r) : C.text, ['--rb' as any]: (rowStyle && (rowStyle(r, i)?.background as string)) || (i % 2 ? '#0a0a0a' : C.panel) }}>
                   {c.w && c.align !== 'r' ? <div style={{ maxWidth: c.w, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.fmt ? c.fmt(r[c.k], r) : r[c.k] ?? '—'}</div> : c.fmt ? c.fmt(r[c.k], r) : r[c.k] ?? '—'}
                 </td>
               ))}
