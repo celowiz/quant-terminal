@@ -55,6 +55,7 @@ jobs:
         run: |
           npm ci
           npm run lint
+          npm test
           npx tsc --noEmit -p .
           npx next build
           test -f out/index.html
@@ -125,10 +126,11 @@ jobs:
           node-version: '24'
           cache: npm
 
-      - name: Lint + build estático
+      - name: Lint + testes + build estático
         run: |
           npm ci
           npm run lint
+          npm test
           npx next build
           touch out/.nojekyll
           ! grep -ril bloomberg out/

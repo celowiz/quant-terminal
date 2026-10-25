@@ -17,7 +17,7 @@ const cache = new Map<string, Promise<any>>()
 export function getJSON<T = any>(path: string): Promise<T> {
   if (!cache.has(path)) {
     cache.set(path, fetch(href(`/data/${path}`)).then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status} em ${path}`)
+      if (!r.ok) throw new Error(`HTTP ${r.status} at ${path}`)
       return r.json()
     }))
   }
@@ -147,7 +147,7 @@ export async function computeRRG(p: RRGFormData): Promise<RRGResponse> {
   const common = (rows: Price[]) => rows.filter(r => sets.every(st => st.has(r.time)))
   const series: Record<string, Map<string, number>> = {}
   for (const k of Object.keys(daily)) series[k] = weeklyFri(common(daily[k]))
-  if (!series[bench]) throw new Error(`Benchmark '${bench}' não encontrado nos dados`)
+  if (!series[bench]) throw new Error(`Benchmark '${bench}' not found in the data`)
   // inner join (dropna) nas datas semanais
   const keys = Object.keys(series)
   const dates = Array.from(series[bench].keys()).filter(d => keys.every(k => series[k].has(d))).sort()

@@ -1,8 +1,10 @@
 "use client"
 import { useState, useRef, useEffect } from 'react'
-import { FUNCTION_LIST } from '../constants/functions'
+import { FUNCTION_LIST, fnName } from '../constants/functions'
+import { t } from '../lib/i18n'
 import { useDesktop } from './fn/kit'
 import { go, pathParts } from '../lib/static'
+import { navFunction } from '../lib/track'
 // Using location-based navigation to stay framework-agnostic
 
 type HeaderProps = {
@@ -18,7 +20,7 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
   const functionInputRef = useRef<HTMLInputElement | null>(null)
 
   const filteredFunctions = FUNCTION_LIST.filter((f) =>
-    f.code === '' || f.code.includes(functionInput.toUpperCase()) || f.desc.toLowerCase().includes(functionInput.toLowerCase())
+    f.code === '' || f.code.includes(functionInput.toUpperCase()) || f.desc.toLowerCase().includes(functionInput.toLowerCase()) || f.pt.toLowerCase().includes(functionInput.toLowerCase())
   )
 
   const handleFunctionInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,6 +51,7 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
     setFunctionInput(code)
     setShowAutocomplete(false)
     setHighlightedIndex(-1)
+    navFunction('command', code || 'HOME')
     if (onFunctionEnter) onFunctionEnter(code)
     if (code === '') {
       go('/')
@@ -63,7 +66,7 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
     }
   }
 
-  const [pageTitle, setPageTitle] = useState('Homepage')
+  const [pageTitle, setPageTitle] = useState(() => fnName(FUNCTION_LIST[0]))
 
   useEffect(() => {
     const currentCodeFromPath = (() => {
@@ -72,8 +75,8 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
       return parts[0].toUpperCase()
     })()
     const effectiveCode = functionInput || currentCodeFromPath
-    const selectedDesc = FUNCTION_LIST.find(f => f.code === effectiveCode)?.desc || ''
-    setPageTitle(effectiveCode === '' ? 'Homepage' : selectedDesc)
+    const sel = FUNCTION_LIST.find(f => f.code === effectiveCode)
+    setPageTitle(sel ? fnName(sel) : '')
   }, [functionInput])
 
   return (
@@ -87,7 +90,7 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
             value={functionInput}
             onChange={handleFunctionInput}
             onKeyDown={handleFunctionKeyDown}
-            placeholder={desk ? 'Selecione a função desejada' : 'Função'}
+            placeholder={desk ? t('hdr.fnPlaceholder') : t('hdr.fnPlaceholderShort')}
             onFocus={() => setShowAutocomplete(true)}
             onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
             autoComplete="off"
@@ -106,9 +109,9 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
                     className="inline-block min-w-[72px] mr-3"
                     style={idx === highlightedIndex ? { color: '#000' } : { color: '#FFA028' }}
                   >
-                    <b>{f.code || 'Homepage'}</b>
+                    <b>{f.code || 'HOME'}</b>
                   </span>
-                  <span style={idx === highlightedIndex ? { color: '#000' } : { color: '#FFA028' }}>{f.desc}</span>
+                  <span style={idx === highlightedIndex ? { color: '#000' } : { color: '#FFA028' }}>{fnName(f)}</span>
                 </div>
               ))}
             </div>

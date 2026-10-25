@@ -168,11 +168,11 @@ export function RRGChart({ data }: RRGChartProps) {
     <div className="w-full">
       <div className="mb-4 text-center">
         <h3 className="text-xl font-semibold text-white mb-2">
-          RRG vs {data.benchmark} — {data.config.tail} semanas de trilha
+          RRG vs {data.benchmark} — {data.config.tail} trail weeks
         </h3>
         <p className="text-gray-400">
-          Período: {data.date_range.start ? new Date(data.date_range.start).toLocaleDateString('pt-BR') : ''} 
-          {' até '}
+          Period: {data.date_range.start ? new Date(data.date_range.start).toLocaleDateString('pt-BR') : ''} 
+          {' to '}
           {data.date_range.end ? new Date(data.date_range.end).toLocaleDateString('pt-BR') : ''}
         </p>
       </div>
@@ -239,7 +239,7 @@ export function RRGChart({ data }: RRGChartProps) {
               dataKey="rs_momentum"
               data={currentPoints}
               fill="#ffffff"
-              name="Atual"
+              name="Current"
             >
               {currentPoints.map((entry, index) => (
                 <Cell 
@@ -294,12 +294,12 @@ export function RRGChart({ data }: RRGChartProps) {
 
       {/* Estatísticas atuais */}
       <div className="mt-6 bg-black rounded-lg p-4">
-        <h4 className="text-lg font-semibold text-white mb-3 text-center">Posições Atuais</h4>
+        <h4 className="text-lg font-semibold text-white mb-3 text-center">Current Positions</h4>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-600">
-                <th className="text-left py-2 text-gray-300">Ativo</th>
+                <th className="text-left py-2 text-gray-300">Asset</th>
                 <th className="text-right py-2 text-gray-300">RS-Ratio</th>
                 <th className="text-right py-2 text-gray-300">RS-Momentum</th>
                 <th className="text-center py-2 text-gray-300">Quadrante</th>

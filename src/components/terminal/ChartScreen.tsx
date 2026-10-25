@@ -1,8 +1,10 @@
 'use client'
+import { numLocale } from '../../lib/settings'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { format, subMonths, subYears, startOfYear, parseISO } from 'date-fns'
 import { getPrices, tickerMeta, go, type Price } from '../../lib/static'
+import { trackPeriod } from '../../lib/track'
 import { T, MONO } from './PriceChart'
 
 const PriceChart = dynamic(() => import('./PriceChart'), { ssr: false })
@@ -12,14 +14,14 @@ const PERIODS: { k: string; label: string; from: (d: Date) => Date | null }[] = 
   { k: '3M', label: '3M', from: d => subMonths(d, 3) },
   { k: '6M', label: '6M', from: d => subMonths(d, 6) },
   { k: 'YTD', label: 'YTD', from: d => startOfYear(d) },
-  { k: '1A', label: '1A', from: d => subYears(d, 1) },
-  { k: '2A', label: '2A', from: d => subYears(d, 2) },
-  { k: '5A', label: '5A', from: d => subYears(d, 5) },
-  { k: 'MAX', label: 'Máx', from: () => null },
+  { k: '1A', label: '1Y', from: d => subYears(d, 1) },
+  { k: '2A', label: '2Y', from: d => subYears(d, 2) },
+  { k: '5A', label: '5Y', from: d => subYears(d, 5) },
+  { k: 'MAX', label: 'Max', from: () => null },
 ]
-const TFS = [{ v: 'd', l: 'Diário' }, { v: 'w', l: 'Semanal' }, { v: 'm', l: 'Mensal' }, { v: 'q', l: 'Trimestral' }, { v: 'y', l: 'Anual' }]
+const TFS = [{ v: 'd', l: 'Daily' }, { v: 'w', l: 'Weekly' }, { v: 'm', l: 'Monthly' }, { v: 'q', l: 'Quarterly' }, { v: 'y', l: 'Yearly' }]
 
-const nf = (v: number | undefined | null, d = 2) => v == null || isNaN(v) ? '—' : v.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d })
+const nf = (v: number | undefined | null, d = 2) => v == null || isNaN(v) ? '—' : v.toLocaleString(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: d })
 const vf = (v: number) => v >= 1e9 ? `${nf(v / 1e9)}B` : v >= 1e6 ? `${nf(v / 1e6)}M` : v >= 1e3 ? `${nf(v / 1e3)}K` : String(v)
 const df = (s?: string) => s ? format(parseISO(s), 'dd/MM/yy') : '—'
 
@@ -75,6 +77,7 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
   }, [ticker, tf])
 
   const pickPeriod = (k: string) => {
+    trackPeriod(k)
     setPeriod(k)
     if (!all.length) return
     const last = all[all.length - 1].time
@@ -159,8 +162,8 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
       </div>
       {/* Gráfico: ocupa o resto da viewport */}
       <div ref={boxRef} className="relative w-full" style={{ height: h, background: T.bg }}>
-        {err && <div className="absolute inset-0 flex items-center justify-center text-[#FF4D4D]">Erro ao carregar dados: {err}</div>}
-        {!err && !rows.length && <div className="absolute inset-0 flex items-center justify-center text-[#8a8a8a]">Carregando…</div>}
+        {err && <div className="absolute inset-0 flex items-center justify-center text-[#FF4D4D]">Error loading data: {err}</div>}
+        {!err && !rows.length && <div className="absolute inset-0 flex items-center justify-center text-[#8a8a8a]">Loading…</div>}
         {rows.length > 0 && (
           <PriceChart rows={rows} history={history} mode={mode} showVolume={showVol} smas={smaOn} onHover={setHover} highLow={highLow} />
         )}
