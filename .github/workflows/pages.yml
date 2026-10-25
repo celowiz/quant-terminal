@@ -1,0 +1,125 @@
+# quant-terminal → GitHub Pages (custo zero).
+# 1) roda o pipeline de dados (fontes abertas: Yahoo, CVM, B3, BCB, FRED, RSS)
+# 2) abre issue se alguma regra de alerts.yaml disparou (ALERT)
+# 3) build estático do Next.js (output: 'export') e publica no Pages.
+# Horário: 10:47 UTC = 07:47 BRT, ter–sáb (dados do pregão de seg–sex já consolidados).
+# Minuto :47 escolhido para evitar picos do Actions e os minutos já usados (:04 :07 :09 :11 :13 :17 :23 :34 :39 :41).
+name: pages
+
+on:
+  push:
+    branches: [main]
+  # PR: só valida typecheck + build (sem pipeline, sem issue, sem deploy)
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '47 10 * * 2-6'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  issues: write
+
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: false
+
+jobs:
+  pr-build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      NEXT_PUBLIC_BASE_PATH: /quant-terminal
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Typecheck + build (seed public/data/tickers.json)
+        run: |
+          npm ci
+          npx tsc --noEmit -p .
+          npx next build
+          test -f out/index.html
+          ! grep -ril bloomberg out/
+
+  build:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      QT_DATA_OUT: ${{ github.workspace }}/public/data
+      QT_CACHE: ${{ github.workspace }}/.qt_cache
+      QT_ALERTS: ${{ github.workspace }}/alerts.yaml
+      QT_ALERTS_MD: /tmp/alerts_fired.md
+      NEXT_PUBLIC_BASE_PATH: /quant-terminal
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: .github/workflows/pages.yml
+
+      - name: Dependências Python
+        run: pip install pandas yfinance requests pyyaml
+
+      # Cache dos downloads grandes (CVM DFP/ITR, COTAHIST) entre execuções.
+      - uses: actions/cache@v4
+        with:
+          path: .qt_cache
+          key: qt-cache-${{ github.run_id }}
+          restore-keys: qt-cache-
+
+      - name: Pipeline de dados
+        run: bash pipeline/run_all.sh
+
+      - name: Issue de alerta (ALERT)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -s /tmp/alerts_fired.md ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "ALERT $(TZ=America/Sao_Paulo date +%Y-%m-%d): regras disparadas" \
+              --body-file /tmp/alerts_fired.md --label alert || \
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "ALERT $(TZ=America/Sao_Paulo date +%Y-%m-%d): regras disparadas" \
+              --body-file /tmp/alerts_fired.md
+          else
+            echo "Nenhum alerta disparado."
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Build estático
+        run: |
+          npm ci
+          npx next build
+          touch out/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

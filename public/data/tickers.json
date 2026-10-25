@@ -1,0 +1,102 @@
+{
+ "generated_at": "2026-10-24T19:26:27-03:00",
+ "source": "Yahoo Finance via yfinance (OHLC ajustado por proventos/desdobramentos)",
+ "tickers": [
+  {
+   "ticker": "B3SA3.SA",
+   "key": "B3SA3",
+   "name": "B3 S.A.",
+   "first": "2016-10-24",
+   "last": "2026-10-23",
+   "n": 2492
+  },
+  {
+   "ticker": "BRL=X",
+   "key": "BRL_X",
+   "name": "USD/BRL",
+   "first": "2016-10-24",
+   "last": "2026-10-23",
+   "n": 2602
+  },
+  {
+   "ticker": "DX-Y.NYB",
+   "key": "DX_Y_NYB",
+   "name": "US Dollar Index (DXY)",
+   "first": "2016-10-24",
+   "last": "2026-10-23",
+   "n": 2515
+  },
+  {
+   "ticker": "EURUSD=X",
+   "key": "EURUSD_X",
+   "name": "EUR/USD",
+   "first": "2016-10-24",
+   "last": "2026-10-23",
+   "n": 2602
+  },
+  {
+   "ticker": "GBPUSD=X",
+   "key": "GBPUSD_X",
+   "name": "GBP/USD",
+   "first": "2016-10-24",
+   "last": "2026-10-23",
+   "n": 2602
+  },
+  {
+   "ticker": "ITUB3.SA",
+   "key": "ITUB3",
+   "name": "Itaú Unibanco ON",
+   "first": "2016-10-24",
+   "last": "2026-10-23",
+   "n": 2492
+  },
+  {
+   "ticker": "ITUB4.SA",
+   "key": "ITUB4",
+   "name": "Itaú Unibanco PN",
+   "first": "2016-10-24",
+   "last": "2026-10-23",
+   "n": 2492
+  },
+  {
+   "ticker": "JPY=X",
+   "key": "JPY_X",
+   "name": "USD/JPY",
+   "first": "2016-10-24",
+   "last": "2026-10-23",
+   "n": 2602
+  },
+  {
+   "ticker": "PETR3.SA",
+   "key": "PETR3",
+   "name": "Petrobras ON",
+   "first": "2016-10-24",
+   "last": "2026-10-23",
+   "n": 2492
+  },
+  {
+   "ticker": "PETR4.SA",
+   "key": "PETR4",
+   "name": "Petróleo Brasileiro S.A. - Petrobras",
+   "first": "2016-10-24",
+   "last": "2026-10-23",
+   "n": 2492
+  },
+  {
+   "ticker": "VALE3.SA",
+   "key": "VALE3",
+   "name": "Vale S.A.",
+   "first": "2016-10-24",
+   "last": "2026-10-23",
+   "n": 2492
+  },
+  {
+   "ticker": "^BVSP",
+   "key": "IDX_BVSP",
+   "name": "IBOVESPA",
+   "first": "2016-10-24",
+   "last": "2026-10-23",
+   "n": 2484
+  }
+ ]
+}

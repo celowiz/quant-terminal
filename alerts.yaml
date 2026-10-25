@@ -1,0 +1,23 @@
+# Alertas de preço avaliados pelo GitHub Actions a cada execução do pipeline (fechamento diário, não tempo real).
+# Quando uma regra dispara, o workflow abre uma Issue no repositório (o GitHub notifica por e-mail).
+# op: above | below | change_pct_above | change_pct_below   (change_pct = variação % do último pregão)
+- id: petr4-acima-60
+  ticker: PETR4.SA
+  op: above
+  value: 60
+  note: PETR4 acima de R$ 60
+- id: ibov-queda-2pct
+  ticker: ^BVSP
+  op: change_pct_below
+  value: -2
+  note: Ibovespa caiu mais de 2% no dia
+- id: usdbrl-acima-6
+  ticker: BRL=X
+  op: above
+  value: 6
+  note: Dólar acima de R$ 6,00
+- id: vale3-abaixo-50
+  ticker: VALE3.SA
+  op: below
+  value: 50
+  note: VALE3 abaixo de R$ 50
