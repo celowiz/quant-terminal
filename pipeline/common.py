@@ -1,12 +1,24 @@
 """Utilidades comuns do pipeline de dados (roda local ou no GitHub Actions)."""
 import json, os, time, datetime as dt, requests
+from zoneinfo import ZoneInfo
 OUT = os.environ.get('QT_DATA_OUT', os.path.join(os.path.dirname(__file__), '..', '..', 'work', 'frontend', 'public', 'data'))
 OUT = os.path.abspath(OUT)
 CACHE = os.environ.get('QT_CACHE', '/tmp/qt_cache'); os.makedirs(CACHE, exist_ok=True)
 UA = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) quant-terminal-pipeline (educational)'}
 
+# Datas sempre no fuso de São Paulo: o runner do Actions roda em UTC, e entre 21h e 0h (BRT) o
+# dt.date.today() do runner já é o dia seguinte (ex.: selic_date '2026-10-25' gerado às 22h18 de 24/10).
+TZ = ZoneInfo('America/Sao_Paulo')
+
+def now_brt():
+    return dt.datetime.now(TZ)
+
+def today_brt(now=None):
+    """Data de hoje em America/Sao_Paulo (now: datetime com fuso, para testes)."""
+    return (now.astimezone(TZ) if now is not None else now_brt()).date()
+
 def now_iso():
-    return dt.datetime.now(dt.timezone(dt.timedelta(hours=-3))).isoformat(timespec='seconds')
+    return now_brt().isoformat(timespec='seconds')
 
 def save(rel, obj):
     p = os.path.join(OUT, rel); os.makedirs(os.path.dirname(p), exist_ok=True)

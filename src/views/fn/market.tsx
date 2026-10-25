@@ -132,7 +132,7 @@ function squarify<T extends { v: number }>(items: T[], r: TM): (T & TM)[] {
   const sc = (r.w * r.h) / tot; let rest = items.slice().sort((a, b) => b.v - a.v).map(i => ({ ...i, a: i.v * sc })); let rr = { ...r }
   const worst = (row: any[], side: number) => { const s = row.reduce((p, i) => p + i.a, 0); const mx = Math.max(...row.map(i => i.a)), mn = Math.min(...row.map(i => i.a)); return Math.max((side * side * mx) / (s * s), (s * s) / (side * side * mn)) }
   while (rest.length) {
-    const side = Math.min(rr.w, rr.h); let row = [rest[0]]; let k = 1
+    const side = Math.min(rr.w, rr.h); const row = [rest[0]]; let k = 1
     while (k < rest.length && worst([...row, rest[k]], side) <= worst(row, side)) { row.push(rest[k]); k++ }
     const s = row.reduce((p, i) => p + i.a, 0)
     if (rr.w >= rr.h) { const w = s / rr.h; let y = rr.y; row.forEach(i => { const h = i.a / w; out.push({ ...(i as any), x: rr.x, y, w, h }); y += h }); rr = { x: rr.x + w, y: rr.y, w: rr.w - w, h: rr.h } }

@@ -1,13 +1,13 @@
 """OMON (versão honesta): cadeia de opções de FECHAMENTO do último pregão a partir do arquivo público
 COTAHIST diário da B3. Não há book nem tempo real. Vol. implícita e gregas por Black-Scholes, com o CDI como juro."""
 import io, zipfile, math, datetime as dt, json, os
-from common import save, get, step, now_iso, OUT
+from common import save, get, step, now_iso, OUT, today_brt
 
 UNDER = {  # prefixo do código de opção, espécie do subjacente -> ativo-objeto
     'PETR4.SA': ('PETR', 'PN'), 'PETR3.SA': ('PETR', 'ON'), 'VALE3.SA': ('VALE', 'ON'), 'ITUB4.SA': ('ITUB', 'PN'), 'ITUB3.SA': ('ITUB', 'ON'), 'B3SA3.SA': ('B3SA', 'ON'), 'BOVA11.SA': ('BOVA', 'CI')}
 
 def latest_cotahist():
-    d = dt.date.today()
+    d = today_brt()
     for i in range(0, 10):
         x = d - dt.timedelta(days=i)
         if x.weekday() >= 5: continue

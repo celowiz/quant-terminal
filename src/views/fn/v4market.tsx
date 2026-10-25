@@ -226,7 +226,7 @@ export function GCView() {
   const COLS: Record<string, string> = { now: C.amber, w1: C.white, m1: C.cyan, m3: C.purple, y1: '#888' }
   const curves = useMemo(() => {
     if (!g) return null
-    let sets: Record<string, { date: string; pts: { x: number; y: number; l: string }[] }> = {}
+    const sets: Record<string, { date: string; pts: { x: number; y: number; l: string }[] }> = {}
     if (tab === 0 && di.data) {
       const keys = Object.keys(di.data.curves).sort(), last = keys[keys.length - 1]
       const off: Record<string, number> = { now: 0, w1: 7, m1: 30, m3: 91, y1: 365 }

@@ -2,10 +2,10 @@
 Fontes oficiais abertas: CVM (cadastro, IPE, DFP, ITR, FCA) e Yahoo Finance (proventos, desdobramentos, preços brutos, datas de resultado)."""
 import zipfile, datetime as dt, json, os
 import pandas as pd, yfinance as yf
-from common import save, cached, clean, step, now_iso, CNPJ, EQUITIES, OUT
+from common import save, cached, clean, step, now_iso, CNPJ, EQUITIES, OUT, today_brt
 
 CVM = 'https://dados.cvm.gov.br/dados/CIA_ABERTA'
-Y = dt.date.today().year
+Y = today_brt().year
 
 def csv_in_zip(path, name):
     z = zipfile.ZipFile(path)
