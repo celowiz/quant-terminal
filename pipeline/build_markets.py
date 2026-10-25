@@ -3,9 +3,9 @@ indicadores econômicos (ECON), CDI (CDIE) e renda fixa mundial (WFI).
 Fontes: B3 (carteira teórica do IBOV), Yahoo Finance (yfinance), BCB SGS/Olinda (PTAX, Focus), FRED."""
 import io, json, datetime as dt, base64
 import pandas as pd, yfinance as yf
-from common import save, get, get_json, load_prev, clean, step, now_iso
+from common import save, get, get_json, load_prev, clean, step, now_iso, today_brt
 
-TODAY = dt.date.today()
+TODAY = today_brt()
 
 def closes_frame(tickers, period='2y'):
     df = yf.download(tickers, period=period, auto_adjust=True, progress=False, threads=True, group_by='ticker')

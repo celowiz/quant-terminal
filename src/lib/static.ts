@@ -25,7 +25,7 @@ export function getJSON<T = any>(path: string): Promise<T> {
 }
 
 // Mesma transformação que o backend usava para nomes de tabela
-export const tickerKey = (t: string) => t.toUpperCase().replace(/^\^/, 'IDX_').replace(/\.SA$/, '').replace(/[.=\-]/g, '_')
+export const tickerKey = (t: string) => t.toUpperCase().replace(/^\^/, 'IDX_').replace(/\.SA$/, '').replace(/[.=-]/g, '_')
 
 export type TickerMeta = { ticker: string; key: string; name: string; first: string; last: string; n: number }
 export type TickersFile = { generated_at: string; source: string; tickers: TickerMeta[] }
@@ -136,7 +136,7 @@ const quadrant = (r: number, m: number) => (r >= 100 && m >= 100 ? 'Leading' : r
 /** Equivalente a GET /rrg — calculado no navegador a partir dos JSON de preços */
 export async function computeRRG(p: RRGFormData): Promise<RRGResponse> {
   const bench = tickerKey(p.benchmark)
-  let list = p.tickers ? p.tickers.split(',').map(t => tickerKey(t.trim())).filter(Boolean) : DEFAULT_RRG_TICKERS.slice()
+  const list = p.tickers ? p.tickers.split(',').map(t => tickerKey(t.trim())).filter(Boolean) : DEFAULT_RRG_TICKERS.slice()
   if (!list.includes(bench)) list.push(bench)
   // como o backend: merge diário (outer) + dropna => só datas com todos os ativos; depois W-FRI last
   const daily: Record<string, Price[]> = {}

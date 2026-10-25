@@ -7,9 +7,9 @@ Fontes (todas públicas e gratuitas):
 Dias úteis: base 252 com feriados nacionais calculados aqui (conferidos com o du implícito no PU da B3)."""
 import io, math, datetime as dt
 import pandas as pd, requests
-from common import save, get, get_json, load_prev, clean, step, now_iso, UA
+from common import save, get, get_json, load_prev, clean, step, now_iso, UA, today_brt
 
-TODAY = dt.date.today()
+TODAY = today_brt()
 MONTHS = 'FGHJKMNQUVXZ'
 
 # ---------- calendário de dias úteis (feriados nacionais) ----------
@@ -89,6 +89,10 @@ def copom_calendar(y0, y1):
         out.append({'start': a.isoformat(), 'decision': b.isoformat(), 'effective': next_bd(b).isoformat(), 'label': f'R{cnt[b.year]}/{b.year}'})
     return out
 
+def upto(rows, today):
+    """A SGS 432 (Selic meta) já publica dias futuros (meta vigente repetida); mantém só até hoje (BRT)."""
+    return [x for x in rows if x[0] <= today]
+
 def sgs_range(code, a, b):
     u = f'https://api.bcb.gov.br/dados/serie/bcdata.sgs.{code}/dados?formato=json&dataInicial={a:%d/%m/%Y}&dataFinal={b:%d/%m/%Y}'
     return [(dt.datetime.strptime(r['data'], '%d/%m/%Y').date(), float(r['valor'])) for r in get_json(u)]
@@ -141,7 +145,7 @@ def cdie():
     curves = dict(prev.get('curves', {}))
     meetings = copom_calendar(TODAY.year - 1, TODAY.year + 2)
     cdi_s = dict(sgs_range(4389, TODAY - dt.timedelta(days=420), TODAY))
-    selic = sgs_range(432, TODAY - dt.timedelta(days=60), TODAY); selic = [x for x in selic if x[0] <= TODAY]
+    selic = upto(sgs_range(432, TODAY - dt.timedelta(days=60), TODAY), TODAY)
     sessions = {}
     d = TODAY - dt.timedelta(days=1)
     for _ in range(40):  # últimos ~21 pregões disponíveis no BDI (os já guardados não são baixados de novo, exceto os 2 mais recentes)

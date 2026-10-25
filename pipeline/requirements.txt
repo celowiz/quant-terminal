@@ -1,0 +1,8 @@
+# Versões em uso no build que funcionou (Actions, Python 3.12, run 40148754031); atualizar de propósito, não por acaso.
+pandas==3.1.0
+yfinance==1.7.0
+requests==2.34.2
+PyYAML==6.0.3
+numpy==2.5.4
+tzdata==2026.5
+pytest==9.1.1

@@ -207,7 +207,7 @@ export default function RRGTerminal() {
                 const p = v.pts[v.pts.length - 1], q = quad(p.rs_ratio, p.rs_momentum), off = hidden.has(v.t)
                 return (
                   <tr key={v.t} className={`cursor-pointer border-t border-[#1a1a1a] hover:bg-[#151515] ${off ? 'opacity-40' : ''}`}
-                    onClick={() => setHidden(h => { const s = new Set(h); s.has(v.t) ? s.delete(v.t) : s.add(v.t); return s })}
+                    onClick={() => setHidden(h => { const s = new Set(h); if (s.has(v.t)) s.delete(v.t); else s.add(v.t); return s })}
                     onMouseEnter={() => setFocus(v.t)} onMouseLeave={() => setFocus(null)}>
                     <td className="px-2"><span className="inline-block w-[10px] h-[10px]" style={{ background: off ? 'transparent' : colorOf[v.t], border: `1px solid ${colorOf[v.t]}` }} /></td>
                     <td className="font-bold" style={{ color: colorOf[v.t] }}>{label(v.t)}</td>

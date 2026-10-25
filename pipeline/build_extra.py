@@ -3,7 +3,7 @@ HDS (acionistas – CVM FRE), FA (demonstrações detalhadas – CVM DFP/ITR) e 
 Cada etapa é independente e mantém o JSON anterior se a fonte falhar."""
 import datetime as dt, math, sys, json, os, urllib.parse
 import pandas as pd, yfinance as yf
-from common import save, get_json, load_prev, clean, step, now_iso, cached, CNPJ, EQUITIES, OUT
+from common import save, get_json, load_prev, clean, step, now_iso, cached, CNPJ, EQUITIES, OUT, today_brt
 from build_corp import csv_in_zip, cvm_zip, key, ticker_cnpj_map, load_statements, build_fund, shares_cvm, Y
 
 def bars(df):
@@ -64,9 +64,9 @@ FOCUS_IND = ['IPCA', 'PIB Total', 'Selic', 'Câmbio', 'IGP-M', 'IPCA Administrad
              'Investimento direto no país', 'Dívida líquida do setor público', 'Resultado primário', 'Resultado nominal']
 
 def focus():
-    since = (dt.date.today() - dt.timedelta(days=400)).isoformat()
+    since = (today_brt() - dt.timedelta(days=400)).isoformat()
     out = {}
-    y0 = dt.date.today().year; refs = [str(y) for y in range(y0, y0 + 4)]
+    y0 = today_brt().year; refs = [str(y) for y in range(y0, y0 + 4)]
     for ind in FOCUS_IND:
         flt = f"Indicador eq '{ind}' and baseCalculo eq 0 and Data ge '{since}'"
         url = (OL + 'ExpectativasMercadoAnuais?' + urllib.parse.urlencode({'$top': 5000, '$format': 'json', '$orderby': 'Data desc', '$filter': flt,

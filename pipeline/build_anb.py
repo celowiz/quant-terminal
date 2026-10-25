@@ -3,7 +3,7 @@
 NÃO é a planilha ANBIMA (proprietária, ToS proíbe automação): as categorias são as da CVM."""
 import zipfile, datetime as dt
 import pandas as pd
-from common import save, cached, step, now_iso
+from common import save, cached, step, now_iso, today_brt
 
 BASE = 'https://dados.cvm.gov.br/dados/FI'
 
@@ -12,7 +12,7 @@ def anb():
                       sep=';', encoding='latin1', dtype=str, usecols=['CNPJ_Classe', 'Tipo_Classe', 'Classificacao', 'Classificacao_Anbima'])
     reg['CNPJ_Classe'] = reg.CNPJ_Classe.str.replace(r'\D', '', regex=True).str.zfill(14)
     reg = reg.drop_duplicates('CNPJ_Classe').set_index('CNPJ_Classe')
-    today = dt.date.today(); frames = []
+    today = today_brt(); frames = []
     for i in range(13, -1, -1):
         y, m = today.year, today.month - i
         while m <= 0: m += 12; y -= 1

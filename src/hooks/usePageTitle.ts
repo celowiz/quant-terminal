@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 
 export function usePageTitle(functionName: string) {
   useEffect(() => {
-    const title = `celowiz • ${functionName}`
+    const title = `Quant Terminal · ${functionName} — Marcelo Wizenberg`
     document.title = title
   }, [functionName])
 }
