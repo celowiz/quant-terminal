@@ -483,7 +483,10 @@ IBGE_MAP = [  # (regex no título, id da série, descrição em inglês, unidade
 IBGE_EN = {'Índice de Preços ao Produtor': 'Producer prices (IPP)', 'Levantamento Sistemático da Produção Agrícola': 'Crop production survey (LSPA)',
            'Pesquisa Nacional por Amostra de Domicílios Contínua Trimestral': 'PNAD quarterly labour survey', 'Sistema Nacional de Pesquisa de Custos e Índices da Construção Civil': 'Construction costs (SINAPI)',
            'Índice Nacional de Preços ao Consumidor': 'INPC consumer prices', 'Pesquisa Industrial Mensal Produção Física - Regional': 'Industrial production – regional',
-           'Pesquisa Mensal de Serviços - Regional': 'Services survey – regional'}
+           'Pesquisa Mensal de Serviços - Regional': 'Services survey – regional',
+           'Pesquisa Industrial Mensal: Produção Física - Regional': 'Industrial production – regional',
+           'Pesquisas Trimestrais do Abate de Animais, do Leite, do Couro e da Produção de Ovos de Galinha': 'Quarterly livestock surveys (slaughter, milk, hides, eggs)',
+           'Índice de Preços ao Produtor - Indústrias Extrativas e de Transformação': 'Producer prices (IPP) – mining & manufacturing'}
 
 def ibge_events(a, b):
     u = f'https://servicodados.ibge.gov.br/api/v3/calendario/?qtd=500&de={a:%m-%d-%Y}&ate={b:%m-%d-%Y}'
@@ -526,7 +529,7 @@ def ibge_rows(items, sidra, sgs433, focus_m):
                     if fm: r['survey'] = fm[-1]
                 break
         else:
-            r['event'] = IBGE_EN.get(t, t)
+            r['event'] = next((v for k, v in IBGE_EN.items() if t == k or t.startswith(k + ':')), t)
         out.append(r)
     return out
 
@@ -724,7 +727,7 @@ def fxfc():
                        'spot_hist': hist_spot,
                        'note': 'Focus = BCB market survey (median of respondents, BRL per USD, monthly average for monthly references / year-end for annual). '
                                'Forward = theoretical covered-interest-parity value from DI1 (B3) and US Treasury yields; not a traded onshore forward.',
-                       'source': 'BCB Focus via Olinda (ExpectativaMercadoMensais / ExpectativasMercadoAnuais, indicador Câmbio); BCB PTAX; B3 DI1; FRED Treasuries'})
+                       'source': 'BCB Focus via Olinda (ExpectativaMercadoMensais / ExpectativasMercadoAnuais, indicator Câmbio = BRL/USD); BCB PTAX; B3 DI1; FRED Treasuries'})
 
 # =====================================================================================
 # FXC – matriz de taxas cruzadas
@@ -822,13 +825,15 @@ def gmm():
         if b: bt.append({'id': f'{cc}{ten}', 'name': f"{c['name'].split(' (')[0]} {ten}", **b})
     groups.append({'group': 'Sovereign Bonds', 'tiles': bt})
     fu = load_out('futures.json') or {}
+    CMD_EN = {'CL=F': 'WTI Crude', 'BZ=F': 'Brent Crude', 'NG=F': 'Natural Gas', 'GC=F': 'Gold', 'SI=F': 'Silver', 'HG=F': 'Copper',
+              'ZS=F': 'Soybeans', 'ZC=F': 'Corn', 'KC=F': 'Coffee (Arabica)', 'SB=F': 'Sugar No. 11'}
     frow = {r['ticker']: r for r in fu.get('rows', [])}
     ct = []
     for t in GMM_CMD:
         r = frow.get(t)
         if r and r.get('series'):
             b = chg_block([p[0] for p in r['series']], [p[1] for p in r['series']], 'pct')
-            if b: ct.append({'id': t, 'name': r['name'], 'unit': r.get('unit'), **b})
+            if b: ct.append({'id': t, 'name': CMD_EN.get(t, r['name']), 'unit': r.get('unit'), **b})
     groups.append({'group': 'Commodities', 'tiles': ct})
     if sum(len(g['tiles']) for g in groups) < 10: raise RuntimeError('poucos ativos para GMM')
     save('gmm.json', {'generated_at': now_iso(), 'groups': groups,
