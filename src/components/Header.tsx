@@ -1,6 +1,7 @@
 "use client"
 import { useState, useRef, useEffect } from 'react'
 import { FUNCTION_LIST } from '../constants/functions'
+import { useDesktop } from './fn/kit'
 import { go, pathParts } from '../lib/static'
 // Using location-based navigation to stay framework-agnostic
 
@@ -11,6 +12,7 @@ type HeaderProps = {
 }
 
 export default function Header({ functionInput, setFunctionInput, onFunctionEnter }: HeaderProps) {
+  const desk = useDesktop()
   const [showAutocomplete, setShowAutocomplete] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const functionInputRef = useRef<HTMLInputElement | null>(null)
@@ -85,7 +87,7 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
             value={functionInput}
             onChange={handleFunctionInput}
             onKeyDown={handleFunctionKeyDown}
-            placeholder="Selecione a função desejada"
+            placeholder={desk ? 'Selecione a função desejada' : 'Função'}
             onFocus={() => setShowAutocomplete(true)}
             onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
             autoComplete="off"

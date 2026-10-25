@@ -163,8 +163,13 @@ export type Col<R = any> = { k: string; label: React.ReactNode; align?: 'l' | 'r
 export function Grid<R = any>({ cols, rows, dense = true, onRow, maxH, rowStyle }: { cols: Col<R>[]; rows: R[]; dense?: boolean; onRow?: (r: R) => void; maxH?: number; rowStyle?: (r: R, i: number) => React.CSSProperties | undefined }) {
   const fit = useFit()
   const mh = fit.active ? Math.max(90, Math.round((maxH ?? 480) * fit.s)) : maxH
-  return (
-    <div className="overflow-auto fn-gridwrap" style={{ maxHeight: mh }}>
+  const desk = useDesktop()
+  const scRef = useRef<HTMLDivElement | null>(null)
+  const [more, setMore] = useState(false)
+  const chk = () => { const el = scRef.current; if (el) setMore(el.scrollWidth - el.clientWidth - el.scrollLeft > 4) }
+  useEffect(() => { if (desk) return; const el = scRef.current; if (!el) return; chk(); const ro = new ResizeObserver(chk); ro.observe(el); return () => ro.disconnect() }, [desk, rows.length, cols.length])
+  const body = (
+    <div ref={desk ? undefined : scRef} onScroll={desk ? undefined : chk} className="overflow-auto fn-gridwrap" style={{ maxHeight: mh }}>
       <table className="w-full border-collapse text-[12px] fn-table">
         <thead className="sticky top-0" style={{ background: C.panel2 }}>
           <tr>{cols.map(c => <th key={c.k} className={`${dense ? 'px-2 py-[3px]' : 'px-3 py-1.5'} font-normal whitespace-nowrap border-b ${c.align === 'r' ? 'text-right' : c.align === 'c' ? 'text-center' : 'text-left'}`} style={{ color: C.amber, borderColor: C.line, width: c.w, ['--rb' as any]: C.panel2 }}>{c.label}</th>)}</tr>
@@ -184,6 +189,9 @@ export function Grid<R = any>({ cols, rows, dense = true, onRow, maxH, rowStyle 
       </table>
     </div>
   )
+  if (desk) return body
+  // mobile: sombra na borda direita indica colunas escondidas (some ao chegar no fim da rolagem)
+  return <div className="relative">{body}{more && <div className="pointer-events-none absolute top-0 right-0 bottom-0 w-8" style={{ zIndex: 5, background: 'linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.9))' }} />}</div>
 }
 
 export function Btns({ opts, value, onChange }: { opts: { v: any; l: string }[] | (string | number)[]; value: any; onChange: (v: any) => void }) {

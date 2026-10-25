@@ -1,5 +1,6 @@
 "use client"
 import React, { useRef, useState, useEffect } from 'react'
+import { useDesktop } from './fn/kit'
 
 type TickerRecord = { ticker: string }
 
@@ -32,6 +33,7 @@ export default function TickerSelector({
 }: TickerSelectorProps) {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const desk = useDesktop()
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1)
 
   useEffect(() => {
@@ -98,7 +100,7 @@ export default function TickerSelector({
 				value={tickerSearch}
 				onChange={handleTickerSearch}
 				onKeyDown={handleTickerKeyDown}
-				placeholder="Digite um ticker"
+				placeholder={desk ? 'Digite um ticker' : 'Ticker'}
 				autoComplete="off"
 				disabled={disabled}
 			/>

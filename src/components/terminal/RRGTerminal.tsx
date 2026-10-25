@@ -110,14 +110,17 @@ export default function RRGTerminal() {
   return (
     <div className="w-full -mt-4 sm:-mt-6 bg-black" style={{ fontFamily: MONO }}>
       {/* barra de título */}
-      <div className="flex items-center gap-4 flex-wrap px-3 py-1 border-b border-[#3a3a3a] text-[13px]">
-        <span className="font-bold text-black bg-[#FFA028] px-2">RRG</span>
-        <span className="text-[#d9d9d9]">Relative Rotation Graph · vs <b className="text-[#FFA028]">{label(bench)}</b> · semanal (sexta)</span>
-        <span className="text-[#8a8a8a]">{endDate ? `Semana de ${fmtD(endDate)} · cauda ${tail} sem.` : ''}</span>
-        <span className="ml-auto text-[#8a8a8a] text-[11px]">Fonte: Yahoo Finance · uso educacional, não é recomendação</span>
+      {/* mobile: 2 linhas — título truncado / semana + fonte numa faixa rolável; desktop: linha única como antes */}
+      <div className="flex items-center gap-4 flex-wrap px-3 py-1 border-b border-[#3a3a3a] text-[13px] max-lg:gap-x-2 max-lg:gap-y-[2px]">
+        <span className="font-bold text-black bg-[#FFA028] px-2 max-lg:shrink-0">RRG</span>
+        <span className="text-[#d9d9d9] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate">Relative Rotation Graph · vs <b className="text-[#FFA028]">{label(bench)}</b> · semanal (sexta)</span>
+        <div className="lg:contents max-lg:w-full max-lg:flex max-lg:items-center max-lg:gap-4 max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0 max-lg:text-[12px] fn-strip">
+          <span className="text-[#8a8a8a]">{endDate ? `Semana de ${fmtD(endDate)} · cauda ${tail} sem.` : ''}</span>
+          <span className="ml-auto text-[#8a8a8a] text-[11px] max-lg:ml-0">Fonte: Yahoo Finance · uso educacional, não é recomendação</span>
+        </div>
       </div>
       {/* controles */}
-      <div className="flex items-center gap-3 flex-wrap px-3 py-1 border-b border-[#3a3a3a] bg-[#0a0a0a] text-[12px] text-[#8a8a8a]">
+      <div className="flex items-center gap-3 flex-wrap px-3 py-1 border-b border-[#3a3a3a] bg-[#0a0a0a] text-[12px] text-[#8a8a8a] fn-strip max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0">
         <label className="flex items-center gap-1">Benchmark
           <select className={box} value={bench} onChange={e => setBench(e.target.value)}>
             {available.map(k => <option key={k} value={k}>{label(k)}</option>)}
