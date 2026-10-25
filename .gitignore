@@ -52,3 +52,17 @@ build/
 
 # Configuração Streamlit
 .streamlit
+# Node / Next.js (export estático)
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts.bak
+
+# Dados gerados pelo pipeline no Actions (só o seed tickers.json vai no repo: o build importa ele)
+public/data/*
+!public/data/tickers.json
+.qt_cache/
+
+# Variáveis de ambiente
+.env*

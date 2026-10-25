@@ -1,44 +1,134 @@
-# Quant Monorepo
+# Quant Terminal
 
-Coleta, processamento e visualização de dados financeiros.
+Terminal financeiro **estático** (sem servidor) para análise de ativos brasileiros e globais, com visual âmbar/preto de terminal profissional. Cada tela é uma "função" acessada por código (ex.: `GPC PETR4`, `FA VALE3`, `CDIE`), como num terminal de mercado.
+
+Publicado no GitHub Pages: https://celowiz.github.io/quant-terminal/
+
+> Projeto educacional, não é recomendação de investimento. Dados de fontes abertas (Yahoo Finance, CVM, B3, BCB e FRED). Gráficos: TradingView Lightweight Charts™.
+
+![Home](docs/screens/home.png)
+
+## Como funciona
+
+- **Frontend:** Next.js 14 (App Router) com `output: 'export'` → HTML/JS estático em `out/`. Tailwind v4, gráficos com `lightweight-charts` v5.
+- **Dados:** JSON em `public/data/`, gerados pelo pipeline Python (`pipeline/`). O site lê esses arquivos no navegador; não há API nem banco de dados.
+- **Atualização:** o workflow `.github/workflows/pages.yml` roda o pipeline, faz o build e publica no Pages. Roda em push na `main`, manualmente (`workflow_dispatch`) e de terça a sábado às 07:47 BRT (dados do pregão anterior consolidados). Em pull requests ele só valida o typecheck e o build, sem deploy.
+- **Desktop:** cada tela ocupa exatamente a janela (sem rolagem da página) e o rodapé fica sempre visível; tabelas longas rolam dentro do próprio painel. Testado em 1920×1080, 1536×864, 1440×900, 1366×768 e 1280×800.
+- **Celular:** hoje a página rola normalmente; a proposta de layout mobile está em [docs/MOBILE.md](docs/MOBILE.md).
+
+## Funções (50)
+
+| Código | Função |
+|---|---|
+| `GP` | Line Graph |
+| `GPC` | Candle Chart |
+| `RRG` | Relative Rotation Graph |
+| `MACD` | MACD Indicator |
+| `RSI` | RSI Indicator |
+| `ANB` | Flows of Funds by Category |
+| `CDIE` | CDI/Copom Expectations (DI1) |
+| `SEAG` | Seasonality Graph |
+| `SEAH` | Seasonality Heatmap |
+| `CN` | Company News |
+| `OMON` | Options Monitor |
+| `DES` | Company Description |
+| `CF` | Company Fillings |
+| `GR` | Graph Relationship |
+| `WEI` | World Equity Indexes |
+| `WFI` | World Fixed Income Indexes |
+| `DY` | Dividend Yield History |
+| `FUND` | Company Fundamentals |
+| `VAL` | Valuation - Múltiplos |
+| `BETA` | Beta and Correlation |
+| `VOL` | Historical Volatility |
+| `DVD` | Historical Dividends |
+| `SPLIT` | Historical Splits |
+| `CAL` | Calendar of Results |
+| `ECON` | Economic Indicators |
+| `FX` | Currency Quotes |
+| `HEAT` | Heatmap Setorial |
+| `TOP` | Top Winners/Losers |
+| `PORT` | Portfolio Simulator |
+| `ALERT` | Price Alerts |
+| `NEWS` | Market News |
+| `COMP` | Comparative Returns |
+| `HS` | Historical Spread |
+| `CORR` | Correlation Matrix |
+| `HRA` | Historical Regression |
+| `GIP` | Intraday Graph |
+| `EQS` | Equity Screening |
+| `RV` | Relative Valuation |
+| `HP` | Historical Price Table |
+| `TRA` | Total Return Analysis |
+| `GC` | Yield Curves (BR/US) |
+| `ECFC` | Economic Forecasts (Focus) |
+| `ECST` | Economic Statistics |
+| `WCRS` | World Currency Ranker |
+| `GLCO` | Global Commodities |
+| `MOST` | Most Active Stocks |
+| `HDS` | Holders / Shareholders |
+| `FA` | Financial Analysis |
+| `BTMM` | Rates & Money Market Monitor |
+| `MRR` | Member Returns / Monthly |
+
+Funções com ticker aceitam a URL `/<função>/<TICKER>/` (ex.: `/gpc/PETR4.SA/`).
+
+## Fontes de dados (todas abertas e gratuitas)
+
+| Fonte | Uso |
+|---|---|
+| Yahoo Finance (`yfinance`) | Preços OHLCV, índices mundiais, moedas, futuros, proventos, splits, perfil |
+| CVM — dados abertos | DFP/ITR (demonstrações), FCA, IPE (fatos relevantes, calendário), FRE (acionistas), Informe Diário de Fundos (captação por classe) |
+| B3 | Carteira teórica do Ibovespa, setores, DI1 (BDI), COTAHIST (opções) |
+| BCB | SGS (Selic, CDI, IPCA…), Focus, Copom |
+| FRED | Juros e indicadores dos EUA |
+| IBGE SIDRA, Tesouro Transparente | Estatísticas econômicas, curva de títulos públicos |
+| RSS de licença aberta | Agência Brasil, BCB, CVM, SEC, Fed, Receita Federal |
+
+ANBIMA não é usada (os termos de uso proíbem automação); a função `ANB` usa as categorias da CVM.
+
+## Pipeline
+
+`pipeline/run_all.sh` roda cada etapa de forma independente (uma fonte fora do ar não derruba as outras; o job só falha se os preços não atualizarem):
+
+`prices` → `markets` → `rates` → `corp` → `extra` → `options` → `news` → `anb` → `alerts`
+
+Variáveis: `QT_DATA_OUT` (saída, padrão `public/data`), `QT_CACHE` (cache de downloads grandes), `QT_ALERTS` (regras em `alerts.yaml`). Nenhuma chave de API é necessária.
+
+A função `ALERT` avalia `alerts.yaml`; se alguma regra disparar, o workflow abre uma issue.
+
+## Rodar localmente
+
+```bash
+# 1) dados (Python 3.12)
+pip install pandas yfinance requests pyyaml
+QT_DATA_OUT=public/data bash pipeline/run_all.sh
+
+# 2) site (Node 20)
+npm ci
+npm run dev            # http://localhost:3000/quant-terminal
+# ou build estático:
+NEXT_PUBLIC_BASE_PATH=/quant-terminal npx next build   # gera out/
+```
+
+Só `public/data/tickers.json` fica versionado (o build precisa dele para pré-gerar as páginas por ticker); o resto de `public/data/` é gerado pelo pipeline e fica fora do git.
 
 ## Estrutura
 
-- `backend/` — ETL/ELT e API FastAPI
-- `frontend/` — Frontend Next.js (React + TS + Tailwind)
-- `backend/database/` — SQLite:
-  - `daily_prices.db`: tabelas de preços (uma por ticker)
-  - `cadastro.db`: cadastro de ativos, setores, etc.
-
-## Requisitos
-
-- Python 3.13+ (gerenciado por `uv`)
-- Node.js 18+
-
-## Como rodar (Windows PowerShell)
-
-1) API FastAPI
-
 ```
-uv run uvicorn backend.api.main:app --reload --port 8000
+src/              app Next.js (rotas em src/app, telas em src/views, componentes em src/components)
+public/data/      JSON gerados pelo pipeline (só tickers.json versionado)
+pipeline/         scripts Python de coleta/transformação
+alerts.yaml       regras da função ALERT
+.github/workflows/pages.yml   pipeline + build + deploy no Pages
+docs/             PLANO.md, REFERENCIAS.md, MOBILE.md, screens/, favicon/ (opções)
+legacy/           código original (backend FastAPI/Prefect + frontend React), mantido como referência; não é usado no build
 ```
 
-2) Frontend Next.js
+## Legado
 
-```
-cd frontend
-npm install
-npm run dev
-```
+`legacy/` guarda o projeto original do primeiro commit (API FastAPI, pipeline Prefect com SQLite, frontend React). Não roda no Pages. Os extratores ANBIMA que estão lá não são usados.
 
-3) Pipeline diário (ad hoc)
+---
 
-```
-uv run -m backend.data_pipeline.flows.daily_flow
-```
-
-Ou use o `run_services.py` para iniciar API e frontend juntos:
-
-```
-uv run python run_services.py
-```
+Criado e desenvolvido por Marcelo Wizenberg. © 2025 Marcelo Wizenberg. Todos os direitos reservados.

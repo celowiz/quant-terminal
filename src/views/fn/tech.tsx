@@ -1,0 +1,336 @@
+'use client'
+import React, { useEffect, useMemo, useState } from 'react'
+import { getPrices, type Price, listTickers } from '../../lib/static'
+import { FnScreen, Panel, Grid, Btns, Field, KV, Loading, C, nf, pf, dBR, clr, short, isoMinus, inputCls, inputStyle, PALETTE, useJSON } from '../../components/fn/kit'
+import FnChart, { type PaneDef } from '../../components/fn/FnChart'
+import XYChart from '../../components/fn/XYChart'
+import { macd, rsi, logret, rollStd, regress, weekly, monthlyReturns, quantile, mean, align, corr } from '../../lib/quant'
+
+const PERIODS = [{ v: '6M', l: '6M' }, { v: '1A', l: '1A' }, { v: '2A', l: '2A' }, { v: '5A', l: '5A' }, { v: 'MAX', l: 'Máx' }]
+const since = (last: string, p: string) => p === '6M' ? isoMinus(last, 0, 6) : p === '1A' ? isoMinus(last, 0, 0, 1) : p === '2A' ? isoMinus(last, 0, 0, 2) : p === '5A' ? isoMinus(last, 0, 0, 5) : '0000'
+
+export function usePrices(ticker: string) {
+  const [rows, setRows] = useState<Price[] | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  useEffect(() => { getPrices(ticker).then(setRows).catch(e => setErr(String(e?.message || e))) }, [ticker])
+  return { rows, err }
+}
+const SRC_PX = 'Yahoo Finance via yfinance (OHLCV diário ajustado), gerado no pipeline (tools/build_data.py).'
+
+// ---------------- MACD ----------------
+export function MACDView({ ticker }: { ticker: string }) {
+  const { rows, err } = usePrices(ticker)
+  const [period, setPeriod] = useState('1A')
+  const [p, setP] = useState({ f: 12, s: 26, g: 9 })
+  const calc = useMemo(() => {
+    if (!rows?.length) return null
+    const m = macd(rows.map(r => r.close), p.f, p.s, p.g)
+    const from = since(rows[rows.length - 1].time, period)
+    const idx = rows.map((r, i) => i).filter(i => rows[i].time >= from)
+    const cross: any[] = []
+    idx.forEach(i => { if (i > 0 && m.hist[i] != null && m.hist[i - 1] != null && Math.sign(m.hist[i]!) !== Math.sign(m.hist[i - 1]!)) cross.push({ time: rows[i].time, text: m.hist[i]! > 0 ? '▲' : '▼', color: m.hist[i]! > 0 ? C.up : C.down, position: m.hist[i]! > 0 ? 'belowBar' : 'aboveBar', shape: m.hist[i]! > 0 ? 'arrowUp' : 'arrowDown' }) })
+    const panes: PaneDef[] = [
+      { stretch: 0.6, series: [{ kind: 'candle', data: idx.map(i => ({ time: rows[i].time, open: rows[i].open, high: rows[i].high, low: rows[i].low, close: rows[i].close })), title: short(ticker) }] },
+      { stretch: 0.4, series: [
+        { kind: 'hist', data: idx.filter(i => m.hist[i] != null).map(i => ({ time: rows[i].time, value: m.hist[i]!, color: m.hist[i]! >= 0 ? (m.hist[i]! >= (m.hist[i - 1] ?? 0) ? '#3DDC84' : '#1f7a49') : (m.hist[i]! <= (m.hist[i - 1] ?? 0) ? '#FF4D4D' : '#8a2a2a') })), title: 'Hist', decimals: 3 },
+        { kind: 'line', data: idx.filter(i => m.macd[i] != null).map(i => ({ time: rows[i].time, value: m.macd[i]! })), color: C.white, title: 'MACD', decimals: 3, markers: cross.slice(-12) },
+        { kind: 'line', data: idx.filter(i => m.signal[i] != null).map(i => ({ time: rows[i].time, value: m.signal[i]! })), color: C.amber, title: 'Sinal', decimals: 3 },
+      ] },
+    ]
+    const L = rows.length - 1
+    return { panes, last: { macd: m.macd[L], sig: m.signal[L], hist: m.hist[L], date: rows[L].time, close: rows[L].close }, cross: cross.slice(-8).reverse() }
+  }, [rows, period, p, ticker])
+  if (!calc) return <FnScreen code="MACD" ticker={ticker}><Loading err={err} /></FnScreen>
+  return (
+    <FnScreen code="MACD" ticker={ticker} title="Moving Average Convergence/Divergence"
+      right={<><Field label="Rápida"><input className={inputCls + ' w-10'} style={inputStyle} type="number" value={p.f} onChange={e => setP({ ...p, f: +e.target.value || 12 })} /></Field>
+        <Field label="Lenta"><input className={inputCls + ' w-10'} style={inputStyle} type="number" value={p.s} onChange={e => setP({ ...p, s: +e.target.value || 26 })} /></Field>
+        <Field label="Sinal"><input className={inputCls + ' w-10'} style={inputStyle} type="number" value={p.g} onChange={e => setP({ ...p, g: +e.target.value || 9 })} /></Field>
+        <Btns opts={PERIODS} value={period} onChange={setPeriod} /></>}
+      source={SRC_PX} note={`MACD = EMA(${p.f}) − EMA(${p.s}) do fechamento; Sinal = EMA(${p.g}) do MACD; Histograma = MACD − Sinal. Setas = cruzamentos MACD/Sinal.`}>
+      <div className="flex gap-4 px-1 pb-1 text-[12px]">
+        <span style={{ color: C.muted }}>{dBR(calc.last.date)}</span>
+        <span>Últ <b style={{ color: C.amber }}>{nf(calc.last.close)}</b></span>
+        <span style={{ color: C.white }}>MACD {nf(calc.last.macd, 3)}</span>
+        <span style={{ color: C.amber }}>Sinal {nf(calc.last.sig, 3)}</span>
+        <span style={{ color: clr(calc.last.hist) }}>Hist {nf(calc.last.hist, 3)}</span>
+      </div>
+      <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 260px' }}>
+        <FnChart panes={calc.panes} height={620} />
+        <Panel title="Cruzamentos recentes">
+          <Grid cols={[{ k: 'time', label: 'Data', fmt: dBR }, { k: 'text', label: 'Sinal', align: 'c', color: (_, r: any) => r.color, fmt: (v: string) => v === '▲' ? '▲ compra' : '▼ venda' }]} rows={calc.cross} />
+        </Panel>
+      </div>
+    </FnScreen>
+  )
+}
+
+// ---------------- RSI ----------------
+export function RSIView({ ticker }: { ticker: string }) {
+  const { rows, err } = usePrices(ticker)
+  const [period, setPeriod] = useState('1A')
+  const [n, setN] = useState(14)
+  const [ob, setOb] = useState(70); const [os, setOs] = useState(30)
+  const calc = useMemo(() => {
+    if (!rows?.length) return null
+    const r = rsi(rows.map(x => x.close), n)
+    const from = since(rows[rows.length - 1].time, period)
+    const idx = rows.map((_, i) => i).filter(i => rows[i].time >= from)
+    const vals = idx.map(i => r[i]).filter((v): v is number => v != null)
+    const panes: PaneDef[] = [
+      { stretch: 0.62, series: [{ kind: 'line', data: idx.map(i => ({ time: rows[i].time, value: rows[i].close })), color: C.white, title: short(ticker) }] },
+      { stretch: 0.38, series: [{ kind: 'line', data: idx.filter(i => r[i] != null).map(i => ({ time: rows[i].time, value: r[i]!, color: r[i]! >= ob ? C.down : r[i]! <= os ? C.up : C.amber })), color: C.amber, title: `RSI ${n}`, lines: [{ price: ob, color: C.down, title: String(ob) }, { price: os, color: C.up, title: String(os) }, { price: 50, color: '#555' }] }] },
+    ]
+    return { panes, last: r[r.length - 1], date: rows[rows.length - 1].time, pctOb: (vals.filter(v => v >= ob).length / vals.length) * 100, pctOs: (vals.filter(v => v <= os).length / vals.length) * 100, mx: Math.max(...vals), mn: Math.min(...vals), avg: mean(vals) }
+  }, [rows, period, n, ob, os, ticker])
+  if (!calc) return <FnScreen code="RSI" ticker={ticker}><Loading err={err} /></FnScreen>
+  return (
+    <FnScreen code="RSI" ticker={ticker} title="Relative Strength Index"
+      right={<><Field label="Períodos"><input className={inputCls + ' w-10'} style={inputStyle} type="number" value={n} onChange={e => setN(Math.max(2, +e.target.value || 14))} /></Field>
+        <Field label="Sobrecompra"><input className={inputCls + ' w-10'} style={inputStyle} type="number" value={ob} onChange={e => setOb(+e.target.value || 70)} /></Field>
+        <Field label="Sobrevenda"><input className={inputCls + ' w-10'} style={inputStyle} type="number" value={os} onChange={e => setOs(+e.target.value || 30)} /></Field>
+        <Btns opts={PERIODS} value={period} onChange={setPeriod} /></>}
+      source={SRC_PX} note={`RSI de Wilder (${n} períodos, suavização exponencial 1/${n}). Linha muda de cor acima de ${ob} (vermelho) e abaixo de ${os} (verde).`}>
+      <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 240px' }}>
+        <FnChart panes={calc.panes} height={620} />
+        <Panel title="Estatísticas do período">
+          <KV rows={[['Data', dBR(calc.date)], [`RSI ${n} atual`, nf(calc.last), calc.last! >= ob ? C.down : calc.last! <= os ? C.up : C.amber], ['Máximo', nf(calc.mx)], ['Mínimo', nf(calc.mn)], ['Média', nf(calc.avg)], [`% dias ≥ ${ob}`, pf(calc.pctOb, 1, false)], [`% dias ≤ ${os}`, pf(calc.pctOs, 1, false)]]} />
+        </Panel>
+      </div>
+    </FnScreen>
+  )
+}
+
+// ---------------- SEAG ----------------
+const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+const doy = (iso: string) => { const d = new Date(iso + 'T12:00:00Z'); return Math.floor((d.getTime() - Date.UTC(d.getUTCFullYear(), 0, 1)) / 864e5) + 1 }
+export function SEAGView({ ticker }: { ticker: string }) {
+  const { rows, err } = usePrices(ticker)
+  const [nY, setNY] = useState(5)
+  const [mode, setMode] = useState<'lines' | 'hla'>('lines')
+  const calc = useMemo(() => {
+    if (!rows?.length) return null
+    const byY = new Map<number, Price[]>()
+    rows.forEach(r => { const y = +r.time.slice(0, 4); if (!byY.has(y)) byY.set(y, []); byY.get(y)!.push(r) })
+    const years = Array.from(byY.keys()).sort()
+    const cur = years[years.length - 1]
+    const past = years.slice(0, -1).slice(-nY)
+    const prevClose = (y: number) => { const p = byY.get(y - 1); return p ? p[p.length - 1].close : byY.get(y)![0].open }
+    const curve = (y: number) => { const b = prevClose(y); return byY.get(y)!.map(r => [doy(r.time), (r.close / b - 1) * 100] as [number, number]) }
+    // média/máx/mín por dia útil-do-ano interpolado em grade de 1..366
+    const grid = Array.from({ length: 52 }, (_, i) => 1 + i * 7)
+    const at = (c: [number, number][], d: number) => { let v: number | null = null; for (const [x, y] of c) { if (x <= d) v = y; else break } return v }
+    const pc = past.map(curve)
+    const stats = grid.map(d => { const v = pc.map(c => at(c, d)).filter((x): x is number => x != null); return [d, Math.min(...v), Math.max(...v), mean(v)] as [number, number, number, number] })
+    const series: any[] = []
+    if (mode === 'lines') past.forEach((y, i) => series.push({ name: String(y), points: curve(y), color: PALETTE[(i + 2) % PALETTE.length], width: 1, opacity: 0.8 }))
+    else series.push({ name: `Faixa máx/mín ${past[0]}–${past[past.length - 1]}`, points: [], band: stats.map(s => [s[0], s[1], s[2]]), color: C.blue })
+    series.push({ name: `Média ${past[0]}–${past[past.length - 1]}`, points: stats.map(s => [s[0], s[3]]), color: '#bbbbbb', width: 1.5, dash: '5,4' })
+    series.push({ name: `${cur} (atual)`, points: curve(cur), color: C.amber, width: 2.5 })
+    const table = [...past, cur].reverse().map(y => { const c = curve(y); return { y, ytd: c[c.length - 1][1], max: Math.max(...c.map(p => p[1])), min: Math.min(...c.map(p => p[1])) } })
+    return { series, table, cur, past }
+  }, [rows, nY, mode])
+  if (!calc) return <FnScreen code="SEAG" ticker={ticker}><Loading err={err} /></FnScreen>
+  return (
+    <FnScreen code="SEAG" ticker={ticker} title="Seasonality Graph"
+      right={<><Field label="Anos"><Btns opts={[3, 5, 10]} value={nY} onChange={setNY} /></Field><Btns opts={[{ v: 'lines', l: 'Anos' }, { v: 'hla', l: 'Máx/Mín/Média' }] as any} value={mode} onChange={setMode as any} /></>}
+      source={SRC_PX} note="Retorno acumulado no ano (base = fechamento do último pregão do ano anterior) por dia do ano. Ano corrente destacado em âmbar; média tracejada.">
+      <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 280px' }}>
+        <XYChart series={calc.series} height={600} zeroLine xTicks={MONTHS.map((m, i) => ({ v: doy(`2021-${String(i + 1).padStart(2, '0')}-01`), l: m }))} xFmt={v => { const d = new Date(Date.UTC(2021, 0, Math.round(v))); return `${String(d.getUTCDate()).padStart(2, '0')}/${MONTHS[d.getUTCMonth()]}` }} yFmt={v => nf(v, 1) + '%'} />
+        <Panel title="Retorno por ano"><Grid cols={[{ k: 'y', label: 'Ano' }, { k: 'ytd', label: 'Ret. ano', align: 'r', fmt: v => pf(v), color: clr }, { k: 'max', label: 'Máx', align: 'r', fmt: v => pf(v, 1) }, { k: 'min', label: 'Mín', align: 'r', fmt: v => pf(v, 1) }]} rows={calc.table} /></Panel>
+      </div>
+    </FnScreen>
+  )
+}
+
+// ---------------- SEAH ----------------
+const heat = (v: number | null, s = 8) => {
+  if (v == null) return 'transparent'
+  const a = Math.min(1, Math.abs(v) / s)
+  return v >= 0 ? `rgba(61,220,132,${0.12 + a * 0.75})` : `rgba(255,77,77,${0.12 + a * 0.75})`
+}
+export function SEAHView({ ticker }: { ticker: string }) {
+  const { rows, err } = usePrices(ticker)
+  const calc = useMemo(() => {
+    if (!rows?.length) return null
+    const mr = monthlyReturns(rows.map(r => ({ time: r.time, value: r.close })))
+    const years = Array.from(new Set(mr.map(x => x.y))).sort().reverse()
+    const cell = (y: number, m: number) => mr.find(x => x.y === y && x.m === m)?.r ?? null
+    const yr = (y: number) => { const v = mr.filter(x => x.y === y); return v.length ? (v.reduce((p, x) => p * (1 + x.r / 100), 1) - 1) * 100 : null }
+    const col = (m: number) => mr.filter(x => x.m === m).map(x => x.r)
+    return { years, cell, yr, avg: MONTHS.map((_, i) => mean(col(i + 1))), med: MONTHS.map((_, i) => quantile(col(i + 1), 0.5)), pos: MONTHS.map((_, i) => { const c = col(i + 1); return (c.filter(v => v > 0).length / c.length) * 100 }), sd: MONTHS.map((_, i) => { const c = col(i + 1); const m = mean(c); return Math.sqrt(c.reduce((s, v) => s + (v - m) ** 2, 0) / Math.max(1, c.length - 1)) }) }
+  }, [rows])
+  if (!calc) return <FnScreen code="SEAH" ticker={ticker}><Loading err={err} /></FnScreen>
+  const td = 'px-2 py-[3px] text-right border border-[#1a1a1a] text-[12px]'
+  return (
+    <FnScreen code="SEAH" ticker={ticker} title="Seasonality Heatmap" source={SRC_PX} note="Retorno mensal (%) = fechamento do mês / fechamento do mês anterior − 1. Linhas de estatística no rodapé: média, mediana, desvio-padrão e % de meses positivos.">
+      <div className="overflow-auto">
+        <table className="w-full border-collapse">
+          <thead><tr><th className="px-2 py-1 text-left text-[12px] font-normal" style={{ color: C.amber }}>Ano</th>{MONTHS.map(m => <th key={m} className="px-2 py-1 text-right text-[12px] font-normal" style={{ color: C.amber }}>{m}</th>)}<th className="px-2 py-1 text-right text-[12px] font-normal" style={{ color: C.amber }}>Ano</th></tr></thead>
+          <tbody>
+            {calc.years.map(y => <tr key={y}><td className="px-2 py-[3px] text-[12px]" style={{ color: C.amber }}>{y}</td>{MONTHS.map((_, i) => { const v = calc.cell(y, i + 1); return <td key={i} className={td} style={{ background: heat(v), color: '#fff' }}>{v == null ? '' : nf(v, 1)}</td> })}<td className={td} style={{ background: heat(calc.yr(y), 30), fontWeight: 700 }}>{nf(calc.yr(y), 1)}</td></tr>)}
+            {([['Média', calc.avg], ['Mediana', calc.med], ['Desv.pad', calc.sd], ['% Positivo', calc.pos]] as [string, number[]][]).map(([l, arr]) => (
+              <tr key={l} style={{ background: '#151515' }}><td className="px-2 py-[3px] text-[12px] font-bold" style={{ color: C.amber }}>{l}</td>{arr.map((v, i) => <td key={i} className={td} style={{ color: l === '% Positivo' ? (v >= 50 ? C.up : C.down) : l === 'Desv.pad' ? C.text : clr(v) }}>{nf(v, 1)}</td>)}<td className={td}></td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </FnScreen>
+  )
+}
+
+// ---------------- VOL ----------------
+export function VOLView({ ticker }: { ticker: string }) {
+  const { rows, err } = usePrices(ticker)
+  const [period, setPeriod] = useState('2A')
+  const calc = useMemo(() => {
+    if (!rows || rows.length < 300) return null
+    const r = logret(rows.map(x => x.close)), t = rows.slice(1).map(x => x.time)
+    const W = [10, 21, 63, 126, 252]
+    const vols = Object.fromEntries(W.map(w => [w, rollStd(r, w).map(v => v == null ? null : v * Math.sqrt(252) * 100)])) as Record<number, (number | null)[]>
+    const from = since(rows[rows.length - 1].time, period)
+    const idx = t.map((_, i) => i).filter(i => t[i] >= from)
+    const cols: Record<number, string> = { 21: C.white, 63: C.amber, 252: C.blue }
+    const panes: PaneDef[] = [
+      { stretch: 0.45, series: [{ kind: 'line', data: idx.map(i => ({ time: t[i], value: rows[i + 1].close })), color: C.white, title: short(ticker) }] },
+      { stretch: 0.55, series: [21, 63, 252].map(w => ({ kind: 'line' as const, data: idx.filter(i => vols[w][i] != null).map(i => ({ time: t[i], value: vols[w][i]! })), color: cols[w], title: `Vol ${w}d`, pct: true })) },
+    ]
+    const cone = W.map(w => { const v = vols[w].filter((x): x is number => x != null); return { w, min: Math.min(...v), p25: quantile(v, 0.25), p50: quantile(v, 0.5), p75: quantile(v, 0.75), max: Math.max(...v), cur: vols[w][vols[w].length - 1], pctile: (v.filter(x => x <= (vols[w][vols[w].length - 1] ?? 0)).length / v.length) * 100 } })
+    return { panes, cone, n: r.length }
+  }, [rows, period, ticker])
+  if (!calc) return <FnScreen code="VOL" ticker={ticker}><Loading err={err} /></FnScreen>
+  return (
+    <FnScreen code="VOL" ticker={ticker} title="Historical Volatility" right={<Btns opts={PERIODS} value={period} onChange={setPeriod} />}
+      source={SRC_PX} note="Volatilidade histórica = desvio-padrão dos log-retornos diários na janela × √252 (anualizada, %). Cone: distribuição histórica de cada janela em toda a série disponível; ponto âmbar = valor atual.">
+      <FnChart panes={calc.panes} height={430} />
+      <div className="grid gap-2 mt-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <Panel title="Cone de volatilidade (% a.a.)">
+          <XYChart height={250} series={[
+            { name: 'Máx', points: calc.cone.map(c => [c.w, c.max]), color: C.down, width: 1 },
+            { name: 'P75', points: calc.cone.map(c => [c.w, c.p75]), color: '#888', width: 1, dash: '4,3' },
+            { name: 'Mediana', points: calc.cone.map(c => [c.w, c.p50]), color: C.white, width: 1.5 },
+            { name: 'P25', points: calc.cone.map(c => [c.w, c.p25]), color: '#888', width: 1, dash: '4,3' },
+            { name: 'Mín', points: calc.cone.map(c => [c.w, c.min]), color: C.up, width: 1 },
+            { name: 'Atual', points: calc.cone.map(c => [c.w, c.cur]), color: C.amber, width: 2.5 },
+          ]} xTicks={calc.cone.map(c => ({ v: c.w, l: `${c.w}d` }))} xFmt={v => `${Math.round(v)}d`} yFmt={v => nf(v, 0) + '%'} />
+        </Panel>
+        <Panel title="Tabela do cone">
+          <Grid cols={[{ k: 'w', label: 'Janela', fmt: v => `${v}d` }, { k: 'cur', label: 'Atual', align: 'r', fmt: v => nf(v, 1), color: () => C.amber }, { k: 'pctile', label: 'Percentil', align: 'r', fmt: v => nf(v, 0) }, { k: 'min', label: 'Mín', align: 'r', fmt: v => nf(v, 1) }, { k: 'p25', label: 'P25', align: 'r', fmt: v => nf(v, 1) }, { k: 'p50', label: 'Med', align: 'r', fmt: v => nf(v, 1) }, { k: 'p75', label: 'P75', align: 'r', fmt: v => nf(v, 1) }, { k: 'max', label: 'Máx', align: 'r', fmt: v => nf(v, 1) }]} rows={calc.cone} />
+          <div className="px-2 py-1 text-[11px]" style={{ color: C.muted }}>{calc.n} retornos diários na amostra.</div>
+        </Panel>
+      </div>
+    </FnScreen>
+  )
+}
+
+// ---------------- BETA ----------------
+export function BETAView({ ticker }: { ticker: string }) {
+  const [bench, setBench] = useState('^BVSP')
+  const [freq, setFreq] = useState<'w' | 'd'>('w')
+  const [yrs, setYrs] = useState(2)
+  const [tab, setTab] = useState(0)
+  const { rows, err } = usePrices(ticker)
+  const b = usePrices(bench)
+  const uni = useJSON<any>(tab === 1 ? 'universe.json' : null)
+  const calc = useMemo(() => {
+    if (!rows?.length || !b.rows?.length) return null
+    const last = rows[rows.length - 1].time, from = isoMinus(last, 0, 0, yrs)
+    let A = rows.map(r => ({ time: r.time, value: r.close })), B = b.rows.map(r => ({ time: r.time, value: r.close }))
+    if (freq === 'w') { A = weekly(A); B = weekly(B) }
+    const al = align(A, B)
+    const ret = (v: number[]) => v.slice(1).map((x, i) => (x / v[i] - 1) * 100)
+    const ra = ret(al.a), rb = ret(al.b), tt = al.t.slice(1)
+    const sel = tt.map((t, i) => i).filter(i => tt[i] >= from)
+    const x = sel.map(i => rb[i]), y = sel.map(i => ra[i])
+    const reg = regress(x, y)
+    // beta móvel diário 252d
+    const ad = align(rows.map(r => ({ time: r.time, value: r.close })), b.rows.map(r => ({ time: r.time, value: r.close })))
+    const da = ret(ad.a), db = ret(ad.b), dt = ad.t.slice(1)
+    const roll: { time: string; value: number }[] = []
+    for (let i = 252; i < da.length; i += 1) { if (dt[i] < isoMinus(last, 0, 0, 5)) continue; roll.push({ time: dt[i], value: regress(db.slice(i - 252, i), da.slice(i - 252, i)).beta }) }
+    const xs = [Math.min(...x), Math.max(...x)]
+    return { reg, x, y, xs, roll, n: x.length, adj: 0.67 * reg.beta + 0.33 }
+  }, [rows, b.rows, freq, yrs])
+  const matrix = useMemo(() => {
+    if (!uni.data) return null
+    const top = uni.data.components.slice().sort((p: any, q: any) => q.weight - p.weight).slice(0, 12).map((c: any) => c.cod)
+    const L = uni.data.dates.length, st = Math.max(1, L - 252)
+    const rets = (code: string) => { const c = code === 'IBOV' ? uni.data.close['^BVSP'] ?? uni.data.close['IBOV'] : uni.data.close[code]; return c ? c.slice(st).map((v: number, i: number) => { const p = c[st + i - 1]; return v != null && p != null ? v / p - 1 : null }) : null }
+    const codes = ['IBOV', ...top].filter(c => rets(c))
+    const R = Object.fromEntries(codes.map(c => [c, rets(c)]))
+    const cc = (p: string, q: string) => { const a: number[] = [], bb: number[] = []; R[p].forEach((v: any, i: number) => { const w = R[q][i]; if (v != null && w != null) { a.push(v); bb.push(w) } }); return corr(a, bb) }
+    return { codes, m: codes.map(p => codes.map(q => p === q ? 1 : cc(p, q))) }
+  }, [uni.data])
+  if (!calc) return <FnScreen code="BETA" ticker={ticker}><Loading err={err || b.err} /></FnScreen>
+  return (
+    <FnScreen code="BETA" ticker={ticker} title="Historical Beta / Correlation" tabs={['Beta (regressão)', 'Matriz de correlação']} tab={tab} setTab={setTab}
+      right={tab === 0 && <><Field label="Índice"><select className={inputCls} style={inputStyle} value={bench} onChange={e => setBench(e.target.value)}>{['^BVSP', 'PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BRL=X'].map(t => <option key={t}>{t}</option>)}</select></Field><Btns opts={[{ v: 'd', l: 'Diário' }, { v: 'w', l: 'Semanal' }] as any} value={freq} onChange={setFreq as any} /><Btns opts={[{ v: 1, l: '1A' }, { v: 2, l: '2A' }, { v: 3, l: '3A' }, { v: 5, l: '5A' }] as any} value={yrs} onChange={setYrs as any} /></>}
+      source={tab === 0 ? SRC_PX : 'B3 (carteira teórica do Ibovespa) + Yahoo Finance; correlação de retornos diários, último ano.'}
+      note={tab === 0 ? 'Regressão OLS dos retornos do ativo (Y) contra o índice (X). Beta ajustado = 0,67 × bruto + 0,33 (ajuste de Blume, o mesmo usado por terminais comerciais). Padrão: semanal, 2 anos.' : 'Top 12 componentes do Ibovespa por peso + o índice. Verde = correlação alta.'}>
+      {tab === 0 ? (
+        <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 300px' }}>
+          <div>
+            <XYChart height={400} legend xLabel={`Retorno ${short(bench)} (%)`} yLabel={`Retorno ${short(ticker)} (%)`} zeroLine series={[
+              { name: `${freq === 'w' ? 'Semanas' : 'Dias'} (${calc.n})`, points: calc.x.map((v, i) => [v, calc.y[i]]), color: C.amber, scatter: true, opacity: 0.65 },
+              { name: `Y = ${nf(calc.reg.alpha, 3)} + ${nf(calc.reg.beta, 3)}·X`, points: calc.xs.map(v => [v, calc.reg.alpha + calc.reg.beta * v]), color: C.white, width: 2 },
+            ]} xFmt={v => nf(v, 1)} yFmt={v => nf(v, 1)} />
+            <div className="mt-2 text-[12px]" style={{ color: C.amber }}>Beta móvel (252 pregões, diário) — últimos 5 anos</div>
+            <FnChart height={200} panes={[{ series: [{ kind: 'line', data: calc.roll, color: C.amber, title: 'Beta 252d', decimals: 2, lines: [{ price: 1, color: '#666' }] }] }]} />
+          </div>
+          <Panel title={`${short(ticker)} vs ${short(bench)}`}>
+            <KV rows={[['Beta bruto', nf(calc.reg.beta, 3), C.amber], ['Beta ajustado', nf(calc.adj, 3), C.amber], ['Alfa (intercepto, %)', nf(calc.reg.alpha, 3)], ['R²', nf(calc.reg.r2, 3)], ['Correlação', nf(calc.reg.corr, 3)], ['Erro-padrão do beta', nf(calc.reg.se, 3)], ['Observações', String(calc.n)], ['Frequência', freq === 'w' ? 'Semanal (sexta)' : 'Diária'], ['Janela', `${yrs} ano(s)`]]} />
+          </Panel>
+        </div>
+      ) : !matrix ? <Loading err={uni.err} /> : (
+        <div className="overflow-auto">
+          <table className="border-collapse text-[12px]">
+            <thead><tr><th></th>{matrix.codes.map(c => <th key={c} className="px-2 py-1 font-normal" style={{ color: C.amber }}>{c}</th>)}</tr></thead>
+            <tbody>{matrix.codes.map((p, i) => <tr key={p}><td className="px-2 py-1" style={{ color: C.amber }}>{p}</td>{matrix.m[i].map((v, j) => <td key={j} className="px-2 py-1 text-right border border-[#1a1a1a]" style={{ background: `rgba(${v >= 0 ? '61,220,132' : '255,77,77'},${Math.abs(v) * 0.8})`, color: '#fff', minWidth: 54 }}>{nf(v, 2)}</td>)}</tr>)}</tbody>
+          </table>
+        </div>
+      )}
+    </FnScreen>
+  )
+}
+
+// ---------------- GR ----------------
+export function GRView({ ticker }: { ticker: string }) {
+  const [other, setOther] = useState(ticker.startsWith('PETR4') ? 'VALE3.SA' : '^BVSP')
+  const [period, setPeriod] = useState('2A')
+  const [list, setList] = useState<string[]>([])
+  useEffect(() => { listTickers().then(setList) }, [])
+  const a = usePrices(ticker), b = usePrices(other)
+  const calc = useMemo(() => {
+    if (!a.rows?.length || !b.rows?.length) return null
+    const al = align(a.rows.map(r => ({ time: r.time, value: r.close })), b.rows.map(r => ({ time: r.time, value: r.close })))
+    const from = since(al.t[al.t.length - 1], period)
+    const idx = al.t.map((_, i) => i).filter(i => al.t[i] >= from)
+    const i0 = idx[0]
+    const ratio = idx.map(i => al.a[i] / al.b[i]), rm = mean(ratio), rs = Math.sqrt(mean(ratio.map(v => (v - rm) ** 2)))
+    const ra = idx.slice(1).map((i, k) => (al.a[i] / al.a[idx[k]] - 1) * 100), rb = idx.slice(1).map((i, k) => (al.b[i] / al.b[idx[k]] - 1) * 100)
+    const reg = regress(rb, ra)
+    const panes: PaneDef[] = [
+      { stretch: 0.5, series: [
+        { kind: 'line', data: idx.map(i => ({ time: al.t[i], value: (al.a[i] / al.a[i0]) * 100 })), color: C.white, title: short(ticker) },
+        { kind: 'line', data: idx.map(i => ({ time: al.t[i], value: (al.b[i] / al.b[i0]) * 100 })), color: C.amber, title: short(other) },
+      ] },
+      { stretch: 0.5, series: [{ kind: 'line', data: idx.map((i, k) => ({ time: al.t[i], value: ratio[k] })), color: C.blue, width: 2, title: 'Razão', decimals: 4, lines: [{ price: rm, color: '#aaa', title: 'Média' }, { price: rm + 2 * rs, color: C.down, title: '+2σ' }, { price: rm - 2 * rs, color: C.up, title: '−2σ' }] }] },
+    ]
+    const lastR = ratio[ratio.length - 1]
+    return { panes, reg, rm, rs, lastR, z: (lastR - rm) / rs, perfA: (al.a[idx[idx.length - 1]] / al.a[i0] - 1) * 100, perfB: (al.b[idx[idx.length - 1]] / al.b[i0] - 1) * 100 }
+  }, [a.rows, b.rows, period, ticker, other])
+  return (
+    <FnScreen code="GR" ticker={ticker} title="Graph Relationship (ratio / regressão)"
+      right={<><Field label="vs"><select className={inputCls} style={inputStyle} value={other} onChange={e => setOther(e.target.value)}>{list.filter(t => t !== ticker).map(t => <option key={t}>{t}</option>)}</select></Field><Btns opts={PERIODS} value={period} onChange={setPeriod} /></>}
+      source={SRC_PX} note="Painel 1: preços rebaseados a 100 no início do período. Painel 2: razão de preços com média e bandas de ±2 desvios. Estatísticas de regressão sobre retornos diários.">
+      {!calc ? <Loading err={a.err || b.err} /> : (
+        <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 260px' }}>
+          <FnChart panes={calc.panes} height={620} />
+          <Panel title="Relação">
+            <KV rows={[[`Retorno ${short(ticker)}`, pf(calc.perfA), clr(calc.perfA)], [`Retorno ${short(other)}`, pf(calc.perfB), clr(calc.perfB)], ['Razão atual', nf(calc.lastR, 4), C.amber], ['Média da razão', nf(calc.rm, 4)], ['Desvio-padrão', nf(calc.rs, 4)], ['Z-score', nf(calc.z, 2), calc.z > 2 ? C.down : calc.z < -2 ? C.up : C.text], ['Correlação', nf(calc.reg.corr, 3)], ['Beta (Y=ativo)', nf(calc.reg.beta, 3)], ['R²', nf(calc.reg.r2, 3)]]} />
+          </Panel>
+        </div>
+      )}
+    </FnScreen>
+  )
+}
