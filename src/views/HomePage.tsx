@@ -28,14 +28,14 @@ function HomePage() {
                     <h2 id={`cat-${c}`} className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-[#FFA028] border-b border-[#FFA028]/60 pb-0.5 mb-1">
                       {catLabel(c)}
                     </h2>
-                    <ul className="list-none space-y-1.5 lg:space-y-0.5 text-sm sm:text-base lg:text-sm text-left">
+                    <ul className="list-none space-y-1.5 lg:space-y-0.5 text-sm sm:text-base lg:text-sm lg:[@media(max-height:820px)]:text-[13px] lg:[@media(max-height:820px)]:space-y-0 text-left">
                       {byCat(c).map(f => (
                         <li key={f.code} className="flex items-baseline">
                           <button type="button" onClick={() => open(f.code)} aria-label={`${f.code || 'HOME'} — ${fnName(f)}`}
                             className="mr-2 shrink-0 bg-[#FFA028] text-black font-bold px-1 rounded cursor-pointer hover:bg-[#ffb347] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
                             {f.code || 'HOME'}
                           </button>
-                          <span className="text-slate-200 text-left leading-snug">{fnName(f)}</span>
+                          <span className="text-slate-200 text-left leading-snug lg:[@media(max-height:820px)]:leading-tight">{fnName(f)}</span>
                         </li>
                       ))}
                     </ul>

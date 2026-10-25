@@ -70,7 +70,7 @@ Publicado no GitHub Pages: https://celowiz.github.io/quant-terminal/
 | `FA` | Financial Analysis |
 | `BTMM` | Rates & Money Market Monitor |
 | `MRR` | Member Returns / Monthly |
-| `WIRP` | Rate Probabilities (Copom/Fed) |
+| `WIRP` | Rate Probabilities |
 | `FOMC` | Fed & Copom Meetings |
 | `WB` | World Bonds |
 | `YAS` | Bond Yield & Spread Calculator |
