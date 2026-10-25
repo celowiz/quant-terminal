@@ -1,6 +1,17 @@
+// favicon (tecla âmbar "QT"): arquivos em public/, com basePath explícito (metadata não prefixa o basePath)
+const BP = process.env.NEXT_PUBLIC_BASE_PATH ?? '/quant-terminal'
 export const metadata = {
   title: 'celowiz • Quant Terminal',
   description: 'Terminal Quant',
+  icons: {
+    icon: [
+      { url: `${BP}/favicon.svg`, type: 'image/svg+xml' },
+      { url: `${BP}/favicon-32.png`, sizes: '32x32', type: 'image/png' },
+      { url: `${BP}/favicon-16.png`, sizes: '16x16', type: 'image/png' },
+    ],
+    shortcut: `${BP}/favicon.ico`,
+    apple: { url: `${BP}/apple-touch-icon.png`, sizes: '180x180' },
+  },
 }
 
 import './globals.css'

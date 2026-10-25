@@ -121,7 +121,7 @@ public/data/      JSON gerados pelo pipeline (só tickers.json versionado)
 pipeline/         scripts Python de coleta/transformação
 alerts.yaml       regras da função ALERT
 .github/workflows/pages.yml   pipeline + build + deploy no Pages
-docs/             PLANO.md, REFERENCIAS.md, MOBILE.md, screens/, favicon/ (opções)
+docs/             PLANO.md, REFERENCIAS.md, MOBILE.md, screens/, favicon/ (fonte SVG do favicon: tecla âmbar "QT")
 legacy/           código original (backend FastAPI/Prefect + frontend React), mantido como referência; não é usado no build
 ```
 
