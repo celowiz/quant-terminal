@@ -187,6 +187,7 @@ export function DRSKView() {
 }
 
 // ======================= ECTR =======================
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const S_ECTR = {
   title: 'Trade Flows – Brazil exports & imports by partner', tabs: ['Partners', 'Products & monthly'], year: 'Year', flow: 'Flow',
   flows: [{ v: 'both', l: 'Both' }, { v: 'exp', l: 'Exports' }, { v: 'imp', l: 'Imports' }],
@@ -218,9 +219,9 @@ export function ECTRView() {
   const yrs = (d.years as number[]).slice(-6)
   return (
     <FnScreen code="ECTR" title={S.title} tabs={S.tabs} tab={tab} setTab={setTab}
-      right={<><Field label={S.year}><Btns opts={yrs.map(y => ({ v: y, l: y === d.last_year && d.last_month < 12 ? `${y} ${S.partial}` : String(y) }))} value={year} onChange={setYr} /></Field>
+      right={<><Field label={d.last_month < 12 ? `${S.year} (Jan–${MON[d.last_month - 1]})` : S.year}><Btns opts={yrs.map(y => ({ v: y, l: String(y) }))} value={year} onChange={setYr} /></Field>
         {tab === 0 && <Field label={S.flow}><Btns opts={S.flows} value={flow} onChange={setFlow} /></Field>}</>}
-      source={d.source} note={<>{d.unit}. {d.status !== 'ok' && d.note ? d.note : ''} {year === d.last_year && d.last_month < 12 ? `${year}: Jan–${mLab(`${year}-${String(d.last_month).padStart(2, '0')}-01`)} only; YoY compares with the full prior year.` : ''}</>}>
+      source={d.source} note={<>{d.unit}. {d.status !== 'ok' && d.note ? d.note : ''} {d.last_month < 12 ? `Partner and total figures cover Jan–${MON[d.last_month - 1]} of every year (same months as the latest data), so YoY is like-for-like.` : ''}</>}>
       <Kpis items={[[S.k.exp, `US$ ${bigE(v.tot?.exp, 2)}`, C.amber], [S.k.imp, `US$ ${bigE(v.tot?.imp, 2)}`, C.blue], [S.k.bal, `US$ ${bigE(v.tot?.bal, 2)}`, cl(v.tot?.bal)], [S.k.upd, `${mLab(`${d.last_year}-${String(d.last_month).padStart(2, '0')}-01`)}${d.updated ? ` (upd. ${dUS(d.updated)})` : ''}`]]} />
       {tab === 0 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.2fr)' }}>
         <Panel title={S.chord}><Chord parts={v.chord} flow={flow} /></Panel>

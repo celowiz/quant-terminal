@@ -80,5 +80,5 @@ def test_ectr_build():
     o = bc.ectr_build(exp, imp, [{'year': '2026', 'monthNumber': '09', 'metricFOB': '10'}], [], [{'chapter': 'Ores', 'metricFOB': '7'}], None, 2026, 9, '2026-10-06')
     assert o['rows'][0]['country'] == 'China' and o['rows'][1]['country'] == 'Chile'
     t = {x['year']: x for x in o['totals']}
-    assert t[2026]['bal'] == 35 and t[2026]['partial'] and not t[2025]['partial']
+    assert t[2026]['bal'] == 35 and t[2026]['partial'] and t[2025]['partial'] and o['months'] == [1, 9]
     assert o['monthly'] == [{'month': '2026-09', 'exp': 10, 'imp': None}] and o['chapters']['exp'][0]['name'] == 'Ores'

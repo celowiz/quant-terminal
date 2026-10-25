@@ -723,6 +723,7 @@ def fxfc():
     hist_spot = [[p['date'], p['sell']] for p in pt]
     sgs1 = next((x for x in (load_out('econ.json') or {}).get('series', []) if x['id'] == 'SGS1'), None)
     if sgs1: hist_spot = [p for p in sgs1['points'] if p[0] >= since]
+    hist_spot = [[k, v] for k, v in sorted(dict((p[0], p[1]) for p in hist_spot).items())]  # econ.json mixes monthly + daily points
     save('fxfc.json', {'generated_at': now_iso(), 'survey_date': last, 'spot': spot, 'spot_date': spot_date, 'monthly': monthly_rows, 'annual': annual_rows,
                        'spot_hist': hist_spot,
                        'note': 'Focus = BCB market survey (median of respondents, BRL per USD, monthly average for monthly references / year-end for annual). '

@@ -165,7 +165,7 @@ const S_TAYL = {
   title: 'Taylor Rule – implied policy rate', tabs: ['Chart', 'Table'],
   region: 'Region', rstar: 'r*', pistar: 'π*', alpha: 'α (infl.)', beta: 'β (gap)', rho: 'ρ (inertia)', okun: 'Okun', nairu: 'NAIRU',
   infl: 'Inflation', gap: 'Gap',
-  k: { policy: 'Policy rate', taylor: 'Taylor rate', diff: 'Policy − Taylor', infl: 'Inflation used', gap: 'Gap used', asof: 'Latest month' },
+  k: { policy: 'Policy rate', polUs: 'Fed funds target (upper)', polBr: 'Selic target', taylor: 'Taylor rate', diff: 'Target − Taylor', infl: 'Inflation used', gap: 'Gap used', asof: 'Latest month' },
   c: { date: 'Month', rate: 'Policy', infl: 'Inflation', gap: 'Gap', taylor: 'Taylor', diff: 'Diff (bp)' },
   chart: 'Policy rate vs Taylor rule (%)', pol: 'Policy rate', tay: 'Taylor rule',
   usInfl: [{ v: 'core_pce', l: 'Core PCE' }, { v: 'cpi', l: 'CPI' }], brInfl: [{ v: 'ipca12', l: 'IPCA 12m' }, { v: 'exp12', l: 'Focus IPCA 12m ahead' }],
@@ -213,7 +213,7 @@ export function TAYLView() {
         <button className="px-2 py-[1px] border text-[12px]" style={{ borderColor: C.line, color: C.amber }} onClick={() => setP(o => ({ ...o, [rg]: {} }))}>Reset</button>
       </div>
       <Kpis items={[
-        [S.k.policy, `${n(r.policy_now, 2)}%`, C.amber],
+        [rg === 'us' ? S.k.polUs : S.k.polBr, `${n(r.policy_now, 2)}%`, C.amber],
         [S.k.taylor, last ? `${n(last.taylor, 2)}%` : '—', C.cyan],
         [S.k.diff, last ? `${bps((r.policy_now - last.taylor!) * 100, 0)} bp` : '—', last ? cl(r.policy_now - last.taylor!) : C.text],
         [S.k.infl, last ? `${n(last.infl, 2)}%` : '—'],

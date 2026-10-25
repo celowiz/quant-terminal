@@ -278,7 +278,7 @@ def ectr_build(exp, imp, months_exp, months_imp, chap_exp, chap_imp, last_year, 
         rows.append({'country': n, 'exp': {y: clean(e.get(y), 0) for y in years if e.get(y)}, 'imp': {y: clean(i.get(y), 0) for y in years if i.get(y)}})
     tot = lambda d, y: sum(v.get(y, 0) for v in d.values())
     totals = [{'year': y, 'exp': clean(tot(exp, y), 0), 'imp': clean(tot(imp, y), 0), 'bal': clean(tot(exp, y) - tot(imp, y), 0),
-               'partial': y == last_year and last_month < 12} for y in years]
+               'partial': last_month < 12} for y in years]  # every year covers Jan–last_month (same window)
     rows.sort(key=lambda r: -((r['exp'].get(last_year) or 0) + (r['imp'].get(last_year) or 0)))
     mon = {}
     for flow, L in (('exp', months_exp), ('imp', months_imp)):
@@ -287,7 +287,7 @@ def ectr_build(exp, imp, months_exp, months_imp, chap_exp, chap_imp, last_year, 
             except Exception: pass
     monthly = [{'month': k, 'exp': clean(v.get('exp'), 0), 'imp': clean(v.get('imp'), 0)} for k, v in sorted(mon.items())]
     chap = lambda L: sorted([{'name': x.get('chapter') or x.get('section'), 'fob': clean(float(x['metricFOB']), 0)} for x in (L or [])], key=lambda c: -c['fob'])[:15]
-    return {'years': years, 'last_year': last_year, 'last_month': last_month, 'updated': updated, 'totals': totals, 'rows': rows,
+    return {'years': years, 'last_year': last_year, 'last_month': last_month, 'months': [1, last_month], 'updated': updated, 'totals': totals, 'rows': rows,
             'monthly': monthly, 'chapters': {'exp': chap(chap_exp), 'imp': chap(chap_imp)}}
 
 def ectr():
@@ -300,8 +300,12 @@ def ectr():
         res = {}
         for name, body in [('exp', {'flow': 'export', 'monthDetail': False, 'period': per, 'filters': [], 'details': ['country'], 'metrics': ['metricFOB']}),
                            ('imp', {'flow': 'import', 'monthDetail': False, 'period': per, 'filters': [], 'details': ['country'], 'metrics': ['metricFOB']}),
-                           ('mexp', {'flow': 'export', 'monthDetail': True, 'period': {'from': f'{ly - 2}-01', 'to': per['to']}, 'filters': [], 'details': [], 'metrics': ['metricFOB']}),
-                           ('mimp', {'flow': 'import', 'monthDetail': True, 'period': {'from': f'{ly - 2}-01', 'to': per['to']}, 'filters': [], 'details': [], 'metrics': ['metricFOB']}),
+                           # Comex Stat applies the month window to every year in the period, so monthly history
+                           # needs one query for the full prior years and one for the current year-to-date.
+                           ('mexp', {'flow': 'export', 'monthDetail': True, 'period': {'from': f'{ly - 2}-01', 'to': f'{ly - 1}-12'}, 'filters': [], 'details': [], 'metrics': ['metricFOB']}),
+                           ('mimp', {'flow': 'import', 'monthDetail': True, 'period': {'from': f'{ly - 2}-01', 'to': f'{ly - 1}-12'}, 'filters': [], 'details': [], 'metrics': ['metricFOB']}),
+                           ('mexp2', {'flow': 'export', 'monthDetail': True, 'period': ytd, 'filters': [], 'details': [], 'metrics': ['metricFOB']}),
+                           ('mimp2', {'flow': 'import', 'monthDetail': True, 'period': ytd, 'filters': [], 'details': [], 'metrics': ['metricFOB']}),
                            ('cexp', {'flow': 'export', 'monthDetail': False, 'period': ytd, 'filters': [], 'details': ['chapter'], 'metrics': ['metricFOB']}),
                            ('cimp', {'flow': 'import', 'monthDetail': False, 'period': ytd, 'filters': [], 'details': ['chapter'], 'metrics': ['metricFOB']})]:
             try: res[name] = cx_post(body)
@@ -309,7 +313,7 @@ def ectr():
                 if name in ('exp', 'imp'): raise
                 print('ectr', name, e); res[name] = None
             time.sleep(12)
-        o = ectr_build(cx_rows(res['exp'], 'country'), cx_rows(res['imp'], 'country'), res['mexp'], res['mimp'], res['cexp'], res['cimp'], ly, lm, updated)
+        o = ectr_build(cx_rows(res['exp'], 'country'), cx_rows(res['imp'], 'country'), (res['mexp'] or []) + (res['mexp2'] or []), (res['mimp'] or []) + (res['mimp2'] or []), res['cexp'], res['cimp'], ly, lm, updated)
         o.update({'generated_at': now_iso(), 'status': 'ok', 'unit': 'US$ FOB',
                   'source': 'MDIC/SECEX – Comex Stat API (api-comexstat.mdic.gov.br), exports and imports by country (US$ FOB)'})
         save('ectr.json', o)
