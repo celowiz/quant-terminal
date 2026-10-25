@@ -8,12 +8,12 @@ import { n, sn, pc, bps, bigE, cl, dUS, dUSfull, mLab, Kpis, NumIn, Loading2, Un
 
 // ======================= YAS =======================
 const S_YAS = {
-  title: 'Yield & Spread Analysis – Brazilian federal bonds', type: 'Type', all: 'All', bonds: 'Bonds (ANBIMA secondary market)',
-  c: { bond: 'Bond', maturity: 'Maturity', rate: 'Ind. rate', bid: 'Bid', ask: 'Ask', pu: 'PU', du: 'BD' },
-  calc: 'Calculator', yld: 'Yield (% p.a.)', price: 'Price (PU)', notional: 'Face (R$)', reset: 'ANBIMA',
+  title: 'Yield & Spread Analysis – Brazilian federal bonds', type: 'Type', all: 'All', bonds: 'Bonds (Tesouro Direto, morning)',
+  c: { bond: 'Bond', maturity: 'Maturity', rate: 'Rate', bid: 'Sell', ask: 'Buy', pu: 'PU', du: 'BD' },
+  calc: 'Calculator', yld: 'Yield (% p.a.)', price: 'Price (PU)', notional: 'Face (R$)', reset: 'Reset',
   risk: 'Risk', spread: 'Spreads', invoice: 'Invoice', flows: 'Cash flows',
   k: { mac: 'Macaulay dur. (yrs)', mod: 'Modified dur.', cvx: 'Convexity', dv01: 'DV01 per face', dv01u: 'DV01 per bond', bd: 'Business days', vna: 'VNA', face: 'Face value per bond',
-    di: 'DI1 at maturity', sp: 'Spread vs DI1 (bp)', z: 'Z-spread vs DI1 (bp)', be: 'Breakeven inflation (DI1 vs real)', lft: 'Rate is a spread over Selic', qty: 'Quantity', principal: 'Principal (R$)', anbima: 'ANBIMA PU' },
+    di: 'DI1 at maturity', sp: 'Spread vs DI1 (bp)', z: 'Z-spread vs DI1 (bp)', be: 'Breakeven inflation (DI1 vs real)', lft: 'Rate is a spread over Selic', qty: 'Quantity', principal: 'Principal (R$)', anbima: 'Tesouro Direto PU' },
   fc: { date: 'Date', du: 'BD', cf: 'Flow (R$)', pv: 'PV (R$)', w: 'Weight' },
   curve: 'DI1 curve (B3 settlement) and bond rates', diLine: 'DI1 (% p.a.)',
 }
@@ -52,23 +52,24 @@ export function YASView() {
     const cvx = f.reduce((s, [du, cf]) => s + t(du) * (t(du) + 1) * cf / Math.pow(yy, t(du) + 2), 0) / P
     const dv1 = (pv(f, y - 0.01) - pv(f, y + 0.01)) / 2
     const unit = b.bond === 'LTN' || b.bond === 'NTN-F' ? 1000 : (b.vna || 1000)
+    const curve: [number, number][] = d.di_ok === false ? [] : (d.di1 || [])
     const qty = face ? face / unit : null
-    const di = diAt(d.di1, b.du)
+    const di = diAt(curve, b.du)
     let z: number | null = null
-    if (d.di1?.length && (b.bond === 'LTN' || b.bond === 'NTN-F')) {
-      const g = (s: number) => f.reduce((a, [du, cf]) => { const r0 = diAt(d.di1, du)!; return a + cf / Math.pow(1 + r0 / 100, du / 252) / Math.pow(1 + s / 1e4, du / 252) }, 0) - P
+    if (curve.length && (b.bond === 'LTN' || b.bond === 'NTN-F')) {
+      const g = (s: number) => f.reduce((a, [du, cf]) => { const r0 = diAt(curve, du)!; return a + cf / Math.pow(1 + r0 / 100, du / 252) / Math.pow(1 + s / 1e4, du / 252) }, 0) - P
       let lo = -2000, hi = 2000; for (let i = 0; i < 80; i++) { const m = (lo + hi) / 2; if (g(m) > 0) lo = m; else hi = m } z = (lo + hi) / 2
     }
     const rows = f.map(([du, cf, dt]) => { const p = cf / Math.pow(yy, t(du)); return { date: dt, du, cf, pv: p, w: p / P * 100 } })
-    return { P, mac, mod: mac / yy, cvx, dv1, unit, qty, di, z, rows, be: b.bond === 'NTN-B' && di != null ? ((1 + di / 100) / (1 + y / 100) - 1) * 100 : null }
+    return { P, mac, mod: mac / yy, cvx, dv1, unit, qty, di, z, rows, be: (b.bond === 'NTN-B' || b.bond === 'NTN-B P') && di != null ? ((1 + di / 100) / (1 + y / 100) - 1) * 100 : null }
   }, [b?.id, y, face, d])
   if (!d) return <FnScreen code="YAS" title={S.title}><Loading2 err={err} /></FnScreen>
-  if (!bonds.length) return <FnScreen code="YAS" title={S.title} source={d.source}><Unavailable what="ANBIMA bond prices" note={d.note} /></FnScreen>
-  const types = ['All', 'LTN', 'NTN-F', 'NTN-B', 'LFT']
+  if (!bonds.length) return <FnScreen code="YAS" title={S.title} source={d.source}><Unavailable what="Tesouro Direto bond prices" note={d.note} /></FnScreen>
+  const types = ['All', 'LTN', 'NTN-F', 'NTN-B', 'NTN-B P', 'LFT']
   const isPre = b.bond === 'LTN' || b.bond === 'NTN-F'
   return (
     <FnScreen code="YAS" title={S.title} right={<Field label={S.type}><Btns opts={types.map(t => ({ v: t, l: t === 'All' ? S.all : t }))} value={typ} onChange={setTyp} /></Field>}
-      source={d.source} note={<>Pricing date {dUSfull(d.ref_date)}; DI1 curve {dUSfull(d.di_ref_date)}. {Object.entries(d.conventions || {}).map(([k, v]) => `${k}: ${v}`).join(' · ')}{d.status !== 'ok' && d.note ? ` · ${d.note}` : ''}</>}>
+      source={d.source} note={<>Pricing date {dUSfull(d.ref_date)}; DI1 curve {dUSfull(d.di_ref_date)}. {Object.entries(d.conventions || {}).map(([k, v]) => `${k}: ${v}`).join(' · ')}{d.note ? ` · ${d.note}` : ''}</>}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,0.95fr) minmax(0,1.05fr) minmax(0,1fr)' }}>
         <Panel title={S.bonds}>
           <Grid maxH={600} rows={bonds.filter(x => typ === 'All' || x.bond === typ)} onRow={(x: any) => setId(x.id)} rowStyle={(x: any) => x.id === b.id ? { background: '#1f2a44' } : undefined} cols={[
@@ -98,7 +99,7 @@ export function YASView() {
           {r && <Panel title={S.spread} className="mt-2"><KV cols={1} rows={b.bond === 'LFT' ? [[S.k.lft, `${sn(y! * 100, 2)} bp`, C.amber]] : [
             [S.k.di, r.di != null ? `${n(r.di, 4)}%` : '—'],
             ...(isPre ? [[S.k.sp, r.di != null ? bps((y! - r.di) * 100, 1) : '—', cl(y! - (r.di ?? y!))], [S.k.z, r.z != null ? bps(r.z, 1) : '—', C.amber]] as any : []),
-            ...(b.bond === 'NTN-B' ? [[S.k.be, r.be != null ? `${n(r.be, 3)}%` : '—', C.amber]] as any : []),
+            ...(b.bond === 'NTN-B' || b.bond === 'NTN-B P' ? [[S.k.be, r.be != null ? `${n(r.be, 3)}%` : '—', C.amber]] as any : []),
           ]} /></Panel>}
           {r && <Panel title={S.invoice} className="mt-2"><KV cols={1} rows={[[S.k.qty, r.qty != null ? n(r.qty, 4) : '—'], [S.k.principal, r.qty != null ? `R$ ${n(r.qty * r.P, 2)}` : '—', C.white]]} /></Panel>}
         </div>

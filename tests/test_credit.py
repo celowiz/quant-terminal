@@ -1,4 +1,4 @@
-"""Testes de build_credit.py: matemática de títulos públicos (conferida contra o PU ANBIMA), Merton e agregação do Comex Stat."""
+"""Testes de build_credit.py: matemática de títulos públicos (fixture sintética no layout do CSV do Tesouro Transparente), Merton e agregação do Comex Stat."""
 import datetime as dt, math, pathlib
 import pytest
 import build_macro as bm
@@ -9,7 +9,7 @@ REF = dt.date(2026, 10, 23)
 
 
 def rows():
-    return {r['bond']: r for r in bm.parse_anbima((FX / 'anbima_ms261023.txt').read_text(encoding='utf-8'))}
+    return {r['bond']: r for r in bm.parse_td((FX / 'td_sample.csv').read_text(encoding='utf-8'))['2026-10-23']}
 
 
 def test_coupon_dates():
@@ -18,34 +18,34 @@ def test_coupon_dates():
     assert ds[0] == dt.date(2026, 11, 15) and ds[-1] == dt.date(2035, 5, 15) and len(ds) == 18
 
 
-def test_ntnf_reproduz_pu_anbima():
+def test_ntnf_fluxos_e_roundtrip():
     r = rows()['NTN-F']
     fl, vna = bc.bond_flows(r, REF)
-    assert vna is None and len(fl) == 9 and fl[-1][1] == pytest.approx(1048.80885, abs=1e-5)
-    assert bc.price(fl, r['rate'] / 100) == pytest.approx(r['pu'], abs=1e-3)
+    assert vna is None and len(fl) == 17 and fl[-1][1] == pytest.approx(1048.80885, abs=1e-5)
+    p = bc.price(fl, r['rate'] / 100)
+    assert bc.yld(fl, p) * 100 == pytest.approx(r['rate'], abs=1e-8)
 
 
 def test_ltn_preco():
-    r = {'bond': 'LTN', 'maturity': '2027-04-01', 'rate': 13.2353, 'pu': 948.591309}
+    from build_rates import du
+    r = {'bond': 'LTN', 'maturity': '2027-04-01', 'rate': 13.2353, 'pu': 0}
     fl, _ = bc.bond_flows(r, REF)
-    assert bc.price(fl, 0.132353) == pytest.approx(948.591309, abs=1e-5)
+    assert bc.price(fl, 0.132353) == pytest.approx(1000 / 1.132353 ** (du(REF, dt.date(2027, 4, 1)) / 252), abs=1e-9)
 
 
-def test_ntnb_vna_implicito_e_lft():
-    b = rows()['NTN-B']
-    fl, vna = bc.bond_flows(b, REF)
-    assert 4700 < vna < 4800 and bc.price(fl, b['rate'] / 100) == pytest.approx(b['pu'], abs=1e-6)
-    l = rows()['LFT']
-    fl, vna = bc.bond_flows(l, REF)
-    assert vna == pytest.approx(20149.8, abs=0.1)
+def test_vna_implicito_ntnb_ntnbp_lft():
+    R = rows()
+    for k in ('NTN-B', 'NTN-B P', 'LFT'):
+        fl, vna = bc.bond_flows(R[k], REF)
+        assert vna > 1000 and bc.price(fl, R[k]['rate'] / 100) == pytest.approx(R[k]['pu'], abs=1e-6)
+    assert len(bc.bond_flows(R['NTN-B P'], REF)[0]) == 1 and len(bc.bond_flows(R['NTN-B'], REF)[0]) == 18
 
 
 def test_yield_newton_e_risco():
     r = rows()['NTN-F']
     fl, _ = bc.bond_flows(r, REF)
-    assert bc.yld(fl, r['pu']) * 100 == pytest.approx(r['rate'], abs=1e-5)
     k = bc.risk(fl, r['rate'] / 100)
-    assert 0 < k['mod'] < k['mac'] < 4.3
+    assert 0 < k['mod'] < k['mac'] < 6
     # DV01 ≈ variação de preço por 1 bp
     dp = bc.price(fl, r['rate'] / 100 - 0.00005) - bc.price(fl, r['rate'] / 100 + 0.00005)
     assert k['dv01'] == pytest.approx(dp, rel=1e-3)

@@ -28,8 +28,8 @@ run markets  build_markets.py    # universe (IBOV/B3), world, fx, econ (BCB/FRED
 run rates    build_rates.py      # CDIE: DI1 (B3 BDI) + Copom (BCB) + Focus por reunião; curvas GC (FRED, Tesouro Transparente)
 run corp     build_corp.py       # CVM DFP/ITR/FCA/IPE + Yahoo (proventos, splits, perfil) + calendar
 run extra    build_extra.py      # GIP intradiário, GLCO futuros, ECFC Focus, ECST SIDRA, HDS (FRE), FA (DFP/ITR), screener EQS/RV/MOST
-run macro    build_macro.py      # WB, FOMC, WIRP, TAYL, ECO, FXFC, FXC, GMM (ANBIMA, BoE, FRED, Fed, BCB, IBGE, BLS/BEA/Census, Yahoo)
-run credit   build_credit.py     # YAS (ANBIMA + DI1), DRSK (CVM BPP + Yahoo), ECTR (Comex Stat) — depois de rates/extra
+run macro    build_macro.py      # WB, FOMC, WIRP, TAYL, ECO, FXFC, FXC, GMM (Tesouro Transparente, BoE, FRED, Fed, BCB, IBGE, BLS/BEA/Census, Yahoo)
+run credit   build_credit.py     # YAS (Tesouro Transparente + DI1), DRSK (CVM BPP + Yahoo), ECTR (Comex Stat) — depois de rates/extra
 run options  build_options.py    # B3 COTAHIST diário (opções) + gregas Black-Scholes
 run news     build_news.py       # RSS de licença aberta (Agência Brasil, BCB, CVM, SEC, Fed, RFB)
 run anb      build_anb.py        # CVM Informe Diário de fundos → captação líquida por classe

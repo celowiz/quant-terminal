@@ -7,16 +7,14 @@ import build_macro as bm
 FX = pathlib.Path(__file__).parent / 'fixtures'
 
 
-def anbima_rows():
-    return bm.parse_anbima((FX / 'anbima_ms261023.txt').read_text(encoding='utf-8'))
-
-
-def test_parse_anbima():
-    rows = anbima_rows()
-    assert {r['bond'] for r in rows} == {'LFT', 'NTN-B', 'NTN-F', 'NTN-C'}
+def test_parse_td():
+    h = bm.parse_td((FX / 'td_sample.csv').read_text(encoding='utf-8'))
+    assert list(h) == ['2026-10-22', '2026-10-23']
+    rows = h['2026-10-23']
+    assert {r['bond'] for r in rows} == {'LTN', 'NTN-F', 'NTN-B', 'NTN-B P', 'LFT'}   # Educa+ e Renda+ fora
     f = next(r for r in rows if r['bond'] == 'NTN-F')
-    assert f == {'bond': 'NTN-F', 'ref': '2026-10-23', 'selic_code': '950199', 'issue': '2020-01-10', 'maturity': '2031-01-01',
-                 'bid': 12.8261, 'ask': 12.8137, 'rate': 12.8204, 'pu': 948.118837}
+    assert f == {'bond': 'NTN-F', 'ref': '2026-10-23', 'maturity': '2035-01-01', 'rate': 13.42, 'bid': 13.42, 'ask': 13.3, 'pu': 862.4}
+    assert bm.parse_td((FX / 'td_sample.csv').read_text(encoding='utf-8'), dt.date(2026, 10, 23)).keys() == {'2026-10-23'}
 
 
 def test_interp_e_br_pre_tenor():

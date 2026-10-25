@@ -1,6 +1,6 @@
 """Crédito, títulos e comércio exterior: YAS (calculadora de títulos públicos federais), DRSK (distância até o default de Merton)
 e ECTR (fluxos de comércio exterior do Brasil por país).
-Fontes abertas: ANBIMA (taxas indicativas de títulos públicos), B3/cdie.json (curva DI1), CVM DFP/ITR (dívida), Yahoo Finance (preços),
+Fontes abertas: Tesouro Transparente (taxas e PUs do Tesouro Direto), B3/cdie.json (curva DI1), CVM DFP/ITR (dívida), Yahoo Finance (preços),
 BCB SGS 4389 (CDI) e API do Comex Stat (MDIC/SECEX)."""
 import os, sys, json, math, time, datetime as dt
 import pandas as pd
@@ -33,7 +33,7 @@ def coupon_dates(ref, mat):
     return sorted(out)
 
 def bond_flows(row, ref):
-    """Fluxos [du, valor em R$ por título] a partir da data de referência ANBIMA. NTN-B e LFT usam o VNA implícito no PU ANBIMA."""
+    """Fluxos [du, valor em R$ por título] a partir da data-base do Tesouro Direto. NTN-B, NTN-B Principal e LFT usam o VNA implícito no PU."""
     from build_rates import du
     mat = dt.date.fromisoformat(row['maturity']); b = row['bond']; y = row['rate'] / 100
     if b == 'LTN':
@@ -47,7 +47,7 @@ def bond_flows(row, ref):
         cot = sum(a / (1 + y) ** (n / 252) for n, a, _ in fl)          # cotação (% do VNA)
         vna = row['pu'] / (cot / 100)
         return [[n, a * vna / 100, d] for n, a, d in fl], vna
-    if b == 'LFT':
+    if b in ('LFT', 'NTN-B P'):
         n = du(ref, mat); cot = 1 / (1 + y) ** (n / 252)
         vna = row['pu'] / cot
         return [[n, vna, mat.isoformat()]], vna
@@ -64,6 +64,8 @@ def risk(flows, y):
     mod = mac / (1 + y)
     return {'pu': pu, 'mac': mac, 'mod': mod, 'conv': conv, 'dv01': mod * pu * 1e-4}
 
+ORDER = {'LTN': 0, 'NTN-F': 1, 'NTN-B': 2, 'NTN-B P': 3, 'LFT': 4}
+
 def yld(flows, pu, y0=0.1):
     """Taxa a partir do PU (Newton)."""
     y = y0
@@ -74,7 +76,7 @@ def yld(flows, pu, y0=0.1):
     return y
 
 def di_curve(ref):
-    """Curva DI1 (du a partir da data ANBIMA, taxa % a.a.) a partir de cdie.json."""
+    """Curva DI1 (du a partir da data-base dos títulos, taxa % a.a.) a partir de cdie.json."""
     from build_rates import du
     c = load_out('cdie.json') or {}
     pts = []
@@ -85,42 +87,45 @@ def di_curve(ref):
         except Exception: pass
     return sorted(pts), c.get('ref_date')
 
-def latest_anbima(max_back=10):
-    from build_macro import anbima_day
-    for i in range(max_back):
-        d = TODAY - dt.timedelta(days=i)
-        if d == TODAY and now_brt().hour < 19: continue  # arquivo do dia sai à noite
-        rows = anbima_day(d)
-        if rows: return d, rows
-    return None, None
+def latest_td():
+    from build_macro import td_history
+    h = td_history(30)
+    if not h: return None, None
+    d = max(h); return dt.date.fromisoformat(d), h[d]
 
 def yas():
-    ref, rows = latest_anbima()
+    try: ref, rows = latest_td()
+    except Exception as e: print('yas TD', e); ref, rows = None, None
     if not rows:
         prev = load_out('yas.json')
         if prev and prev.get('bonds'):
-            prev['status'] = 'stale'; prev['note'] = 'ANBIMA unavailable in this run; showing the previous data.'
+            prev['status'] = 'stale'; prev['note'] = 'Tesouro Transparente unavailable in this run; showing the previous data.'
             save('yas.json', prev); return
-        raise RuntimeError('ANBIMA: nenhum arquivo de taxas indicativas nos últimos dias')
+        raise RuntimeError('Tesouro Transparente: sem preços do Tesouro Direto nos últimos 30 dias')
     curve, di_ref = di_curve(ref)
+    lag = (dt.date.fromisoformat(di_ref) - ref).days if di_ref else None
+    di_ok = bool(curve) and lag is not None and abs(lag) <= 3
     bonds = []
     for r in rows:
-        if r['bond'] not in ('LTN', 'NTN-F', 'NTN-B', 'LFT') or not r.get('pu') or r.get('rate') is None: continue
+        if r['bond'] not in ORDER or not r.get('pu') or r.get('rate') is None: continue
         flows, vna = bond_flows(r, ref)
         if not flows: continue
-        y = r['rate'] / 100
-        k = risk(flows, y)
-        bonds.append({'id': f"{r['bond']} {r['maturity']}", 'bond': r['bond'], 'maturity': r['maturity'], 'issue': r.get('issue'),
-                      'selic_code': r.get('selic_code'), 'rate': r['rate'], 'bid': r.get('bid'), 'ask': r.get('ask'),
+        k = risk(flows, r['rate'] / 100)
+        bonds.append({'id': f"{r['bond']} {r['maturity']}", 'bond': r['bond'], 'maturity': r['maturity'],
+                      'rate': r['rate'], 'bid': r.get('bid'), 'ask': r.get('ask'),
                       'pu': r['pu'], 'model_pu': clean(k['pu'], 6), 'vna': clean(vna, 6), 'du': flows[-1][0],
                       'flows': [[n, clean(a, 6), d] for n, a, d in flows]})
-    order = {'LTN': 0, 'NTN-F': 1, 'NTN-B': 2, 'LFT': 3}
-    bonds.sort(key=lambda b: (order[b['bond']], b['maturity']))
-    save('yas.json', {'generated_at': now_iso(), 'ref_date': ref.isoformat(), 'di_ref_date': di_ref, 'di1': curve, 'bonds': bonds, 'status': 'ok',
-                      'source': 'ANBIMA – indicative rates for federal government bonds (daily ms<YYMMDD>.txt file); B3 DI1 settlement curve',
-                      'conventions': {'LTN': 'Zero coupon: PU = 1000 / (1+y)^(bd/252)', 'NTN-F': '10% p.a. coupon (R$ 48.80885 per half-year, Jan 1 and Jul 1) + 1000 at maturity',
-                                      'NTN-B': '6% p.a. coupon (2.956301% of VNA per half-year); VNA implied by the ANBIMA price / quote',
-                                      'LFT': 'PU = VNA / (1+spread)^(bd/252); VNA implied by the ANBIMA price', 'days': 'Business days, ANBIMA calendar (252 basis)'}})
+    bonds.sort(key=lambda b: (ORDER[b['bond']], b['maturity']))
+    note = None if di_ok else (f'DI1 spreads hidden: bond prices are from {ref.isoformat()} and the DI1 curve from {di_ref} '
+                               '(Tesouro Direto data lags); comparing different days would be misleading.')
+    save('yas.json', {'generated_at': now_iso(), 'ref_date': ref.isoformat(), 'di_ref_date': di_ref, 'di1': curve if di_ok else [], 'di_ok': di_ok,
+                      'bonds': bonds, 'status': 'ok', 'note': note,
+                      'source': 'Tesouro Nacional – Tesouro Transparente open data (Tesouro Direto morning rates and prices); B3 DI1 settlement curve',
+                      'conventions': {'Rate': 'Tesouro Direto sell-back (Taxa Venda) rate and PU; Buy = investor buy rate',
+                                      'LTN': 'Zero coupon: PU = 1000 / (1+y)^(bd/252)', 'NTN-F': '10% p.a. coupon (R$ 48.80885 per half-year, Jan 1 and Jul 1) + 1000 at maturity',
+                                      'NTN-B': '6% p.a. coupon (2.956301% of VNA per half-year); VNA implied by the price / quote',
+                                      'NTN-B P': 'Zero coupon on VNA (Tesouro IPCA+); VNA implied by the price',
+                                      'LFT': 'PU = VNA / (1+spread)^(bd/252); VNA implied by the price', 'days': 'Business days, national holiday calendar (252 basis)'}})
 
 # ======================= DRSK: Merton distance-to-default =======================
 def merton(E, sE, D, r, T=1.0):

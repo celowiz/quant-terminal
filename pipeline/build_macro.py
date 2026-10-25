@@ -1,7 +1,7 @@
 """Macro global (11 funções novas, parte 1): WB, FOMC, WIRP, TAYL, ECO, FXFC, FXC e GMM.
 Fontes públicas e gratuitas, sem chave de API:
 - Títulos soberanos (WB): FRED (Treasuries, OECD mensal), Bank of Canada Valet, Bundesbank (BBSIS), Bank of England (IADB),
-  Reserve Bank of Australia (F2), Ministry of Finance Japan (JGB), ANBIMA (taxas indicativas de LTN/NTN-F).
+  Reserve Bank of Australia (F2), Ministry of Finance Japan (JGB), Tesouro Transparente (taxas do Tesouro Direto).
 - Bancos centrais (FOMC/WIRP/TAYL): federalreserve.gov (calendário do FOMC), FRED (DFEDTARU/L, DFF, FEDFUNDS, PCE, NROU, GDPPOT...),
   Yahoo Finance (futuros de Fed Funds ZQ, CBOT), BCB (histórico de metas do Copom, calendário, SGS, Focus/Olinda), cdie.json (DI1 B3).
 - Calendário (ECO): IBGE (API de calendário), BEA (ICS), Census (indicadores econômicos), SIDRA/SGS/FRED (realizado), Focus (consenso).
@@ -36,44 +36,41 @@ def pts(s, nd=3):
 # =====================================================================================
 # WB – mercados de títulos soberanos
 # =====================================================================================
-def parse_anbima(txt):
-    """Arquivo diário de mercado secundário de títulos públicos da ANBIMA (msAAMMDD.txt, separador @, decimal vírgula)."""
-    rows = []
-    for ln in txt.splitlines():
-        p = ln.strip().split('@')
-        if len(p) < 9 or p[0] not in ('LTN', 'NTN-F', 'NTN-B', 'LFT', 'NTN-C'): continue
-        f = lambda x: None if x.strip() in ('', '--', 'N/D') else float(x.replace('.', '').replace(',', '.')) if x.count(',') else float(x)
-        try:
-            rows.append({'bond': p[0], 'ref': dt.datetime.strptime(p[1], '%Y%m%d').date().isoformat(), 'selic_code': p[2],
-                         'issue': dt.datetime.strptime(p[3], '%Y%m%d').date().isoformat(), 'maturity': dt.datetime.strptime(p[4], '%Y%m%d').date().isoformat(),
-                         'bid': f(p[5]), 'ask': f(p[6]), 'rate': f(p[7]), 'pu': f(p[8])})
-        except Exception: continue
-    return rows
+# Tesouro Transparente (dados abertos do Tesouro Nacional): preços e taxas do Tesouro Direto.
+# A ANBIMA não é usada: os termos de uso dela proíbem automação (ver README).
+TD_URL = ('https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/'
+          '796d2059-14e9-44e3-80c9-2d9e30b405c1/download/PrecoTaxaTesouroDireto.csv')
+TD_MAP = {'Tesouro Prefixado': 'LTN', 'Tesouro Prefixado com Juros Semestrais': 'NTN-F', 'Tesouro IPCA+ com Juros Semestrais': 'NTN-B',
+          'Tesouro IPCA+': 'NTN-B P', 'Tesouro Selic': 'LFT'}
+TD_SOURCE = 'Tesouro Nacional – Tesouro Transparente open data (PrecoTaxaTesouroDireto.csv, Tesouro Direto morning rates and prices)'
 
-def anbima_day(d):
-    from build_rates import is_bd
-    if not is_bd(d): return None
-    name = f'ms{d:%y%m%d}.txt'
-    p = os.path.join(os.environ.get('QT_CACHE', '/tmp/qt_cache'), 'anbima_' + name)
-    if os.path.exists(p) and os.path.getsize(p) > 500:
-        return parse_anbima(open(p, encoding='latin1').read())
-    try:
-        r = get(f'https://www.anbima.com.br/informacoes/merc-sec/arqs/{name}', tries=1, timeout=30)
-    except Exception:
-        return None
-    txt = r.content.decode('latin1')
-    rows = parse_anbima(txt)
-    if rows: open(p, 'w', encoding='latin1').write(txt)
-    return rows
-
-def anbima_history(n_bd=12, max_days=18):
-    """A ANBIMA só mantém ~2 semanas de arquivos diários públicos; o histórico mais longo é acumulado no wb.json."""
-    out = {}; d = TODAY; k = 0
-    while len(out) < n_bd and k < max_days:
-        r = anbima_day(d)
-        if r: out[d.isoformat()] = r
-        d -= dt.timedelta(days=1); k += 1
+def parse_td(txt, since=None):
+    """CSV do Tesouro Direto → {data_base_iso: [{bond, ref, maturity, rate, bid, ask, pu}]}.
+    rate/pu = taxa e PU de venda (recompra pelo Tesouro, a marcação mais próxima do mercado secundário);
+    ask = taxa de compra do investidor, bid = taxa de venda."""
+    df = pd.read_csv(io.StringIO(txt), sep=';', decimal=',')
+    df = df[df['Tipo Titulo'].isin(TD_MAP)].copy()
+    df['base'] = pd.to_datetime(df['Data Base'], dayfirst=True).dt.date
+    df['venc'] = pd.to_datetime(df['Data Vencimento'], dayfirst=True).dt.date
+    if since: df = df[df.base >= since]
+    num = lambda v: None if v is None or pd.isna(v) or float(v) <= 0 else float(v)
+    out = {}
+    for r in df.itertuples(index=False):
+        g = dict(zip(df.columns, r))
+        sell, buy = num(g.get('Taxa Venda Manha')), num(g.get('Taxa Compra Manha'))
+        pus, pub = num(g.get('PU Venda Manha')), num(g.get('PU Compra Manha'))
+        rate, pu = (sell, pus) if sell is not None and pus else (buy, pub)
+        if rate is None or not pu or g['venc'] <= g['base']: continue
+        out.setdefault(g['base'].isoformat(), []).append({'bond': TD_MAP[g['Tipo Titulo']], 'ref': g['base'].isoformat(), 'maturity': g['venc'].isoformat(),
+                                                           'rate': rate, 'bid': sell, 'ask': buy, 'pu': pu})
     return dict(sorted(out.items()))
+
+def td_history(days=800):
+    from common import cached
+    p = cached(TD_URL, 'td_PrecoTaxaTesouroDireto.csv', max_age_h=12)
+    txt = open(p, 'rb').read().decode('latin1')
+    if not txt.lstrip().startswith(('Tipo', '"Tipo')): raise RuntimeError('Tesouro Transparente: resposta não é o CSV esperado')
+    return parse_td(txt, TODAY - dt.timedelta(days=days))
 
 def interp(xs, ys, x):
     """Interpolação linear (sem extrapolar além de 1 ano das pontas)."""
@@ -86,7 +83,7 @@ def interp(xs, ys, x):
             w = (x - xs[i - 1]) / (xs[i] - xs[i - 1]); return ys[i - 1] + w * (ys[i] - ys[i - 1])
 
 def br_pre_tenor(rows, years):
-    """Taxa prefixada (LTN/NTN-F, taxa indicativa ANBIMA) interpolada no prazo em anos corridos."""
+    """Taxa prefixada (LTN/NTN-F do Tesouro Direto) interpolada no prazo em anos corridos."""
     q = sorted([((dt.date.fromisoformat(r['maturity']) - dt.date.fromisoformat(r['ref'])).days / 365.25, r['rate'])
                 for r in rows if r['bond'] in ('LTN', 'NTN-F') and r['rate'] is not None])
     return interp([a for a, _ in q], [b for _, b in q], years)
@@ -119,7 +116,6 @@ def series_stats(s, freq):
 
 def wb():
     start = (TODAY - dt.timedelta(days=760)).isoformat()
-    br_hist = None
     countries = []  # {cc, name, region, src, tenors: {T: stats + series}}
     def add(cc, name, src, ser, freq):
         ten = {}
@@ -182,15 +178,12 @@ def wb():
         df = df[df.index >= pd.Timestamp(start)].apply(pd.to_numeric, errors='coerce')
         add('AU', 'Australia', 'Reserve Bank of Australia – F2 government bond yields (interpolated)', {'2Y': df['FCMYGBAG2D'], '5Y': df['FCMYGBAG5D'], '10Y': df['FCMYGBAG10D']}, 'D')
     except Exception as e: print('wb AU', e)
-    # Brasil (ANBIMA – LTN/NTN-F indicativas, interpoladas no prazo)
+    # Brasil (Tesouro Direto – LTN/NTN-F, interpoladas no prazo)
     try:
-        h = anbima_history()
-        acc = ((load_prev('wb.json') or {}).get('br_hist') or {})
-        for d, rows in h.items(): acc[d] = {t: clean(br_pre_tenor(rows, y), 4) for t, y in [('2Y', 2), ('5Y', 5), ('10Y', 10)]}
-        acc = {d: v for d, v in sorted(acc.items()) if d >= (TODAY - dt.timedelta(days=760)).isoformat()}
-        br_hist = acc
+        h = td_history(800)
+        acc = {d: {t: clean(br_pre_tenor(rows, y), 4) for t, y in [('2Y', 2), ('5Y', 5), ('10Y', 10)]} for d, rows in h.items()}
         ser = {t: pd.Series({pd.Timestamp(d): v.get(t) for d, v in acc.items()}, dtype=float) for t in ('2Y', '5Y', '10Y')}
-        add('BR', 'Brazil (local, BRL)', 'ANBIMA – indicative rates of LTN/NTN-F (fixed-rate federal bonds), linearly interpolated by maturity', ser, 'D')
+        add('BR', 'Brazil (local, BRL)', 'Tesouro Direto (Tesouro Transparente) – fixed-rate LTN/NTN-F rates, linearly interpolated by maturity', ser, 'D')
     except Exception as e: print('wb BR', e)
     # Demais países: OECD (FRED), mensal
     try:
@@ -199,10 +192,10 @@ def wb():
             if i in f: add(cc, name, f'OECD Main Economic Indicators via FRED ({i}) – long-term government bond yield, monthly average', {'10Y': f[i]}, 'M')
     except Exception as e: print('wb OECD', e)
     if len(countries) < 5: raise RuntimeError(f'só {len(countries)} países')
-    save('wb.json', {'generated_at': now_iso(), 'tenors': TENORS, 'countries': countries, 'br_hist': br_hist or (load_prev('wb.json') or {}).get('br_hist'),
+    save('wb.json', {'generated_at': now_iso(), 'tenors': TENORS, 'countries': countries, 
                      'note': 'Daily series where the central bank / treasury publishes them; OECD rows are monthly averages (1D/1W blank). '
-                             'Brazil = local-currency fixed-rate curve (ANBIMA), not USD bonds.',
-                     'source': 'FRED, Bank of Canada, Deutsche Bundesbank, Bank of England, MoF Japan, RBA, ANBIMA, OECD (via FRED)'})
+                             'Brazil = local-currency fixed-rate curve from Tesouro Direto rates (retail platform; may lag a few days), not USD bonds.',
+                     'source': 'FRED, Bank of Canada, Deutsche Bundesbank, Bank of England, MoF Japan, RBA, Tesouro Transparente, OECD (via FRED)'})
 
 # =====================================================================================
 # FOMC / Copom – datas e decisões
@@ -839,7 +832,7 @@ def gmm():
     if sum(len(g['tiles']) for g in groups) < 10: raise RuntimeError('poucos ativos para GMM')
     save('gmm.json', {'generated_at': now_iso(), 'groups': groups,
                       'note': 'Price moves in %, yield moves in basis points. Delayed daily closes. FX quoted as USD per unit for EUR, GBP, AUD; units per USD otherwise.',
-                      'source': 'Yahoo Finance via yfinance (indices, FX, commodity futures – world.json, fx.json, futures.json); sovereign yields from wb.json (FRED, BoC, Bundesbank, BoE, MoF Japan, RBA, ANBIMA)'})
+                      'source': 'Yahoo Finance via yfinance (indices, FX, commodity futures – world.json, fx.json, futures.json); sovereign yields from wb.json (FRED, BoC, Bundesbank, BoE, MoF Japan, RBA, Tesouro Transparente)'})
 
 STEPS = {'wb': wb, 'fomc': fomc, 'wirp': wirp, 'tayl': tayl, 'eco': eco, 'fxfc': fxfc, 'fxc': fxc, 'gmm': gmm}
 if __name__ == '__main__':
