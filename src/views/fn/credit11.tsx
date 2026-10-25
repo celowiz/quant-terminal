@@ -137,7 +137,7 @@ const S_DRSK = {
   title: 'Default Risk – Merton distance-to-default (B3 non-financials)', sector: 'Sector', all: 'All',
   c: { cod: 'Ticker', name: 'Company', sector: 'Sector', dd: 'DD', pd: '1Y PD %', lev: 'Lev. %', sigma_e: 'σE %', sigma_v: 'σV %', mcap: 'Mkt cap', dp: 'Default pt.', bal: 'Balance' },
   sectors: 'Median DD by sector', detail: 'Details', hist: 'DD history (monthly)', pdl: '1Y PD % (risk-neutral)',
-  k: { price: 'Price (R$)', mcap: 'Market cap (R$)', st: 'Short-term debt', lt: 'Long-term debt', dp: 'Default point', V: 'Asset value V', sv: 'Asset vol σV', se: 'Equity vol σE', lev: 'Leverage DP/V', dd: 'Distance to default', pd: '1Y PD', bal: 'Balance sheet', sub: 'Subsector' },
+  k: { price: 'Price (R$)', mcap: 'Market cap (R$)', st: 'Short-term debt', lt: 'Long-term debt', dp: 'Default point', V: 'Asset value V', sv: 'Asset vol σV', se: 'Equity vol σE', lev: 'Leverage DP/V', dd: 'Distance to default', pd: '1Y PD', bal: 'Balance sheet', sub: 'B3 subsector (PT)' },
   skipped: 'Skipped', banks: 'Banks excluded (deposits are not comparable debt)',
 }
 const ddColor = (v: number | null) => v == null ? C.text : v < 1.5 ? C.down : v < 3 ? C.yellow : C.up
