@@ -42,21 +42,45 @@ def get(url, tries=3, timeout=60, **kw):
 # (ReadTimeout em toda série), e cada série custava 3 × 60 s — markets/rates/macro estouravam o limite de 20 min da etapa.
 # Depois de FRED_MAX_FAILS falhas seguidas, as séries restantes falham na hora e cada etapa segue com o que tiver
 # (ou com a fonte alternativa, quando existe). QT_NO_FRED=1 simula a queda (testes/local).
+# Com o secret FRED_API_KEY (27/10/2026) o CI usa a API oficial do FRED, que responde aos runners.
 FRED_MAX_FAILS = 2
 _FRED = {'fails': 0}
 
+FRED_API = 'https://api.stlouisfed.org/fred/series/observations'
+
+def _fred_api_csv(series_id, start, key):
+    """Série via API oficial do FRED (com FRED_API_KEY) → mesmo formato do fredgraph.csv (DATE,<id>; '.' = sem valor).
+    A URL leva a chave: os erros são montados aqui sem a URL, para a chave nunca aparecer no log."""
+    params = {'series_id': series_id, 'observation_start': start, 'api_key': key, 'file_type': 'json'}
+    last = None
+    for i in range(2):
+        try:
+            r = requests.get(FRED_API, params=params, headers=UA, timeout=(10, 30))
+            if r.status_code == 200:
+                obs = r.json().get('observations', [])
+                return 'DATE,' + series_id + '\n' + ''.join(f"{o['date']},{o['value']}\n" for o in obs)
+            last = f'HTTP {r.status_code}'
+            if r.status_code in (400, 401, 403): break   # chave/série rejeitada: tentar de novo não adianta
+        except Exception as e:
+            last = type(e).__name__
+        time.sleep(2 * (i + 1))
+    raise RuntimeError(f'FRED API {series_id}: {last}')
+
 def fred_csv(series_id, start):
-    """Texto do CSV de uma série do FRED; RuntimeError rápido se o FRED estiver fora (disjuntor aberto)."""
+    """Texto CSV de uma série do FRED; RuntimeError rápido se o FRED estiver fora (disjuntor aberto).
+    Com FRED_API_KEY no ambiente usa a API oficial (api.stlouisfed.org); sem ela, o fredgraph.csv público."""
     if os.environ.get('QT_NO_FRED') or _FRED['fails'] >= FRED_MAX_FAILS:
         raise RuntimeError('FRED indisponível (disjuntor aberto)')
+    key = os.environ.get('FRED_API_KEY', '').strip()
     try:
-        r = get(f'https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}&cosd={start}', tries=2, timeout=(10, 30))
+        if key: txt = _fred_api_csv(series_id, start, key)
+        else: txt = get(f'https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}&cosd={start}', tries=2, timeout=(10, 30)).text
     except Exception:
         _FRED['fails'] += 1
         if _FRED['fails'] >= FRED_MAX_FAILS: print(f'FRED: {FRED_MAX_FAILS} falhas seguidas, pulando as demais séries do FRED')
         raise
     _FRED['fails'] = 0
-    return r.text
+    return txt
 
 def cached(url, name, max_age_h=12):
     """Baixa um arquivo grande com cache local (CVM/B3)."""
