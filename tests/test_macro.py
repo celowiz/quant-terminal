@@ -179,3 +179,29 @@ def test_fred_breaker(monkeypatch):
     assert out == {} and len(calls) == common.FRED_MAX_FAILS   # depois de 2 falhas, as demais séries nem tentam
     monkeypatch.setenv('QT_NO_FRED', '1'); monkeypatch.setitem(common._FRED, 'fails', 0)
     assert bm.fred(['A'], '2026-01-01') == {} and len(calls) == common.FRED_MAX_FAILS
+
+
+def test_fred_api_key_path(monkeypatch, capsys):
+    """Com FRED_API_KEY usa a API oficial, devolve o mesmo CSV do fredgraph e nunca expõe a chave em erros/log."""
+    import common
+    seen = []
+    class R:
+        def __init__(self, code, js=None): self.status_code, self._js = code, js
+        def json(self): return self._js
+    def fake(url, params=None, **kw):
+        seen.append((url, dict(params)))
+        if params['series_id'] == 'BAD': return R(400)
+        return R(200, {'observations': [{'date': '2026-10-01', 'value': '4.1'}, {'date': '2026-10-02', 'value': '.'}]})
+    monkeypatch.setattr(common.requests, 'get', fake)
+    monkeypatch.setattr(common.time, 'sleep', lambda s: None)
+    monkeypatch.setitem(common._FRED, 'fails', 0)
+    monkeypatch.delenv('QT_NO_FRED', raising=False)
+    monkeypatch.setenv('FRED_API_KEY', 'sekret123')
+    out = bm.fred(['DGS10'], '2026-10-01')
+    assert seen[0][0] == common.FRED_API and seen[0][1]['api_key'] == 'sekret123' and seen[0][1]['series_id'] == 'DGS10'
+    assert list(out['DGS10'].values) == [4.1]          # '.' vira NaN e sai
+    with pytest.raises(RuntimeError) as e: common.fred_csv('BAD', '2026-10-01')
+    assert 'sekret123' not in str(e.value) and 'HTTP 400' in str(e.value)
+    assert len([s for s in seen if s[1]['series_id'] == 'BAD']) == 1   # 400 não repete
+    bm.fred(['BAD'], '2026-10-01')
+    assert 'sekret123' not in capsys.readouterr().out

@@ -101,6 +101,8 @@ jobs:
             qt-cache-
 
       - name: Pipeline de dados
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: bash pipeline/run_all.sh
 
       - name: Testes dos dados gerados (pytest)
