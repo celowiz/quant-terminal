@@ -2,7 +2,7 @@
 # 1) roda o pipeline de dados (fontes abertas: Yahoo, CVM, B3, BCB, FRED, RSS)
 # 2) abre issue se alguma regra de alerts.yaml disparou (ALERT)
 # 3) build estático do Next.js (output: 'export') e publica no Pages.
-# Horário: 10:47 UTC = 07:47 BRT, ter–sáb (dados do pregão de seg–sex já consolidados).
+# Horário: 10:47 UTC = 07:47 BRT, todo dia (o CAL checa os sites de RI diariamente; demais dados mudam só em dia útil).
 # Minuto :47 escolhido para evitar picos do Actions e os minutos já usados (:04 :07 :09 :11 :13 :17 :23 :34 :39 :41).
 name: pages
 
