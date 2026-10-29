@@ -14,7 +14,7 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: '47 10 * * 2-6'
+    - cron: '47 10 * * *'   # todo dia (CAL checa os sites de RI diariamente)
 
 permissions:
   contents: read

@@ -1,0 +1,518 @@
+{
+ "note": "Logos are trademarks of their owners, used only to identify each company. Files are 256px PNG renders downloaded from Wikimedia Commons; license as stated on each file page.",
+ "logos": [
+  {
+   "ticker": "ABEV3",
+   "company": "AmBev",
+   "file": "ABEV3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Ambev_(2024).svg",
+   "license": "Public domain",
+   "author": "Ambev"
+  },
+  {
+   "ticker": "ASAI3",
+   "company": "Assaí Atacadista",
+   "file": "ASAI3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Assa%C3%AD_Atacadista_logo_2024.svg",
+   "license": "Public domain",
+   "author": "Assaí Atacadista"
+  },
+  {
+   "ticker": "AXIA3",
+   "company": "Axia Energia",
+   "file": "AXIA3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Axia_Energia.svg",
+   "license": "Public domain",
+   "author": "Governo Federal do Brasil"
+  },
+  {
+   "ticker": "AZZA3",
+   "company": "Azzas 2154",
+   "file": "AZZA3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Azzas_2154.svg",
+   "license": "Public domain",
+   "author": "Azzas 2154"
+  },
+  {
+   "ticker": "B3SA3",
+   "company": "B3",
+   "file": "B3SA3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_B3.svg",
+   "license": "Public domain",
+   "author": "B3"
+  },
+  {
+   "ticker": "BBAS3",
+   "company": "Banco do Brasil",
+   "file": "BBAS3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Banco_do_Brasil_Logo.svg",
+   "license": "Public domain",
+   "author": "Banco do Brasil"
+  },
+  {
+   "ticker": "BBDC3",
+   "company": "Bradesco",
+   "file": "BBDC3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Banco_Bradesco_logo.svg",
+   "license": "Public domain",
+   "author": "Banco Bradesco SA"
+  },
+  {
+   "ticker": "BBDC4",
+   "company": "Bradesco",
+   "file": "BBDC4.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Banco_Bradesco_logo.svg",
+   "license": "Public domain",
+   "author": "Banco Bradesco SA"
+  },
+  {
+   "ticker": "BBSE3",
+   "company": "BB Seguridade",
+   "file": "BBSE3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_BB_Seguridade.svg",
+   "license": "Public domain",
+   "author": "BB Seguridade"
+  },
+  {
+   "ticker": "BEEF3",
+   "company": "Minerva Foods",
+   "file": "BEEF3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logo_da_Minerva_Foods.svg",
+   "license": "Public domain",
+   "author": "Minerva Foods"
+  },
+  {
+   "ticker": "BPAC11",
+   "company": "BTG Pactual",
+   "file": "BPAC11.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Btg-logo-blue.svg",
+   "license": "Public domain",
+   "author": "Vitoraba"
+  },
+  {
+   "ticker": "BRAV3",
+   "company": "Brava Energia",
+   "file": "BRAV3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Brava_Energia.svg",
+   "license": "Public domain",
+   "author": "Brava Energia"
+  },
+  {
+   "ticker": "CMIG4",
+   "company": "Companhia Energética de Minas Gerais",
+   "file": "CMIG4.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Companhia_Energ%C3%A9tica_de_Minas_Gerais_logo.svg",
+   "license": "Public domain",
+   "author": "Unknown authorUnknown author"
+  },
+  {
+   "ticker": "COGN3",
+   "company": "Cogna Educação",
+   "file": "COGN3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Cogna_Educa%C3%A7%C3%A3o.svg",
+   "license": "Public domain",
+   "author": "Cogna Educação"
+  },
+  {
+   "ticker": "CPFE3",
+   "company": "CPFL Energia",
+   "file": "CPFE3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logo_CPFL_Energia.svg",
+   "license": "CC BY-SA 4.0",
+   "author": "Ffpaniago"
+  },
+  {
+   "ticker": "CPLE3",
+   "company": "Companhia Paranaense de Energia",
+   "file": "CPLE3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Copel.svg",
+   "license": "Public domain",
+   "author": "Copel"
+  },
+  {
+   "ticker": "CSAN3",
+   "company": "Cosan",
+   "file": "CSAN3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Cosan.svg",
+   "license": "Public domain",
+   "author": "Cosan"
+  },
+  {
+   "ticker": "CSMG3",
+   "company": "Companhia de Saneamento de Minas Gerais",
+   "file": "CSMG3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Copasa_(2024).svg",
+   "license": "Public domain",
+   "author": "Copasa"
+  },
+  {
+   "ticker": "CSNA3",
+   "company": "Companhia Siderúrgica Nacional",
+   "file": "CSNA3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Companhia_Sider%C3%BArgica_Nacional_logo.svg",
+   "license": "Public domain",
+   "author": "Companhia Siderúrgica Nacional"
+  },
+  {
+   "ticker": "CXSE3",
+   "company": "Caixa Seguridade",
+   "file": "CXSE3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Caixa_Seguridade.svg",
+   "license": "Public domain",
+   "author": "Caixa Econômica Federal"
+  },
+  {
+   "ticker": "CYRE3",
+   "company": "Cyrela",
+   "file": "CYRE3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Cyrela.svg",
+   "license": "Public domain",
+   "author": "Cyrela"
+  },
+  {
+   "ticker": "EGIE3",
+   "company": "ENGIE Brasil Energia",
+   "file": "EGIE3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logo-engie.svg",
+   "license": "Public domain",
+   "author": "Engie"
+  },
+  {
+   "ticker": "EMBJ3",
+   "company": "Embraer",
+   "file": "EMBJ3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Embraer_logo.svg",
+   "license": "Public domain",
+   "author": "José Maria Ramis Melquizo"
+  },
+  {
+   "ticker": "ENEV3",
+   "company": "Eneva",
+   "file": "ENEV3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Eneva.svg",
+   "license": "Public domain",
+   "author": "Eneva"
+  },
+  {
+   "ticker": "FLRY3",
+   "company": "Fleury",
+   "file": "FLRY3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_do_Grupo_Fleury.svg",
+   "license": "Public domain",
+   "author": "Grupo Fleury"
+  },
+  {
+   "ticker": "GGBR4",
+   "company": "Gerdau",
+   "file": "GGBR4.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Gerdau_logo_(2011).svg",
+   "license": "Public domain",
+   "author": "Gerdau S.A."
+  },
+  {
+   "ticker": "HAPV3",
+   "company": "Hapvida",
+   "file": "HAPV3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Hapvida.svg",
+   "license": "Public domain",
+   "author": "Hapvida"
+  },
+  {
+   "ticker": "ITSA4",
+   "company": "Itaúsa",
+   "file": "ITSA4.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Ita%C3%BAsa_(2025).svg",
+   "license": "Public domain",
+   "author": "Itaúsa"
+  },
+  {
+   "ticker": "ITUB4",
+   "company": "Itaú Unibanco",
+   "file": "ITUB4.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Ita%C3%BA_Unibanco_logo_2023.svg",
+   "license": "Public domain",
+   "author": "Itaú Unibanco"
+  },
+  {
+   "ticker": "KLBN11",
+   "company": "Klabin",
+   "file": "KLBN11.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Klabin.svg",
+   "license": "Public domain",
+   "author": "Klabin"
+  },
+  {
+   "ticker": "LREN3",
+   "company": "Lojas Renner",
+   "file": "LREN3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_das_Lojas_Renner.svg",
+   "license": "Public domain",
+   "author": "Lojas Renner"
+  },
+  {
+   "ticker": "MBRF3",
+   "company": "MBRF",
+   "file": "MBRF3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_MBRF.svg",
+   "license": "Public domain",
+   "author": "MBRF"
+  },
+  {
+   "ticker": "MGLU3",
+   "company": "Magazine Luiza",
+   "file": "MGLU3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Magalu_-_novo_logo.png",
+   "license": "Public domain",
+   "author": "Magazine Luiza"
+  },
+  {
+   "ticker": "MOTV3",
+   "company": "Motiva",
+   "file": "MOTV3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Motiva.svg",
+   "license": "Public domain",
+   "author": "Motiva"
+  },
+  {
+   "ticker": "MRVE3",
+   "company": "MRV Engenharia",
+   "file": "MRVE3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_MRV_Engenharia_(2019).svg",
+   "license": "Public domain",
+   "author": "MRV Engenharia"
+  },
+  {
+   "ticker": "NATU3",
+   "company": "Natura",
+   "file": "NATU3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Natura_logo.svg",
+   "license": "Public domain",
+   "author": "Natura Cosméticos S.A."
+  },
+  {
+   "ticker": "PETR3",
+   "company": "Petrobras",
+   "file": "PETR3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Petrobras_horizontal_logo.svg",
+   "license": "Public domain",
+   "author": "Petrobras - Petróleo Brasileiro S.A."
+  },
+  {
+   "ticker": "PETR4",
+   "company": "Petrobras",
+   "file": "PETR4.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Petrobras_horizontal_logo.svg",
+   "license": "Public domain",
+   "author": "Petrobras - Petróleo Brasileiro S.A."
+  },
+  {
+   "ticker": "POMO4",
+   "company": "Marcopolo",
+   "file": "POMO4.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Marcopolo_(2021).svg",
+   "license": "Public domain",
+   "author": "Marcopolo"
+  },
+  {
+   "ticker": "PRIO3",
+   "company": "PRIO",
+   "file": "PRIO3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_PRIO_(sem_s%C3%ADmbolo).svg",
+   "license": "Public domain",
+   "author": "PRIO"
+  },
+  {
+   "ticker": "RADL3",
+   "company": "RaiaDrogasil",
+   "file": "RADL3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_RD_Sa%C3%BAde.svg",
+   "license": "Public domain",
+   "author": "RD Saúde"
+  },
+  {
+   "ticker": "RAIL3",
+   "company": "Rumo Logística",
+   "file": "RAIL3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Rumo_Log%C3%ADstica_logo.svg",
+   "license": "Public domain",
+   "author": "Rumo Logística"
+  },
+  {
+   "ticker": "RDOR3",
+   "company": "Rede D'Or São Luiz",
+   "file": "RDOR3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Rede_D%27Or.svg",
+   "license": "Public domain",
+   "author": "Rede D'Or"
+  },
+  {
+   "ticker": "RENT3",
+   "company": "Localiza",
+   "file": "RENT3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Localiza_logo_2022.svg",
+   "license": "Public domain",
+   "author": "Localiza Rent a Car S/A"
+  },
+  {
+   "ticker": "SANB11",
+   "company": "Banco Santander (Brasil)",
+   "file": "SANB11.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Banco_Santander_Logotipo.svg",
+   "license": "Public domain",
+   "author": "Interbrand (Madrid office)[1]"
+  },
+  {
+   "ticker": "SBSP3",
+   "company": "Sabesp",
+   "file": "SBSP3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Sabesp.svg",
+   "license": "Public domain",
+   "author": "Nabih Mitaini"
+  },
+  {
+   "ticker": "SMFT3",
+   "company": "Smart Fit",
+   "file": "SMFT3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Smart_Fit_logo.svg",
+   "license": "Public domain",
+   "author": "Smart Fit"
+  },
+  {
+   "ticker": "SUZB3",
+   "company": "Suzano Papel e Celulose",
+   "file": "SUZB3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Suzano_(2019).svg",
+   "license": "Public domain",
+   "author": "Suzano"
+  },
+  {
+   "ticker": "TIMS3",
+   "company": "TIM Brasil",
+   "file": "TIMS3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:TIM_logo_(2016-present).svg",
+   "license": "Public domain",
+   "author": "Telecom Italia S.p.A."
+  },
+  {
+   "ticker": "TOTS3",
+   "company": "TOTVS",
+   "file": "TOTS3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Totvs_(2025).svg",
+   "license": "Public domain",
+   "author": "Totvs"
+  },
+  {
+   "ticker": "UGPA3",
+   "company": "Ultrapar",
+   "file": "UGPA3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_do_Grupo_Ultra_(2024).svg",
+   "license": "Public domain",
+   "author": "Grupo Ultra"
+  },
+  {
+   "ticker": "USIM5",
+   "company": "Usiminas",
+   "file": "USIM5.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Usiminas_(2023).svg",
+   "license": "Public domain",
+   "author": "Usiminas"
+  },
+  {
+   "ticker": "VBBR3",
+   "company": "Vibra Energia",
+   "file": "VBBR3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Vibra_Energia.svg",
+   "license": "Public domain",
+   "author": "Vibra Energia"
+  },
+  {
+   "ticker": "VIVA3",
+   "company": "Vivara",
+   "file": "VIVA3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Vivara.svg",
+   "license": "Public domain",
+   "author": "Vivara"
+  },
+  {
+   "ticker": "VIVT3",
+   "company": "Telefônica Brasil",
+   "file": "VIVT3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Telef%C3%B3nica_2021_logo.svg",
+   "license": "Public domain",
+   "author": "Telefónica"
+  },
+  {
+   "ticker": "WEGE3",
+   "company": "WEG Indústrias",
+   "file": "WEGE3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:WEG_Equipamentos_El%C3%A9tricos.svg",
+   "license": "Public domain",
+   "author": "WEG"
+  },
+  {
+   "ticker": "YDUQ3",
+   "company": "YDUQS",
+   "file": "YDUQ3.png",
+   "source": "Wikimedia Commons",
+   "source_url": "https://commons.wikimedia.org/wiki/File:YDUQS_Logo.svg",
+   "license": "Public domain",
+   "author": "Estácio Participações S.A."
+  }
+ ]
+}
