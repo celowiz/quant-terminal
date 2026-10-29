@@ -1,0 +1,400 @@
+{
+ "_doc": "Site de RI de cada empresa do Ibovespa (mapeado em 29/10/2026). platform: auto = tenta o JSON público de eventos da MZ (api.mziq.com) e cai para o texto da página; lista_agenda = página ListaAgenda.aspx renderizada no servidor; blocked = o site respondeu 403 ao robô identificado em 29/10/2026 — não insistimos (só CVM).",
+ "sources": {
+  "WEGE3": {
+   "ri": "https://ri.weg.net/",
+   "page": "https://ri.weg.net/servicos-de-ri/agenda-de-ri",
+   "platform": "auto"
+  },
+  "EMBJ3": {
+   "ri": "https://ri.embraer.com.br/",
+   "page": "https://ri.embraer.com.br/eventos-e-noticias/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "POMO4": {
+   "ri": "https://ri.marcopolo.com.br/",
+   "page": "https://ri.marcopolo.com.br/",
+   "platform": "blocked"
+  },
+  "MOTV3": {
+   "ri": "https://ri.motiva.com.br/",
+   "page": "https://ri.motiva.com.br/resultados/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "RAIL3": {
+   "ri": "https://ri.rumolog.com/",
+   "page": "https://ri.rumolog.com/servicos-aos-investidores/eventos-de-ri/",
+   "platform": "auto"
+  },
+  "MBRF3": {
+   "ri": "https://ri.mbrf.com/",
+   "page": "https://ri.mbrf.com/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "BEEF3": {
+   "ri": "https://ri.minervafoods.com",
+   "page": "https://ri.minervafoods.com",
+   "platform": "auto",
+   "note": "não verificado em 29/10/2026 (falha de TLS na rede do mapeamento); o pipeline tenta todo dia"
+  },
+  "ABEV3": {
+   "ri": "https://ri.ambev.com.br/",
+   "page": "https://ri.ambev.com.br/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "ASAI3": {
+   "ri": "https://ri.assai.com.br/",
+   "page": "https://ri.assai.com.br/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "NATU3": {
+   "ri": "https://ri.natura.net",
+   "page": "https://ri.natura.net",
+   "platform": "auto",
+   "note": "não verificado em 29/10/2026 (falha de TLS na rede do mapeamento); o pipeline tenta todo dia"
+  },
+  "AZZA3": {
+   "ri": "https://ri.azzas2154.com.br/",
+   "page": "https://ri.azzas2154.com.br/informacoes-aos-investidores/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "CEAB3": {
+   "ri": "https://ri.cea.com.br/",
+   "page": "https://ri.cea.com.br/servicos-aos-investidores/calendario-de-eventos-corporativos/",
+   "platform": "auto"
+  },
+  "LREN3": {
+   "ri": "https://ri.lojasrenner.com.br/",
+   "page": "https://ri-2022renner.mz-sites.com/doc-corporativos/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "MGLU3": {
+   "ri": "https://ri.magazineluiza.com.br/",
+   "page": "https://ri.magazineluiza.com.br/ListaAgenda/Calendario-de-Eventos-Corporativos?=KUYMhuX6dUe/s6O0pwIjZQ==",
+   "platform": "lista_agenda"
+  },
+  "VIVA3": {
+   "ri": "https://ri.vivara.com.br",
+   "page": "https://ri.vivara.com.br",
+   "platform": "auto",
+   "note": "não verificado em 29/10/2026 (falha de TLS na rede do mapeamento); o pipeline tenta todo dia"
+  },
+  "CURY3": {
+   "ri": "https://ri.cury.net",
+   "page": "https://ri.cury.net",
+   "platform": "auto",
+   "note": "não verificado em 29/10/2026 (falha de TLS na rede do mapeamento); o pipeline tenta todo dia"
+  },
+  "CYRE3": {
+   "ri": "https://ri.cyrela.com.br",
+   "page": "https://ri.cyrela.com.br",
+   "platform": "auto",
+   "note": "não verificado em 29/10/2026 (falha de TLS na rede do mapeamento); o pipeline tenta todo dia"
+  },
+  "DIRR3": {
+   "ri": "https://ri.direcional.com.br/",
+   "page": "https://ri.direcional.com.br/servicos-aos-investidores/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "MRVE3": {
+   "ri": "https://ri.mrv.com.br/",
+   "page": "https://ri.mrv.com.br/publicacoes-cvm/calendario-de-eventos-corporativos/",
+   "platform": "auto"
+  },
+  "TEND3": {
+   "ri": "https://ri.tenda.com/",
+   "page": "https://ri.tenda.com/servicos-aos-investidores/calendario",
+   "platform": "auto"
+  },
+  "SMFT3": {
+   "ri": "https://ri.smartfit.com.br",
+   "page": "https://ri.smartfit.com.br",
+   "platform": "auto",
+   "note": "não verificado em 29/10/2026 (falha de TLS na rede do mapeamento); o pipeline tenta todo dia"
+  },
+  "COGN3": {
+   "ri": "https://ri.cogna.com.br/",
+   "page": "https://ri.cogna.com.br/",
+   "platform": "blocked"
+  },
+  "RENT3": {
+   "ri": "https://ri.localiza.com/",
+   "page": "https://ri.localiza.com/servicos-ri/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "VAMO3": {
+   "ri": "https://ri.grupovamos.com.br/",
+   "page": "https://ri.grupovamos.com.br/servicos-aos-investidores/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "YDUQ3": {
+   "ri": "https://www.yduqs.com.br/",
+   "page": "https://www.yduqs.com.br/ListaAgenda.aspx?idCanal=a0Ip6qtc0M7nbxe7im+Ijw==",
+   "platform": "lista_agenda"
+  },
+  "ALOS3": {
+   "ri": "https://ri.allos.co",
+   "page": "https://ri.allos.co",
+   "platform": "auto",
+   "note": "não verificado em 29/10/2026 (falha de TLS na rede do mapeamento); o pipeline tenta todo dia"
+  },
+  "IGTI11": {
+   "ri": "https://ri.iguatemi.com.br/",
+   "page": "https://ri.iguatemi.com.br/calendario-de-eventos",
+   "platform": "auto"
+  },
+  "MULT3": {
+   "ri": "https://ri.multiplan.com.br/",
+   "page": "https://ri.multiplan.com.br/documentos-cvm/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "ITSA4": {
+   "ri": "https://www.itausa.com.br/",
+   "page": "https://www.itausa.com.br/",
+   "platform": "auto",
+   "note": "Next.js: agenda não vem no HTML → CVM"
+  },
+  "BBDC3": {
+   "ri": "https://www.bradescori.com.br/",
+   "page": "https://www.bradescori.com.br/informacoes-ao-mercado/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "BBDC4": {
+   "ri": "https://www.bradescori.com.br/",
+   "page": "https://www.bradescori.com.br/informacoes-ao-mercado/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "BBAS3": {
+   "ri": "https://ri.bb.com.br/",
+   "page": "https://ri.bb.com.br/servicos-para-investidores/calendario-de-eventos-de-ri/",
+   "platform": "auto"
+  },
+  "BPAC11": {
+   "ri": "https://ri.btgpactual.com/",
+   "page": "https://ri.btgpactual.com/",
+   "platform": "auto",
+   "note": "SPA: agenda não vem no HTML → CVM"
+  },
+  "ITUB4": {
+   "ri": "https://www.itau.com.br/relacoes-com-investidores",
+   "page": "https://www.itau.com.br/relacoes-com-investidores",
+   "platform": "blocked"
+  },
+  "SANB11": {
+   "ri": "https://www.santander.com.br/ri",
+   "page": "https://www.santander.com.br/ri",
+   "platform": "blocked"
+  },
+  "BBSE3": {
+   "ri": "https://www.bbseguridaderi.com.br/",
+   "page": "https://www.bbseguridaderi.com.br/informacoes-ao-mercado/calendario-de-eventos",
+   "platform": "auto"
+  },
+  "CXSE3": {
+   "ri": "https://www.ri.caixaseguridade.com.br/",
+   "page": "https://www.ri.caixaseguridade.com.br/informacoes-aos-investidores/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "PSSA3": {
+   "ri": "https://ri.portoseguro.com.br/",
+   "page": "https://ri.portoseguro.com.br/informacoes-aos-acionistas/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "B3SA3": {
+   "ri": "https://ri.b3.com.br/pt-br/",
+   "page": "https://ri.b3.com.br/pt-br/outras-informacoes-para-investidores/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "KLBN11": {
+   "ri": "https://ri.klabin.com.br/",
+   "page": "https://ri.klabin.com.br/para-o-investidor/calendario-ri/",
+   "platform": "auto"
+  },
+  "SUZB3": {
+   "ri": "https://ri.suzano.com.br/Portuguese/home/default.aspx",
+   "page": "https://ir.suzano.com.br/Portuguese/Informacoes-Aos-Investidores/Agenda-RI/default.aspx",
+   "platform": "auto",
+   "note": "Q4 Inc.: agenda montada por JS no navegador (sem dados no HTML) → CVM"
+  },
+  "BRAP4": {
+   "ri": "https://www.bradespar.com",
+   "page": "https://www.bradespar.com",
+   "platform": "auto",
+   "note": "não verificado em 29/10/2026 (falha de TLS na rede do mapeamento); o pipeline tenta todo dia"
+  },
+  "CMIN3": {
+   "ri": "https://ri.csnmineracao.com.br/",
+   "page": "https://ri.csnmineracao.com.br/servicos-ri/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "VALE3": {
+   "ri": "https://www.vale.com/pt/investidores",
+   "page": "https://www.vale.com/pt/investidores",
+   "platform": "auto"
+  },
+  "GGBR4": {
+   "ri": "https://ri.gerdau.com/",
+   "page": "https://ri.gerdau.com/servicos-de-ri/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "GOAU4": {
+   "ri": "https://ri.gerdau.com/",
+   "page": "https://ri.gerdau.com/servicos-de-ri/calendario-de-eventos/",
+   "platform": "auto",
+   "mz_index": 1,
+   "note": "agenda MZ da Metalúrgica Gerdau (COMPANIES[1]) vazia; a Gerdau (GGBR4) publica a sua → CVM"
+  },
+  "CSNA3": {
+   "ri": "https://ri.csn.com.br/",
+   "page": "https://ri.csn.com.br/servicos-ri/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "USIM5": {
+   "ri": "https://ri.usiminas.com/",
+   "page": "https://ri.usiminas.com/servicos-de-ri/agenda-de-ri/",
+   "platform": "auto"
+  },
+  "BRAV3": {
+   "ri": "https://ri.bravaenergia.com/",
+   "page": "https://ri.bravaenergia.com/servicos-aos-investidores/calendario-corporativo/",
+   "platform": "auto"
+  },
+  "CSAN3": {
+   "ri": "https://www.cosan.com.br/",
+   "page": "https://www.cosan.com.br/relacoes-com-investidores/outras-informacoes-para-investidores/calendario-de-eventos/",
+   "platform": "auto",
+   "mz_entity": "Cosan"
+  },
+  "PETR3": {
+   "ri": "https://www.investidorpetrobras.com.br/",
+   "page": "https://www.investidorpetrobras.com.br/apresentacoes-relatorios-e-eventos/apresentacoes/",
+   "platform": "auto"
+  },
+  "PETR4": {
+   "ri": "https://www.investidorpetrobras.com.br/",
+   "page": "https://www.investidorpetrobras.com.br/apresentacoes-relatorios-e-eventos/apresentacoes/",
+   "platform": "auto"
+  },
+  "PRIO3": {
+   "ri": "https://ri.prio3.com.br/",
+   "page": "https://ri.prio3.com.br/servicos-aos-investidores/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "UGPA3": {
+   "ri": "https://ri.ultra.com.br/",
+   "page": "https://ri.ultra.com.br/",
+   "platform": "blocked"
+  },
+  "VBBR3": {
+   "ri": "https://ri.vibraenergia.com.br/",
+   "page": "https://ri.vibraenergia.com.br/servicos-aos-investidores/calendario-de-r-i/",
+   "platform": "auto"
+  },
+  "HYPE3": {
+   "ri": "https://ri.hypera.com.br/",
+   "page": "https://ri.hypera.com.br/servicos-aos-investidores/agenda-de-ri/",
+   "platform": "auto"
+  },
+  "RADL3": {
+   "ri": "https://ri.rdsaude.com.br/",
+   "page": "https://ri.rdsaude.com.br/ListaAgenda.aspx?idCanal=pP1m1QdsH15HdeLt3dtcRQ==",
+   "platform": "lista_agenda"
+  },
+  "FLRY3": {
+   "ri": "https://ri.fleury.com.br/",
+   "page": "https://ri.fleury.com.br/servicos-aos-investidores/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "HAPV3": {
+   "ri": "https://ri.hapvida.com.br/",
+   "page": "https://ri.hapvida.com.br/servicos-aos-investidores/agenda-ri/",
+   "platform": "auto"
+  },
+  "RDOR3": {
+   "ri": "https://ri.rededorsaoluiz.com.br/",
+   "page": "https://ri.rededorsaoluiz.com.br/servicos-aos-investidores/calendario-corporativo/",
+   "platform": "auto"
+  },
+  "TOTS3": {
+   "ri": "https://ri.totvs.com/",
+   "page": "https://ri.totvs.com/servicos-aos-investidores/agenda-e-eventos/agenda-de-ri/",
+   "platform": "auto"
+  },
+  "VIVT3": {
+   "ri": "https://ri.telefonica.com.br/",
+   "page": "https://ri.telefonica.com.br/",
+   "platform": "blocked"
+  },
+  "TIMS3": {
+   "ri": "https://ri.tim.com.br/",
+   "page": "https://ri.tim.com.br/servicos/agenda-de-ri/",
+   "platform": "auto"
+  },
+  "CSMG3": {
+   "ri": "https://ri.copasa.com.br/",
+   "page": "https://ri.copasa.com.br/servicos-aos-investidores/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "SBSP3": {
+   "ri": "https://ri.sabesp.com.br/",
+   "page": "https://ri.sabesp.com.br/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "AURE3": {
+   "ri": "https://ri.aurenenergia.com.br/",
+   "page": "https://ri.aurenenergia.com.br/servicos-aos-investidores/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "AXIA3": {
+   "ri": "https://ri.axia.com.br/",
+   "page": "https://ri.axia.com.br/servicos-de-ri/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "CMIG4": {
+   "ri": "https://ri.cemig.com.br/",
+   "page": "https://ri.cemig.com.br/servicos-aos-investidores/agenda-de-ri",
+   "platform": "auto"
+  },
+  "CPLE3": {
+   "ri": "https://ri.copel.com/",
+   "page": "https://ri.copel.com/servicos-aos-investidores/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "CPFE3": {
+   "ri": "https://ri.cpfl.com.br/",
+   "page": "https://ri.cpfl.com.br/ListaAgenda.aspx?idCanal=8qBoOA71QTz4ZntZ3g5J+w==",
+   "platform": "lista_agenda"
+  },
+  "ENGI11": {
+   "ri": "https://ri.energisa.com.br/",
+   "page": "https://ri.energisa.com.br/servicos-de-ri/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "ENEV3": {
+   "ri": "https://ri.eneva.com.br/",
+   "page": "https://ri.eneva.com.br/servicos-ri/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "EGIE3": {
+   "ri": "https://ri.engie.com.br",
+   "page": "https://ri.engie.com.br",
+   "platform": "auto",
+   "note": "não verificado em 29/10/2026 (falha de TLS na rede do mapeamento); o pipeline tenta todo dia"
+  },
+  "EQTL3": {
+   "ri": "https://ri.equatorialenergia.com.br/",
+   "page": "https://ri.equatorialenergia.com.br/informacoes-ao-mercado/calendario-de-eventos/",
+   "platform": "auto"
+  },
+  "ISAE4": {
+   "ri": "https://ri.isaenergiabrasil.com.br/",
+   "page": "https://ri.isaenergiabrasil.com.br/pt/atendimento-aos-acionistas/calendario-de-eventos",
+   "platform": "auto"
+  },
+  "TAEE11": {
+   "ri": "https://ri.taesa.com.br/",
+   "page": "https://ri.taesa.com.br/servicos-aos-investidores/calendario/",
+   "platform": "auto"
+  }
+ }
+}

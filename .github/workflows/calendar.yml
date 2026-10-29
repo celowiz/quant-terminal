@@ -1,0 +1,93 @@
+# CAL — calendário de resultados, todo dia à noite (custo zero: só GitHub Actions + Pages).
+# Job leve (~3–5 min): NÃO roda o pipeline completo (~30 min) nem o build do Next.
+# 1) baixa o último site publicado (artefato "github-pages" ainda válido, do pages.yml ou desta própria rotina)
+# 2) roda só pipeline/build_calendar.py (sites de RI + CVM) gravando em data/calendar.json desse site
+# 3) valida (pytest + JSON + sem "bloomberg") e republica no Pages.
+# O app lê data/*.json em tempo de execução, então trocar o JSON basta; o resto do site fica idêntico ao último deploy.
+# Se não houver artefato válido ou o script falhar, nada é publicado (o site atual continua no ar).
+# Horário: 00:30 UTC = 21:30 BRT (todo dia). Mesmo grupo de concorrência do pages.yml: deploys nunca se sobrepõem.
+name: calendar
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 0 * * *'
+
+permissions:
+  contents: read
+  actions: read      # listar/baixar o artefato do último deploy
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      QT_DATA_OUT: ${{ github.workspace }}/site/data
+      QT_CACHE: ${{ github.workspace }}/.qt_cache
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Dependências Python (versões fixas)
+        run: pip install -r pipeline/requirements.txt
+
+      # só leitura do cache semanal do pages.yml (zips da CVM); não grava cache novo
+      - uses: actions/cache/restore@v6
+        with:
+          path: .qt_cache
+          key: qt-cache-v2-none
+          restore-keys: |
+            qt-cache-v2-
+
+      - name: Último site publicado (artefato github-pages)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=github-pages&per_page=30" \
+            --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main")] | sort_by(.created_at) | reverse | .[0].id // empty')
+          if [ -z "$id" ]; then echo "::error::nenhum artefato github-pages válido (rode o pages.yml)"; exit 1; fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > /tmp/site.zip
+          mkdir -p /tmp/a site && unzip -q /tmp/site.zip -d /tmp/a && tar -xf /tmp/a/artifact.tar -C site
+          test -f site/index.html && test -f site/data/universe.json
+          echo "base: artefato $id"
+
+      - name: Calendário (sites de RI + CVM)
+        run: python3 pipeline/build_calendar.py
+
+      - name: Validação
+        run: |
+          python -m pytest -q tests
+          python - <<'PY'
+          import json, os
+          d = json.load(open(os.path.join(os.environ['QT_DATA_OUT'], 'calendar.json')))
+          assert d['v'] == 2 and len(d['rows']) >= 50, 'calendar.json incompleto'
+          print('calendar.json', d['generated_at'], d['coverage'])
+          PY
+          ! grep -ril bloomberg site/
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+          retention-days: 3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

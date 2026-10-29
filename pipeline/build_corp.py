@@ -203,44 +203,14 @@ def corp():
             full_div = tk.dividends; o['dividends_full'] = [[i.strftime('%Y-%m-%d'), clean(v, 6)] for i, v in full_div.items()]
             full_sp = tk.splits; o['splits_full'] = [[i.strftime('%Y-%m-%d'), clean(v, 6)] for i, v in full_sp.items()]
         except Exception as e: print('actions', t, e)
-        try:
-            cal = tk.calendar or {}
-            o['calendar'] = {k: [str(x) for x in v] if isinstance(v, list) else str(v) for k, v in cal.items()}
-        except Exception as e: print('cal', t, e)
         dd = docs[docs.CNPJ_Companhia == c]
         o['filings'] = [{'date': r.Data_Entrega, 'ref': r.Data_Referencia, 'cat': r.Categoria, 'type': None if pd.isna(r.Tipo) else r.Tipo,
                          'species': None if pd.isna(r.Especie) else r.Especie, 'subject': None if pd.isna(r.Assunto) else r.Assunto[:300],
                          'version': r.Versao, 'link': r.Link_Download} for r in dd.head(400).itertuples()]
-        o['source'] = 'CVM – dados abertos (cadastro, IPE, DFP, ITR); Yahoo Finance via yfinance (proventos, desdobramentos, preço sem ajuste, datas de resultado, perfil)'
+        o['source'] = 'CVM – dados abertos (cadastro, IPE, DFP, ITR); Yahoo Finance via yfinance (proventos, desdobramentos, preço sem ajuste, perfil)'
         save(f'corp/{key(t)}.json', o)
-
-def calendar():
-    uni = json.load(open(os.path.join(OUT, 'universe.json')))
-    m = ticker_cnpj_map()
-    docs = None
-    try:
-        allc = {m.get(c['cod']) for c in uni['components']} - {None}
-        docs = ipe(sorted(allc))
-    except Exception as e: print('ipe cal', e)
-    rows = []
-    for comp in uni['components']:
-        t = comp['cod'] + '.SA'; r = {'ticker': comp['cod'], 'name': comp['name'], 'sector': comp['sector'], 'weight': comp['weight']}
-        try:
-            cal = yf.Ticker(t).calendar or {}
-            ed = cal.get('Earnings Date') or []
-            r['earnings'] = [str(x) for x in ed]
-            r['ex_div'] = str(cal['Ex-Dividend Date']) if cal.get('Ex-Dividend Date') else None
-        except Exception as e: r['earnings'] = []
-        c = m.get(comp['cod']); r['cnpj'] = c
-        if docs is not None and c:
-            d = docs[(docs.CNPJ_Companhia == c) & (docs.Categoria.str.contains('Calendário', na=False))]
-            if len(d): r['cvm_calendar'] = {'date': d.iloc[0].Data_Entrega, 'link': d.iloc[0].Link_Download}
-            d = docs[(docs.CNPJ_Companhia == c) & (docs.Categoria.isin(['Dados Econômico-Financeiros']))]
-            if len(d): r['last_results_doc'] = {'date': d.iloc[0].Data_Entrega, 'subject': None if pd.isna(d.iloc[0].Assunto) else d.iloc[0].Assunto[:160], 'link': d.iloc[0].Link_Download}
-        rows.append(r)
-    save('calendar.json', {'generated_at': now_iso(), 'source': 'Yahoo Finance via yfinance (datas estimadas/confirmadas de resultado e data-ex); CVM IPE (Calendário de Eventos Corporativos)', 'rows': rows})
 
 if __name__ == '__main__':
     import sys
-    steps = {'corp': corp, 'calendar': calendar}
+    steps = {'corp': corp}   # calendário de resultados: build_calendar.py (RI + CVM)
     for k in (sys.argv[1:] or steps): step(k, steps[k])

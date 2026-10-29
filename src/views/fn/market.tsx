@@ -1,6 +1,6 @@
 'use client'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useFit, FitBox, FnScreen, Panel, Grid, Btns, Field, KV, Loading, Spark, C, nf, pf, big, dBR, dBRfull, clr, useJSON, retSince, isoMinus, inputCls, inputStyle, PALETTE } from '../../components/fn/kit'
+import { useFit, FnScreen, Panel, Grid, Btns, Field, KV, Loading, Spark, C, nf, pf, big, dBR, dBRfull, clr, useJSON, retSince, isoMinus, inputCls, inputStyle, PALETTE } from '../../components/fn/kit'
 import FnChart from '../../components/fn/FnChart'
 import XYChart from '../../components/fn/XYChart'
 import { href } from '../../lib/static'
@@ -224,40 +224,6 @@ export function TOPView() {
   )
 }
 
-// ---------------- CAL ----------------
-export function CALView() {
-  const { data: d, err } = useJSON<any>('calendar.json')
-  const [tab, setTab] = useState(0)
-  const [ym, setYm] = useState<string | null>(null)
-  if (!d) return <FnScreen code="CAL"><Loading err={err} /></FnScreen>
-  const today = new Date().toISOString().slice(0, 10)
-  const ev: { date: string; t: string; kind: string; name: string; link?: string }[] = []
-  d.rows.forEach((r: any) => { (r.earnings || []).forEach((e: string) => ev.push({ date: e, t: r.ticker, kind: 'Earnings', name: r.name })); if (r.ex_div) ev.push({ date: r.ex_div, t: r.ticker, kind: 'Ex-date', name: r.name }) })
-  ev.sort((a, b) => a.date.localeCompare(b.date))
-  const m = ym || today.slice(0, 7)
-  const [Y, M] = m.split('-').map(Number), first = new Date(Date.UTC(Y, M - 1, 1)).getUTCDay(), nd = new Date(Date.UTC(Y, M, 0)).getUTCDate()
-  const shift = (k: number) => { const dt = new Date(Date.UTC(Y, M - 1 + k, 1)); setYm(dt.toISOString().slice(0, 7)) }
-  return (
-    <FnScreen code="CAL" title="Corporate calendar — Ibovespa" tabs={['Month', 'List', 'By company']} tab={tab} setTab={setTab}
-      source="Yahoo Finance (earnings/ex-dividend dates) + CVM IPE (Corporate Events Calendar and latest earnings documents)." note="Yahoo earnings dates may be estimates; the official annual calendar each company files with the CVM is linked in tab 3.">
-      {tab === 0 && <div>
-        <div className="flex items-center gap-2 pb-2 text-[13px]"><button onClick={() => shift(-1)} style={{ color: C.amber }}>◀</button><b style={{ color: C.amber }}>{['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][M - 1]} {Y}</b><button onClick={() => shift(1)} style={{ color: C.amber }}>▶</button><span className="text-[11px]" style={{ color: C.muted }}><span style={{ color: C.cyan }}>■</span> resultado <span style={{ color: C.up }}>■</span> data-ex</span></div>
-        <FitBox base={640} min={160} className="overflow-y-auto"><div className="grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', border: `1px solid ${C.line}` }}>
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(w => <div key={w} className="px-2 py-1 text-[11px]" style={{ background: C.panel2, color: C.amber }}>{w}</div>)}
-          {Array.from({ length: first }).map((_, i) => <div key={'e' + i} style={{ borderTop: `1px solid ${C.line}` }} />)}
-          {Array.from({ length: nd }).map((_, i) => { const ds = `${m}-${String(i + 1).padStart(2, '0')}`; const es = ev.filter(e => e.date === ds); return (
-            <div key={ds} className="p-1 text-[11px]" style={{ minHeight: 92, borderTop: `1px solid ${C.line}`, borderLeft: `1px solid ${C.line}`, background: ds === today ? '#1a1205' : undefined }}>
-              <div style={{ color: ds === today ? C.amber : C.muted }}>{i + 1}</div>
-              {es.slice(0, 6).map((e, k) => <div key={k} style={{ color: e.kind === 'Earnings' ? C.cyan : C.up }}>{e.t}</div>)}{es.length > 6 && <div style={{ color: C.muted }}>+{es.length - 6}</div>}
-            </div>) })}
-        </div></FitBox></div>}
-      {tab === 1 && <Grid maxH={680} rowStyle={(r: any) => r.date < today ? { opacity: 0.55 } : undefined} cols={[{ k: 'date', label: 'Date', fmt: dBRfull }, { k: 'kind', label: 'Event', color: (v: string) => v === 'Earnings' ? C.cyan : C.up }, { k: 't', label: 'Ticker', color: () => C.amber }, { k: 'name', label: 'Company' }]} rows={ev.filter(e => e.date >= isoMinus(today, 60))} />}
-      {tab === 2 && <Grid maxH={680} cols={[{ k: 'ticker', label: 'Ticker', color: () => C.amber }, { k: 'name', label: 'Company' }, { k: 'sector', label: 'Sector', color: () => C.muted }, { k: 'earnings', label: 'Next earnings', fmt: (v: string[]) => v?.length ? v.map(dBR).join(', ') : '—' }, { k: 'ex_div', label: 'Last ex-date', fmt: dBR }, { k: 'cvm_calendar', label: 'CVM calendar', fmt: (v: any) => v ? <a href={v.link} target="_blank" rel="noreferrer" style={{ color: C.cyan }}>{dBR(v.date)} ↗</a> : '—' }, { k: 'last_results_doc', label: 'Last earnings doc.', fmt: (v: any) => v ? <a href={v.link} target="_blank" rel="noreferrer" style={{ color: C.cyan }}>{dBR(v.date)} {String(v.subject || '').slice(0, 28)} ↗</a> : '—' }]} rows={d.rows} />}
-    </FnScreen>
-  )
-}
-
-// ---------------- NEWS ----------------
 export function NEWSView() {
   const { data: d, err } = useJSON<any>('news.json')
   const [src, setSrc] = useState('All'); const [q, setQ] = useState('')
