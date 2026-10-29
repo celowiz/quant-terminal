@@ -1,518 +1,766 @@
 {
- "note": "Logos are trademarks of their owners, used only to identify each company. Files are 256px PNG renders downloaded from Wikimedia Commons; license as stated on each file page.",
+ "note": "Internal manifest. Files copied from github.com/mqteuss/logos_b3 (no license file in that repo; README says logos were converted from brapi.dev SVGs or Clearbit/Google favicons). Logos are trademarks of their owners. Missing tickers fall back to a ticker badge in the UI.",
  "logos": [
   {
    "ticker": "ABEV3",
-   "company": "AmBev",
+   "company": "AMBEV S/A",
    "file": "ABEV3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Ambev_(2024).svg",
-   "license": "Public domain",
-   "author": "Ambev"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "ABEV3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "b5611067301a47f3"
+  },
+  {
+   "ticker": "ALOS3",
+   "company": "ALLOS",
+   "file": "ALOS3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "ALOS3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "f74f13fd009f35b8"
   },
   {
    "ticker": "ASAI3",
-   "company": "Assaí Atacadista",
+   "company": "ASSAI",
    "file": "ASAI3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Assa%C3%AD_Atacadista_logo_2024.svg",
-   "license": "Public domain",
-   "author": "Assaí Atacadista"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "ASAI3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "fb9a647e7d3ade34"
+  },
+  {
+   "ticker": "AURE3",
+   "company": "AUREN",
+   "file": "AURE3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "AURE3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "356a6a09f02e8186"
   },
   {
    "ticker": "AXIA3",
-   "company": "Axia Energia",
+   "company": "AXIA ENERGIA",
    "file": "AXIA3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Axia_Energia.svg",
-   "license": "Public domain",
-   "author": "Governo Federal do Brasil"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "AXIA5.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 200,
+   "sha256": "b9db2a14ce152464",
+   "note": "same company; repo has no AXIA3.png, uses AXIA5.png"
   },
   {
    "ticker": "AZZA3",
-   "company": "Azzas 2154",
+   "company": "AZZAS 2154",
    "file": "AZZA3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Azzas_2154.svg",
-   "license": "Public domain",
-   "author": "Azzas 2154"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "AZZA3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "74fbc3c59702ba92"
   },
   {
    "ticker": "B3SA3",
    "company": "B3",
    "file": "B3SA3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_B3.svg",
-   "license": "Public domain",
-   "author": "B3"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "B3SA3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "e5380c86fc0af7ea"
   },
   {
    "ticker": "BBAS3",
-   "company": "Banco do Brasil",
+   "company": "BRASIL",
    "file": "BBAS3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Banco_do_Brasil_Logo.svg",
-   "license": "Public domain",
-   "author": "Banco do Brasil"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "BBAS3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "2afbcf7c46d5f2a1"
   },
   {
    "ticker": "BBDC3",
-   "company": "Bradesco",
+   "company": "BRADESCO",
    "file": "BBDC3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Banco_Bradesco_logo.svg",
-   "license": "Public domain",
-   "author": "Banco Bradesco SA"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "BBDC3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "b6fcd8955c93ed1d"
   },
   {
    "ticker": "BBDC4",
-   "company": "Bradesco",
+   "company": "BRADESCO",
    "file": "BBDC4.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Banco_Bradesco_logo.svg",
-   "license": "Public domain",
-   "author": "Banco Bradesco SA"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "BBDC4.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "b6fcd8955c93ed1d"
   },
   {
    "ticker": "BBSE3",
-   "company": "BB Seguridade",
+   "company": "BBSEGURIDADE",
    "file": "BBSE3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_BB_Seguridade.svg",
-   "license": "Public domain",
-   "author": "BB Seguridade"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "BBSE3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "2afbcf7c46d5f2a1"
   },
   {
    "ticker": "BEEF3",
-   "company": "Minerva Foods",
+   "company": "MINERVA",
    "file": "BEEF3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logo_da_Minerva_Foods.svg",
-   "license": "Public domain",
-   "author": "Minerva Foods"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "BEEF3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "df215a1124b3475e"
   },
   {
    "ticker": "BPAC11",
-   "company": "BTG Pactual",
+   "company": "BTGP BANCO",
    "file": "BPAC11.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Btg-logo-blue.svg",
-   "license": "Public domain",
-   "author": "Vitoraba"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "BPAC11.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "50e9d6f0a82d18e6"
+  },
+  {
+   "ticker": "BRAP4",
+   "company": "BRADESPAR",
+   "file": "BRAP4.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "BRAP4.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "4bcc6691f099e4ed"
   },
   {
    "ticker": "BRAV3",
-   "company": "Brava Energia",
+   "company": "BRAVA",
    "file": "BRAV3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Brava_Energia.svg",
-   "license": "Public domain",
-   "author": "Brava Energia"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "BRAV3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "f170b1ff2c350641"
+  },
+  {
+   "ticker": "CEAB3",
+   "company": "CEA MODAS",
+   "file": "CEAB3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "CEAB3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "2d2d5426433a2422"
   },
   {
    "ticker": "CMIG4",
-   "company": "Companhia Energética de Minas Gerais",
+   "company": "CEMIG",
    "file": "CMIG4.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Companhia_Energ%C3%A9tica_de_Minas_Gerais_logo.svg",
-   "license": "Public domain",
-   "author": "Unknown authorUnknown author"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "CMIG4.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "e1f77c7fd68f3afc"
+  },
+  {
+   "ticker": "CMIN3",
+   "company": "CSNMINERACAO",
+   "file": "CMIN3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "CMIN3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "1464af95b6325444"
   },
   {
    "ticker": "COGN3",
-   "company": "Cogna Educação",
+   "company": "COGNA ON",
    "file": "COGN3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Cogna_Educa%C3%A7%C3%A3o.svg",
-   "license": "Public domain",
-   "author": "Cogna Educação"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "COGN3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "7e0e16410420b3b4"
   },
   {
    "ticker": "CPFE3",
-   "company": "CPFL Energia",
+   "company": "CPFL ENERGIA",
    "file": "CPFE3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logo_CPFL_Energia.svg",
-   "license": "CC BY-SA 4.0",
-   "author": "Ffpaniago"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "CPFE3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "5cf4b68bdf98b706"
   },
   {
    "ticker": "CPLE3",
-   "company": "Companhia Paranaense de Energia",
+   "company": "COPEL",
    "file": "CPLE3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Copel.svg",
-   "license": "Public domain",
-   "author": "Copel"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "CPLE3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "2d800c4f8539ba8a"
   },
   {
    "ticker": "CSAN3",
-   "company": "Cosan",
+   "company": "COSAN",
    "file": "CSAN3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Cosan.svg",
-   "license": "Public domain",
-   "author": "Cosan"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "CSAN3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "d82d74c4980202a4"
   },
   {
    "ticker": "CSMG3",
-   "company": "Companhia de Saneamento de Minas Gerais",
+   "company": "COPASA",
    "file": "CSMG3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Copasa_(2024).svg",
-   "license": "Public domain",
-   "author": "Copasa"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "CSMG3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "c63bde3d8a8d7343"
   },
   {
    "ticker": "CSNA3",
-   "company": "Companhia Siderúrgica Nacional",
+   "company": "SID NACIONAL",
    "file": "CSNA3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Companhia_Sider%C3%BArgica_Nacional_logo.svg",
-   "license": "Public domain",
-   "author": "Companhia Siderúrgica Nacional"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "CSNA3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "b46098b302c4a5ca"
+  },
+  {
+   "ticker": "CURY3",
+   "company": "CURY S/A",
+   "file": "CURY3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "CURY3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "2e6b3651dfc37511"
   },
   {
    "ticker": "CXSE3",
-   "company": "Caixa Seguridade",
+   "company": "CAIXA SEGURI",
    "file": "CXSE3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Caixa_Seguridade.svg",
-   "license": "Public domain",
-   "author": "Caixa Econômica Federal"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "CXSE3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "285ec5a9506d1796"
   },
   {
    "ticker": "CYRE3",
-   "company": "Cyrela",
+   "company": "CYRELA REALT",
    "file": "CYRE3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Cyrela.svg",
-   "license": "Public domain",
-   "author": "Cyrela"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "CYRE3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "d3cd65a49fd846a8"
+  },
+  {
+   "ticker": "DIRR3",
+   "company": "DIRECIONAL",
+   "file": "DIRR3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "DIRR3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "8cdf8d021d7a5629"
   },
   {
    "ticker": "EGIE3",
-   "company": "ENGIE Brasil Energia",
+   "company": "ENGIE BRASIL",
    "file": "EGIE3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logo-engie.svg",
-   "license": "Public domain",
-   "author": "Engie"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "EGIE3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "adcc96d68959bded"
   },
   {
    "ticker": "EMBJ3",
-   "company": "Embraer",
+   "company": "EMBRAER",
    "file": "EMBJ3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Embraer_logo.svg",
-   "license": "Public domain",
-   "author": "José Maria Ramis Melquizo"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "EMBJ3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 256,
+   "sha256": "0634e42d56aef3d9"
   },
   {
    "ticker": "ENEV3",
-   "company": "Eneva",
+   "company": "ENEVA",
    "file": "ENEV3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Eneva.svg",
-   "license": "Public domain",
-   "author": "Eneva"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "ENEV3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "e545da9fbce143f9"
+  },
+  {
+   "ticker": "ENGI11",
+   "company": "ENERGISA",
+   "file": "ENGI11.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "ENGI11.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "058b720eb7516f71"
+  },
+  {
+   "ticker": "EQTL3",
+   "company": "EQUATORIAL",
+   "file": "EQTL3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "EQTL3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "639fdb9e582f9d4b"
   },
   {
    "ticker": "FLRY3",
-   "company": "Fleury",
+   "company": "FLEURY",
    "file": "FLRY3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_do_Grupo_Fleury.svg",
-   "license": "Public domain",
-   "author": "Grupo Fleury"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "FLRY3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "7db46879ac7955b5"
   },
   {
    "ticker": "GGBR4",
-   "company": "Gerdau",
+   "company": "GERDAU",
    "file": "GGBR4.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Gerdau_logo_(2011).svg",
-   "license": "Public domain",
-   "author": "Gerdau S.A."
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "GGBR4.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "b61e1f36f73bf5c5"
+  },
+  {
+   "ticker": "GOAU4",
+   "company": "GERDAU MET",
+   "file": "GOAU4.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "GOAU4.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "b61e1f36f73bf5c5"
   },
   {
    "ticker": "HAPV3",
-   "company": "Hapvida",
+   "company": "HAPVIDA",
    "file": "HAPV3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Hapvida.svg",
-   "license": "Public domain",
-   "author": "Hapvida"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "HAPV3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "3fa6a972fd74d6bf"
+  },
+  {
+   "ticker": "HYPE3",
+   "company": "HYPERA",
+   "file": "HYPE3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "HYPE3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "841099e2447fb81d"
+  },
+  {
+   "ticker": "IGTI11",
+   "company": "IGUATEMI S.A",
+   "file": "IGTI11.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "IGTI11.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "57a3a638826a96a1"
+  },
+  {
+   "ticker": "ISAE4",
+   "company": "ISA ENERGIA",
+   "file": "ISAE4.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "ISAE4.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "83207bb2c17c6e79"
   },
   {
    "ticker": "ITSA4",
-   "company": "Itaúsa",
+   "company": "ITAUSA",
    "file": "ITSA4.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Ita%C3%BAsa_(2025).svg",
-   "license": "Public domain",
-   "author": "Itaúsa"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "ITSA4.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "7f0a42796d9a1198"
   },
   {
    "ticker": "ITUB4",
-   "company": "Itaú Unibanco",
+   "company": "ITAUUNIBANCO",
    "file": "ITUB4.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Ita%C3%BA_Unibanco_logo_2023.svg",
-   "license": "Public domain",
-   "author": "Itaú Unibanco"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "ITUB4.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "6eaaa470393958e9"
   },
   {
    "ticker": "KLBN11",
-   "company": "Klabin",
+   "company": "KLABIN S/A",
    "file": "KLBN11.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Klabin.svg",
-   "license": "Public domain",
-   "author": "Klabin"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "KLBN11.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "c9786abbc2639048"
   },
   {
    "ticker": "LREN3",
-   "company": "Lojas Renner",
+   "company": "LOJAS RENNER",
    "file": "LREN3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_das_Lojas_Renner.svg",
-   "license": "Public domain",
-   "author": "Lojas Renner"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "LREN3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "d5370f249f0f9f05"
   },
   {
    "ticker": "MBRF3",
-   "company": "MBRF",
+   "company": "MARFRIG",
    "file": "MBRF3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_MBRF.svg",
-   "license": "Public domain",
-   "author": "MBRF"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "MBRF3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 48,
+   "sha256": "bf694d861d1e4369"
   },
   {
    "ticker": "MGLU3",
-   "company": "Magazine Luiza",
+   "company": "MAGAZ LUIZA",
    "file": "MGLU3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Magalu_-_novo_logo.png",
-   "license": "Public domain",
-   "author": "Magazine Luiza"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "MGLU3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "5962a046c6f63285"
   },
   {
    "ticker": "MOTV3",
-   "company": "Motiva",
+   "company": "MOTIVA SA",
    "file": "MOTV3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Motiva.svg",
-   "license": "Public domain",
-   "author": "Motiva"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "MOTV3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 192,
+   "sha256": "30177c4376ce1c8b"
   },
   {
    "ticker": "MRVE3",
-   "company": "MRV Engenharia",
+   "company": "MRV",
    "file": "MRVE3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_MRV_Engenharia_(2019).svg",
-   "license": "Public domain",
-   "author": "MRV Engenharia"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "MRVE3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "8c88d135344cb5d1"
+  },
+  {
+   "ticker": "MULT3",
+   "company": "MULTIPLAN",
+   "file": "MULT3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "MULT3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "bd391947bd238553"
   },
   {
    "ticker": "NATU3",
-   "company": "Natura",
+   "company": "NATURA",
    "file": "NATU3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Natura_logo.svg",
-   "license": "Public domain",
-   "author": "Natura Cosméticos S.A."
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "NATU3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 256,
+   "sha256": "de950a0ce3d3a3b9"
   },
   {
    "ticker": "PETR3",
-   "company": "Petrobras",
+   "company": "PETROBRAS",
    "file": "PETR3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Petrobras_horizontal_logo.svg",
-   "license": "Public domain",
-   "author": "Petrobras - Petróleo Brasileiro S.A."
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "PETR3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "38161471c60b765c"
   },
   {
    "ticker": "PETR4",
-   "company": "Petrobras",
+   "company": "PETROBRAS",
    "file": "PETR4.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Petrobras_horizontal_logo.svg",
-   "license": "Public domain",
-   "author": "Petrobras - Petróleo Brasileiro S.A."
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "PETR4.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "38161471c60b765c"
   },
   {
    "ticker": "POMO4",
-   "company": "Marcopolo",
+   "company": "MARCOPOLO",
    "file": "POMO4.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Marcopolo_(2021).svg",
-   "license": "Public domain",
-   "author": "Marcopolo"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "POMO4.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "1bd22eceaa986616"
   },
   {
    "ticker": "PRIO3",
    "company": "PRIO",
    "file": "PRIO3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_PRIO_(sem_s%C3%ADmbolo).svg",
-   "license": "Public domain",
-   "author": "PRIO"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "PRIO3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "3b207a718bc603ea"
+  },
+  {
+   "ticker": "PSSA3",
+   "company": "PORTO SEGURO",
+   "file": "PSSA3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "PSSA3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "535af8d9b2125237"
   },
   {
    "ticker": "RADL3",
-   "company": "RaiaDrogasil",
+   "company": "RAIADROGASIL",
    "file": "RADL3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_RD_Sa%C3%BAde.svg",
-   "license": "Public domain",
-   "author": "RD Saúde"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "RADL3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "ee684c867fcafc5e"
   },
   {
    "ticker": "RAIL3",
-   "company": "Rumo Logística",
+   "company": "RUMO S.A.",
    "file": "RAIL3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Rumo_Log%C3%ADstica_logo.svg",
-   "license": "Public domain",
-   "author": "Rumo Logística"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "RAIL3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "3ebd1993b32ad504"
   },
   {
    "ticker": "RDOR3",
-   "company": "Rede D'Or São Luiz",
+   "company": "REDE D OR",
    "file": "RDOR3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Rede_D%27Or.svg",
-   "license": "Public domain",
-   "author": "Rede D'Or"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "RDOR3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "3cfd14e97ba66489"
   },
   {
    "ticker": "RENT3",
-   "company": "Localiza",
+   "company": "LOCALIZA",
    "file": "RENT3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Localiza_logo_2022.svg",
-   "license": "Public domain",
-   "author": "Localiza Rent a Car S/A"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "RENT3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "178ea23b2c7afbe8"
   },
   {
    "ticker": "SANB11",
-   "company": "Banco Santander (Brasil)",
+   "company": "SANTANDER BR",
    "file": "SANB11.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Banco_Santander_Logotipo.svg",
-   "license": "Public domain",
-   "author": "Interbrand (Madrid office)[1]"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "SANB11.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "2627b983ef9a6c2d"
   },
   {
    "ticker": "SBSP3",
-   "company": "Sabesp",
+   "company": "SABESP",
    "file": "SBSP3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Sabesp.svg",
-   "license": "Public domain",
-   "author": "Nabih Mitaini"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "SBSP3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "6bf05ef3f19da530"
   },
   {
    "ticker": "SMFT3",
-   "company": "Smart Fit",
+   "company": "SMART FIT",
    "file": "SMFT3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Smart_Fit_logo.svg",
-   "license": "Public domain",
-   "author": "Smart Fit"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "SMFT3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "d59b8cc0feb14464"
   },
   {
    "ticker": "SUZB3",
-   "company": "Suzano Papel e Celulose",
+   "company": "SUZANO S.A.",
    "file": "SUZB3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Suzano_(2019).svg",
-   "license": "Public domain",
-   "author": "Suzano"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "SUZB3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "635337e374edcd8d"
+  },
+  {
+   "ticker": "TAEE11",
+   "company": "TAESA",
+   "file": "TAEE11.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "TAEE11.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "b84d932a20fd7b3a"
+  },
+  {
+   "ticker": "TEND3",
+   "company": "TENDA",
+   "file": "TEND3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "TEND3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "4ed803854734a66a"
   },
   {
    "ticker": "TIMS3",
-   "company": "TIM Brasil",
+   "company": "TIM",
    "file": "TIMS3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:TIM_logo_(2016-present).svg",
-   "license": "Public domain",
-   "author": "Telecom Italia S.p.A."
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "TIMS3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "3f0f1b501d28be92"
   },
   {
    "ticker": "TOTS3",
    "company": "TOTVS",
    "file": "TOTS3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Totvs_(2025).svg",
-   "license": "Public domain",
-   "author": "Totvs"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "TOTS3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "50b6d1f1e2f56295"
   },
   {
    "ticker": "UGPA3",
-   "company": "Ultrapar",
+   "company": "ULTRAPAR",
    "file": "UGPA3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_do_Grupo_Ultra_(2024).svg",
-   "license": "Public domain",
-   "author": "Grupo Ultra"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "UGPA3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "6745fa7bb4b864d7"
   },
   {
    "ticker": "USIM5",
-   "company": "Usiminas",
+   "company": "USIMINAS",
    "file": "USIM5.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Usiminas_(2023).svg",
-   "license": "Public domain",
-   "author": "Usiminas"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "USIM5.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "58415b803281b89a"
+  },
+  {
+   "ticker": "VALE3",
+   "company": "VALE",
+   "file": "VALE3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "VALE3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "52e26c8c19544e09"
+  },
+  {
+   "ticker": "VAMO3",
+   "company": "VAMOS",
+   "file": "VAMO3.png",
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "VAMO3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "c558c20a35f76c46"
   },
   {
    "ticker": "VBBR3",
-   "company": "Vibra Energia",
+   "company": "VIBRA",
    "file": "VBBR3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Vibra_Energia.svg",
-   "license": "Public domain",
-   "author": "Vibra Energia"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "VBBR3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "49065356d4a04584"
   },
   {
    "ticker": "VIVA3",
-   "company": "Vivara",
+   "company": "VIVARA S.A.",
    "file": "VIVA3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Logotipo_da_Vivara.svg",
-   "license": "Public domain",
-   "author": "Vivara"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "VIVA3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "23159e138a9162eb"
   },
   {
    "ticker": "VIVT3",
-   "company": "Telefônica Brasil",
+   "company": "TELEF BRASIL",
    "file": "VIVT3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:Telef%C3%B3nica_2021_logo.svg",
-   "license": "Public domain",
-   "author": "Telefónica"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "VIVT3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "1bb240bc19e82d9c"
   },
   {
    "ticker": "WEGE3",
-   "company": "WEG Indústrias",
+   "company": "WEG",
    "file": "WEGE3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:WEG_Equipamentos_El%C3%A9tricos.svg",
-   "license": "Public domain",
-   "author": "WEG"
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "WEGE3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "f8982d200a5f2a0a"
   },
   {
    "ticker": "YDUQ3",
-   "company": "YDUQS",
+   "company": "YDUQS PART",
    "file": "YDUQ3.png",
-   "source": "Wikimedia Commons",
-   "source_url": "https://commons.wikimedia.org/wiki/File:YDUQS_Logo.svg",
-   "license": "Public domain",
-   "author": "Estácio Participações S.A."
+   "source": "github.com/mqteuss/logos_b3",
+   "source_file": "YDUQ3.png",
+   "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
+   "px": 56,
+   "sha256": "f04309bdbc96d0bf"
   }
  ]
 }

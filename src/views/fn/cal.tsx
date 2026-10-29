@@ -1,6 +1,6 @@
 'use client'
-/** CAL v2 — calendário de resultados do Ibovespa (sites de RI checados todo dia; fallback CVM). Só dados reais: "—" quando falta. */
-import { useMemo, useRef, useState } from 'react'
+/** CAL v2 — calendário de resultados do Ibovespa (sites de RI checados todo dia; reserva CVM). Só dados reais: "—" quando falta. */
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { FnScreen, Grid, type Col, Loading, C, dBR, dBRfull, useJSON, useDesktop, useFitH } from '../../components/fn/kit'
 import { t } from '../../lib/i18n'
@@ -19,8 +19,6 @@ export type CalRow = {
 type CalData = { generated_at: string; as_of: string; quarter: string; coverage: Record<string, number>; rows: CalRow[] }
 
 const ST_COLOR: Record<string, string> = { expected: C.muted, confirmed: C.amber, released: C.up }
-const SLOTS = ['bmo', 'amc', 'tba'] as const
-const slotOf = (r: CalRow) => (r.timing === 'bmo' ? 'bmo' : r.timing === 'amc' ? 'amc' : 'tba')
 
 // ---------- datas (strings ISO, sem fuso) ----------
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -36,36 +34,79 @@ const weekLabel = (mon: string) => {
   return `${parse(mon).toLocaleDateString(loc(), o)} – ${parse(fri).toLocaleDateString(loc(), o)} ${fri.slice(0, 4)}`.replace(/\./g, '')
 }
 const asOfLabel = (g?: string) => (!g ? '—' : `${dBRfull(g.slice(0, 10))} ${g.slice(11, 16)} BRT`)
+/** empresas do dia em ordem de ticker (não há valor de mercado de todas no dado do calendário) */
+const byTicker = (a: CalRow, b: CalRow) => a.ticker.localeCompare(b.ticker)
 
 // ---------- peças ----------
 const hue = (s: string) => s.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7)
 export function Logo({ r, size = 20 }: { r: CalRow; size?: number }) {
   const [bad, setBad] = useState(false)
-  const box: React.CSSProperties = { width: size, height: size, minWidth: size, borderRadius: 3 }
+  const box: React.CSSProperties = { width: size, height: size, minWidth: size, borderRadius: Math.round(size * 0.18) }
   if (!r.logo || bad)
     return <span aria-hidden className="inline-flex items-center justify-center font-bold"
-      style={{ ...box, background: `hsl(${hue(r.ticker)} 45% 28%)`, color: '#fff', fontSize: Math.max(7, size * 0.36) }}>{r.ticker.slice(0, 4)}</span>
-  return <span className="inline-flex items-center justify-center overflow-hidden" style={{ ...box, background: '#fff' }}>
-    <img src={href('/' + r.logo)} alt="" width={size - 2} height={size - 2} onError={() => setBad(true)} style={{ objectFit: 'contain', maxWidth: size - 2, maxHeight: size - 2 }} />
+      style={{ ...box, background: `hsl(${hue(r.ticker)} 45% 28%)`, color: '#fff', fontSize: Math.max(8, Math.round(size * 0.3)) }}>{r.ticker.slice(0, 4)}</span>
+  return <span className="inline-flex items-center justify-center overflow-hidden" style={box}>
+    <img src={href('/' + r.logo)} alt="" width={size} height={size} onError={() => setBad(true)} style={{ width: size, height: size, objectFit: 'contain' }} />
   </span>
 }
 export function Status({ s }: { s: CalRow['status'] }) {
   if (!s) return <span style={{ color: C.muted }}>—</span>
-  return <span className="px-1 text-[10px] font-bold uppercase border" style={{ color: ST_COLOR[s], borderColor: ST_COLOR[s], borderStyle: s === 'expected' ? 'dashed' : 'solid' }}>{t(`cal.st.${s}` as any)}</span>
+  return <span className="px-1 text-[10px] font-bold uppercase border whitespace-nowrap" style={{ color: ST_COLOR[s], borderColor: ST_COLOR[s], borderStyle: s === 'expected' ? 'dashed' : 'solid' }}>{t(`cal.st.${s}` as any)}</span>
 }
 const A = ({ to, children }: { to?: string | null; children: React.ReactNode }) =>
   to ? <a href={to} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-white" style={{ color: C.cyan }}>{children}</a> : <span style={{ color: C.muted }}>—</span>
-const timeTxt = (r: CalRow) => r.time ? `${r.time}${r.timing ? ' · ' + t(r.timing === 'bmo' ? 'cal.bmo' : 'cal.amc') : ''}` : r.timing ? t(r.timing === 'bmo' ? 'cal.bmo' : 'cal.amc') : '—'
+const timeTxt = (r: CalRow) => {
+  const tm = r.timing ? t(r.timing === 'bmo' ? 'cal.bmo' : 'cal.amc') : null
+  return [r.time, tm].filter(Boolean).join(' · ') || '—'
+}
 
-function Chip({ r, sel, onPick, small }: { r: CalRow; sel: boolean; onPick: (r: CalRow) => void; small?: boolean }) {
-  const st = r.status ? ST_COLOR[r.status] : C.muted
+/** card: logo em destaque + ticker embaixo; borda = status (tracejada = prevista) */
+const cardDims = (size: number) => ({ w: size + 14, h: size + Math.max(12, Math.round(size * 0.26)) + 12 })
+function Card({ r, size, sel, onPick }: { r: CalRow; size: number; sel?: boolean; onPick?: (r: CalRow) => void }) {
+  const st = r.status ? ST_COLOR[r.status] : C.line, { w, h } = cardDims(size)
   return (
-    <button type="button" onClick={() => onPick(r)} title={`${r.ticker} · ${r.name} · ${r.status ? t(`cal.st.${r.status}` as any) : '—'} (${r.source ?? '—'})`}
-      className="inline-flex items-center gap-1 pr-1 border text-left hover:bg-[#1a1205]"
-      style={{ borderColor: sel ? C.white : st, borderStyle: r.status === 'expected' ? 'dashed' : 'solid', background: sel ? '#1a1205' : '#080808' }}>
-      <Logo r={r} size={small ? 14 : 20} />
-      <span className={small ? 'text-[10px]' : 'text-[12px] font-bold'} style={{ color: r.status === 'released' ? C.up : C.white }}>{r.ticker}</span>
+    <button type="button" onClick={() => onPick && onPick(r)} title={`${r.ticker} · ${r.name} · ${r.status ? t(`cal.st.${r.status}` as any) : '—'}`}
+      className="flex flex-col items-center justify-center gap-[3px] border hover:bg-[#1a1205]"
+      style={{ width: w, height: h, borderColor: sel ? C.white : st, borderStyle: r.status === 'expected' ? 'dashed' : 'solid', background: sel ? '#1a1205' : '#080808' }}>
+      <Logo r={r} size={size} />
+      <span className="font-bold leading-none" style={{ fontSize: Math.max(10, Math.round(size * 0.24)), color: r.status === 'released' ? C.up : C.white }}>{r.ticker}</span>
     </button>
+  )
+}
+
+function useBox<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null)
+  const [sz, setSz] = useState({ w: 0, h: 0 })
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setSz(p => (p.w === el.clientWidth && p.h === el.clientHeight ? p : { w: el.clientWidth, h: el.clientHeight })))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return { ref, ...sz }
+}
+
+/** cards que cabem na célula; o excedente vira um card "+N" (abre a lista completa com rolagem interna ou chama onMore) */
+function Cards({ rows, size, sel, onPick, onMore, all, gap = 4 }: { rows: CalRow[]; size: number; sel?: string | null; onPick?: (r: CalRow) => void; onMore?: () => void; all?: boolean; gap?: number }) {
+  const { ref, w, h } = useBox<HTMLDivElement>()
+  const [open, setOpen] = useState(false)
+  const d = cardDims(size)
+  const cap = Math.max(1, Math.floor((w + gap) / (d.w + gap))) * Math.max(1, Math.floor((h + gap) / (d.h + gap)))
+  const cut = !all && !open && w > 0 && rows.length > cap
+  const show = cut ? rows.slice(0, cap - 1) : rows
+  return (
+    <div ref={ref} className="h-full min-h-0 overflow-y-auto fn-strip">
+      <div className="flex flex-wrap content-start" style={{ gap }}>
+        {show.map(r => <Card key={r.ticker} r={r} size={size} sel={sel === r.ticker} onPick={onPick} />)}
+        {cut && (
+          <button type="button" onClick={() => (onMore ? onMore() : setOpen(true))} title={t('cal.showAll')}
+            className="flex items-center justify-center border font-bold hover:bg-[#1a1205]" style={{ width: d.w, height: d.h, borderColor: C.amber, color: C.amber, fontSize: Math.max(11, Math.round(size * 0.3)) }}>
+            +{rows.length - show.length}
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -74,9 +115,9 @@ function Detail({ r }: { r: CalRow | null }) {
   const kv = (k: string, v: React.ReactNode) => <div className="flex justify-between gap-2 py-[2px] border-b" style={{ borderColor: '#1c1c1c' }}><span style={{ color: C.muted }}>{k}</span><span className="text-right">{v}</span></div>
   return (
     <div className="text-[12px] p-2 flex flex-col gap-1">
-      <div className="flex items-center gap-2"><Logo r={r} size={32} /><div><div className="font-bold" style={{ color: C.amber }}>{r.ticker}</div><div>{r.name}</div></div></div>
+      <div className="flex items-center gap-3 mb-1"><Logo r={r} size={72} /><div className="min-w-0"><div className="text-[18px] font-bold" style={{ color: C.amber }}>{r.ticker}</div><div className="truncate">{r.name}</div></div></div>
       {kv(t('cal.sector'), r.sector || '—')}
-      {kv(t('cal.date'), `${dBRfull(r.date)} (${r.q})`)}
+      {kv(t('cal.date'), r.date ? `${dBRfull(r.date)} (${r.q})` : '—')}
       {kv(t('cal.time'), timeTxt(r))}
       {kv(t('cal.status'), <Status s={r.status} />)}
       {kv(t('cal.src'), r.source ? <A to={r.link}>{r.source === 'RI' ? t('cal.irSite') : 'CVM'}</A> : '—')}
@@ -88,56 +129,46 @@ function Detail({ r }: { r: CalRow | null }) {
   )
 }
 
-// ---------- semana (estilo board: seg–sex × antes/depois/a definir) ----------
+// ---------- semana: uma coluna por dia (seg–sex) ----------
 function WeekBoard({ mon, byDate, sel, onPick, exporting }: { mon: string; byDate: Map<string, CalRow[]>; sel: string | null; onPick: (r: CalRow) => void; exporting: boolean }) {
   const desk = useDesktop()
-  const rowH = useFitH(150, 60), tbaH = useFitH(250, 90)
+  const bodyH = useFitH(600, 220)
   const days = [0, 1, 2, 3, 4].map(i => addDays(mon, i))
   const today = iso(new Date())
-  const cell = (d: string, s: string) => (byDate.get(d) || []).filter(r => slotOf(r) === s).sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0))
-  const label = (s: string) => t(s === 'bmo' ? 'cal.bmo' : s === 'amc' ? 'cal.amc' : 'cal.tba')
+  const list = (d: string) => (byDate.get(d) || []).slice().sort(byTicker)
+  const head = (d: string) => (
+    <div className="px-2 py-1 font-bold flex justify-between items-baseline" style={{ background: d === today && !exporting ? C.amber : C.panel2, color: d === today && !exporting ? '#000' : C.amber, fontSize: exporting ? 16 : 12 }}>
+      <span>{dayName(d).toUpperCase()} {dBR(d).slice(0, 5)}</span><span style={{ opacity: 0.75 }}>{list(d).length || '—'}</span>
+    </div>
+  )
   if (!desk && !exporting)
     return (
       <div className="flex flex-col gap-2">
-        {days.map(d => {
-          const n = (byDate.get(d) || []).length
-          return (
-            <div key={d} className="border" style={{ borderColor: d === today ? C.amber : C.line }}>
-              <div className="px-2 py-1 text-[12px] font-bold flex justify-between" style={{ background: C.panel2, color: C.amber }}><span>{dayName(d)} {dBR(d).slice(0, 5)}</span><span style={{ color: C.muted }}>{n || '—'}</span></div>
-              {SLOTS.map(s => { const rs = cell(d, s); return rs.length ? (
-                <div key={s} className="px-2 py-1"><div className="text-[10px] uppercase mb-1" style={{ color: C.muted }}>{label(s)}</div>
-                  <div className="flex flex-wrap gap-1">{rs.map(r => <Chip key={r.ticker} r={r} sel={sel === r.ticker} onPick={onPick} />)}</div></div>) : null })}
-            </div>
-          )
-        })}
+        {days.map(d => (
+          <div key={d} className="border" style={{ borderColor: d === today ? C.amber : C.line }}>
+            {head(d)}
+            {list(d).length > 0 && <div className="p-2"><Cards rows={list(d)} size={44} sel={sel} onPick={onPick} all /></div>}
+          </div>
+        ))}
       </div>
     )
   return (
-    <div className="grid" style={{ gridTemplateColumns: `110px repeat(5, minmax(0, 1fr))`, border: `1px solid ${C.line}` }}>
-      <div style={{ background: C.panel2 }} />
-      {days.map(d => (
-        <div key={d} className="px-2 py-1 text-[12px] font-bold border-l text-center" style={{ borderColor: C.line, background: d === today ? C.amber : C.panel2, color: d === today ? '#000' : C.amber }}>
-          {dayName(d).toUpperCase()} {dBR(d).slice(0, 5)}
+    <div className="grid" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', border: `1px solid ${C.line}` }}>
+      {days.map((d, i) => (
+        <div key={d} className={i ? 'border-l' : ''} style={{ borderColor: C.line }}>
+          {head(d)}
+          <div className="p-1 border-t" style={{ borderColor: C.line, height: exporting ? undefined : bodyH, minHeight: exporting ? 330 : undefined }}>
+            <Cards rows={list(d)} size={exporting ? 56 : 48} sel={exporting ? null : sel} onPick={onPick} all={exporting} />
+          </div>
         </div>
       ))}
-      {SLOTS.map(s => [
-        <div key={s} className="px-2 py-1 text-[11px] font-bold uppercase border-t flex items-center" style={{ borderColor: C.line, color: s === 'tba' ? C.muted : C.white, background: C.panel }}>{label(s)}</div>,
-        ...days.map(d => {
-          const rs = cell(d, s)
-          return (
-            <div key={s + d} className="p-1 border-t border-l overflow-y-auto fn-strip" style={{ borderColor: C.line, height: exporting ? undefined : s === 'tba' ? tbaH : rowH, minHeight: exporting ? (s === 'tba' ? 160 : 70) : undefined }}>
-              <div className="flex flex-wrap gap-1 content-start">{rs.map(r => <Chip key={r.ticker} r={r} sel={!exporting && sel === r.ticker} onPick={onPick} />)}</div>
-            </div>
-          )
-        }),
-      ])}
     </div>
   )
 }
 
 // ---------- mês (seg–sex) ----------
 function MonthView({ month, byDate, onDay }: { month: string; byDate: Map<string, CalRow[]>; onDay: (d: string) => void }) {
-  const cellH = useFitH(96, 44)
+  const cellH = useFitH(112, 56)
   const first = month + '-01', wd = parse(first).getDay()
   // semana que contém o dia 1 (se cair no fim de semana, começa na segunda seguinte)
   const s0 = wd >= 1 && wd <= 5 ? addDays(first, 1 - wd) : mondayOf(first)
@@ -146,14 +177,16 @@ function MonthView({ month, byDate, onDay }: { month: string; byDate: Map<string
   const today = iso(new Date())
   return (
     <div className="grid" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', border: `1px solid ${C.line}` }}>
-      {weeks[0]?.map(d => <div key={'h' + d} className="px-2 py-1 text-[12px] font-bold text-center border-l first:border-l-0" style={{ borderColor: C.line, background: C.panel2, color: C.amber }}>{dayName(d).toUpperCase()}</div>)}
-      {weeks.flat().map(d => {
-        const rs = (byDate.get(d) || []).slice().sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0)), out = d.slice(0, 7) !== month
+      {weeks[0]?.map((d, i) => <div key={'h' + d} className={`px-2 py-1 text-[12px] font-bold text-center ${i ? 'border-l' : ''}`} style={{ borderColor: C.line, background: C.panel2, color: C.amber }}>{dayName(d).toUpperCase()}</div>)}
+      {weeks.flat().map((d, i) => {
+        const rs = (byDate.get(d) || []).slice().sort(byTicker), out = d.slice(0, 7) !== month
         return (
-          <button type="button" key={d} onClick={() => onDay(d)} className="p-1 border-t border-l text-left align-top overflow-hidden hover:bg-[#111]" style={{ borderColor: C.line, height: cellH, opacity: out ? 0.35 : 1 }}>
-            <div className="text-[11px] font-bold mb-[2px]" style={{ color: d === today ? C.amber : C.muted }}>{d.slice(8)}{rs.length ? <span className="font-normal"> · {rs.length}</span> : null}</div>
-            <div className="flex flex-wrap gap-[3px]">{rs.map(r => <span key={r.ticker} className="inline-flex items-center gap-[2px] text-[10px]" style={{ color: r.status ? ST_COLOR[r.status] : C.muted }}><Logo r={r} size={12} />{r.ticker}</span>)}</div>
-          </button>
+          <div key={d} className={`p-1 border-t flex flex-col ${i % 5 ? 'border-l' : ''}`} style={{ borderColor: C.line, height: cellH, opacity: out ? 0.35 : 1 }}>
+            <button type="button" onClick={() => onDay(d)} className="text-left text-[11px] font-bold mb-[2px] hover:text-white shrink-0" style={{ color: d === today ? C.amber : C.muted }}>
+              {d.slice(8)}{rs.length ? <span className="font-normal"> · {rs.length}</span> : null}
+            </button>
+            <div className="flex-1 min-h-0"><Cards rows={rs} size={30} gap={3} onPick={() => onDay(d)} onMore={() => onDay(d)} /></div>
+          </div>
         )
       })}
     </div>
@@ -177,7 +210,7 @@ export function CALView() {
   const curMon = mon ?? mondayOf(iso(new Date()))
   const curMonth = month ?? curMon.slice(0, 7)
   if (!data) return <FnScreen code="CAL"><Loading err={err} /></FnScreen>
-  const cov = data.coverage || {}
+  const nDated = data.rows.filter(r => r.date).length
   const nWeek = [0, 1, 2, 3, 4].reduce((a, i) => a + (byDate.get(addDays(curMon, i)) || []).length, 0)
 
   const exportPng = async () => {
@@ -205,19 +238,19 @@ export function CALView() {
       <span className="font-bold" style={{ color: C.white }}>{tab === 1 ? monthName(curMonth + '-01') : weekLabel(curMon)}</span>
       <button type="button" aria-label="next" className={btn} style={{ borderColor: C.line, color: C.amber }} onClick={() => nav(1)}><ChevronRight className="w-4 h-4" /></button>
       <button type="button" className={btn + ' px-2'} style={{ borderColor: C.line, color: C.amber }} onClick={() => { setMon(null); setMonth(null) }}>{t('cal.today')}</button>
-      {tab === 0 && <button type="button" className={btn + ' gap-1 px-2'} style={{ borderColor: C.amber, color: C.amber }} onClick={exportPng} data-capture-hide=""><Download className="w-3.5 h-3.5" aria-hidden />{t('cal.export')}</button>}
+      {tab === 0 && <button type="button" className={btn + ' gap-1 px-2'} style={{ borderColor: C.amber, color: C.amber }} onClick={exportPng} aria-label={t('cal.export')} title={t('cal.export')} data-capture-hide=""><Download className="w-3.5 h-3.5" aria-hidden /><span className="max-lg:hidden">{t('cal.export')}</span></button>}
     </>
   )
-  const asOf = <>{t('cal.asOf')} {asOfLabel(data.generated_at)} · {data.quarter} {t('cal.season')} · {cov.n ?? '—'} cos: {cov.ri_date ?? '—'} {t('cal.cov')} · {cov.cvm_only ?? '—'} {t('cal.covCvm')} · {cov.no_date ?? '—'} {t('cal.covNone')}</>
+  const asOf = `${t('cal.asOf')} ${asOfLabel(data.generated_at)} · ${data.quarter} ${t('cal.season')} · ${nDated}/${data.rows.length} ${t('cal.withDate')}`
   const legend = (
     <div className="flex flex-wrap items-center gap-2 text-[11px]" style={{ color: C.muted }}>
-      {(['expected', 'confirmed', 'released'] as const).map(s => <span key={s} className="inline-flex items-center gap-1"><Status s={s} /><span>{t(s === 'expected' ? 'cal.cvmPlanned' : s === 'confirmed' ? 'cal.irSite' : 'cal.filed')}</span></span>)}
-      <span className="ml-auto">{asOf}</span>
+      {(['expected', 'confirmed', 'released'] as const).map(s => <Status key={s} s={s} />)}
+      <span className="ml-auto lg:hidden">{asOf}</span>
     </div>
   )
-  const list = [...data.rows].sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999') || (b.weight ?? 0) - (a.weight ?? 0))
+  const list = [...data.rows].sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999') || byTicker(a, b))
   const cols: Col<CalRow>[] = [
-    { k: 'logo', label: '', fmt: (_v: any, r: CalRow) => <Logo r={r} size={16} /> },
+    { k: 'logo', label: '', fmt: (_v: any, r: CalRow) => <Logo r={r} size={28} /> },
     { k: 'ticker', label: 'Ticker', fmt: (_v: any, r: CalRow) => <span className="font-bold" style={{ color: C.amber }}>{r.ticker}</span> },
     { k: 'name', label: t('cal.company'), fmt: (_v: any, r: CalRow) => r.name },
     { k: 'sector', label: t('cal.sector'), fmt: (_v: any, r: CalRow) => r.sector || '—' },
@@ -230,24 +263,26 @@ export function CALView() {
     { k: 'filed', label: t('cal.filed'), fmt: (_v: any, r: CalRow) => r.filed?.date ? <A to={r.filed.link}>{dBR(r.filed.date)}</A> : '—' },
   ]
   return (
-    <FnScreen code="CAL" tabs={[t('cal.tabWeek'), t('cal.tabMonth'), t('cal.tabList')]} tab={tab} setTab={setTab} right={right}
-      source={t('cal.source')} note={t('cal.note')}>
+    <FnScreen code="CAL" tabs={[t('cal.tabWeek'), t('cal.tabMonth'), t('cal.tabList')]} tab={tab} setTab={setTab} right={right} note={asOf}>
       <div className="flex flex-col gap-2">
         {legend}
         {tab === 0 && (
           <div className="flex gap-2 max-lg:flex-col">
-            <div ref={board} className="relative flex-1 min-w-0" style={exporting ? { width: 1400, background: '#000', padding: 16 } : undefined}>
-              {exporting && <div className="flex items-baseline justify-between mb-2"><span className="text-[18px] font-bold" style={{ color: C.amber }}>{t('cal.title')} · {data.quarter}</span><span className="text-[14px]" style={{ color: C.white }}>{weekLabel(curMon)}</span></div>}
+            <div ref={board} className="relative flex-1 min-w-0" style={exporting ? { width: 1600, minWidth: 1600, background: '#000', padding: 20 } : undefined}>
+              {exporting && <div className="flex items-baseline justify-between mb-3"><span className="text-[24px] font-bold" style={{ color: C.amber }}>{t('cal.title')} · {data.quarter}</span><span className="text-[18px] font-bold" style={{ color: C.white }}>{weekLabel(curMon)}</span></div>}
               <WeekBoard mon={curMon} byDate={byDate} sel={sel?.ticker ?? null} onPick={setSel} exporting={exporting} />
               {!nWeek && <div className="text-[12px] mt-1" style={{ color: C.muted }}>{t('cal.noEvents')}</div>}
               {exporting && <>
-                <div className="flex justify-between mt-2 text-[11px]" style={{ color: C.muted }}><span>{asOf}</span><span>{t('fn.edu')}</span></div>
+                <div className="flex items-center gap-2 mt-3 text-[12px]" style={{ color: C.muted }}>
+                  {(['expected', 'confirmed', 'released'] as const).map(s => <Status key={s} s={s} />)}
+                  <span className="ml-2">{asOf}</span><span className="ml-auto">{t('fn.edu')}</span>
+                </div>
                 <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center" style={{ opacity: 0.07 }}>
-                  <span className="text-[160px] font-bold" style={{ color: C.white, transform: 'rotate(-12deg)' }}>celowiz</span></div>
-                <div className="absolute right-4 bottom-1 text-[12px] font-bold" style={{ color: C.amber }}>celowiz · quant-terminal</div>
+                  <span className="text-[200px] font-bold" style={{ color: C.white, transform: 'rotate(-12deg)' }}>celowiz</span></div>
+                <div className="text-right text-[14px] font-bold mt-1" style={{ color: C.amber }}>celowiz · quant-terminal</div>
               </>}
             </div>
-            {(desk || sel) && <div className="border lg:w-[280px] shrink-0" style={{ borderColor: C.line, background: C.panel }}><Detail r={sel} /></div>}
+            {(desk || sel) && <div className="border lg:w-[260px] shrink-0" style={{ borderColor: C.line, background: C.panel }}><Detail r={sel} /></div>}
           </div>
         )}
         {tab === 1 && <MonthView month={curMonth} byDate={byDate} onDay={d => { setMon(mondayOf(d)); setTab(0) }} />}

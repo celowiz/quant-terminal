@@ -2,7 +2,8 @@
 # 1) roda o pipeline de dados (fontes abertas: Yahoo, CVM, B3, BCB, FRED, RSS)
 # 2) abre issue se alguma regra de alerts.yaml disparou (ALERT)
 # 3) build estático do Next.js (output: 'export') e publica no Pages.
-# Horário: 10:47 UTC = 07:47 BRT, todo dia (o CAL checa os sites de RI diariamente; demais dados mudam só em dia útil).
+# Horário: 10:47 UTC = 07:47 BRT, ter–sáb (dados do pregão de seg–sex já consolidados).
+# O CAL (calendário de resultados) tem um job leve próprio, todo dia às 21:30 BRT: calendar.yml.
 # Minuto :47 escolhido para evitar picos do Actions e os minutos já usados (:04 :07 :09 :11 :13 :17 :23 :34 :39 :41).
 name: pages
 
@@ -14,7 +15,7 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: '47 10 * * *'   # todo dia (CAL checa os sites de RI diariamente)
+    - cron: '47 10 * * 2-6'
 
 permissions:
   contents: read
@@ -140,6 +141,8 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: out
+          # calendar.yml reaproveita este artefato à noite (padrão seria 1 dia: domingo/segunda ficariam sem base)
+          retention-days: 3
 
   deploy:
     if: github.event_name != 'pull_request'
