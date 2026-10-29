@@ -1,5 +1,5 @@
 {
- "note": "Internal manifest. Files copied from github.com/mqteuss/logos_b3 (no license file in that repo; README says logos were converted from brapi.dev SVGs or Clearbit/Google favicons). Logos are trademarks of their owners. Missing tickers fall back to a ticker badge in the UI.",
+ "note": "Internal manifest. Files copied from github.com/mqteuss/logos_b3. Match rule: override, exact ticker, then same 4-letter root in order 3, 4, 11, 5, 6, 7, 8 (pipeline/logos.py). Missing tickers fall back to a ticker badge in the UI.",
  "logos": [
   {
    "ticker": "ABEV3",
@@ -7,6 +7,7 @@
    "file": "ABEV3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "ABEV3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "b5611067301a47f3"
@@ -17,6 +18,7 @@
    "file": "ALOS3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "ALOS3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "f74f13fd009f35b8"
@@ -27,6 +29,7 @@
    "file": "ASAI3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "ASAI3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "fb9a647e7d3ade34"
@@ -37,6 +40,7 @@
    "file": "AURE3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "AURE3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "356a6a09f02e8186"
@@ -46,11 +50,11 @@
    "company": "AXIA ENERGIA",
    "file": "AXIA3.png",
    "source": "github.com/mqteuss/logos_b3",
-   "source_file": "AXIA5.png",
+   "source_file": "AXIA7.png",
+   "match": "override",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 200,
-   "sha256": "b9db2a14ce152464",
-   "note": "same company; repo has no AXIA3.png, uses AXIA5.png"
+   "sha256": "b9db2a14ce152464"
   },
   {
    "ticker": "AZZA3",
@@ -58,6 +62,7 @@
    "file": "AZZA3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "AZZA3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "74fbc3c59702ba92"
@@ -68,6 +73,7 @@
    "file": "B3SA3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "B3SA3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "e5380c86fc0af7ea"
@@ -78,6 +84,7 @@
    "file": "BBAS3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "BBAS3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "2afbcf7c46d5f2a1"
@@ -88,6 +95,7 @@
    "file": "BBDC3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "BBDC3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "b6fcd8955c93ed1d"
@@ -98,6 +106,7 @@
    "file": "BBDC4.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "BBDC4.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "b6fcd8955c93ed1d"
@@ -108,6 +117,7 @@
    "file": "BBSE3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "BBSE3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "2afbcf7c46d5f2a1"
@@ -118,6 +128,7 @@
    "file": "BEEF3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "BEEF3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "df215a1124b3475e"
@@ -128,6 +139,7 @@
    "file": "BPAC11.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "BPAC11.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "50e9d6f0a82d18e6"
@@ -138,6 +150,7 @@
    "file": "BRAP4.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "BRAP4.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "4bcc6691f099e4ed"
@@ -148,6 +161,7 @@
    "file": "BRAV3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "BRAV3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "f170b1ff2c350641"
@@ -158,6 +172,7 @@
    "file": "CEAB3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "CEAB3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "2d2d5426433a2422"
@@ -168,6 +183,7 @@
    "file": "CMIG4.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "CMIG4.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "e1f77c7fd68f3afc"
@@ -178,6 +194,7 @@
    "file": "CMIN3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "CMIN3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "1464af95b6325444"
@@ -188,6 +205,7 @@
    "file": "COGN3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "COGN3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "7e0e16410420b3b4"
@@ -198,6 +216,7 @@
    "file": "CPFE3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "CPFE3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "5cf4b68bdf98b706"
@@ -208,6 +227,7 @@
    "file": "CPLE3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "CPLE3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "2d800c4f8539ba8a"
@@ -218,6 +238,7 @@
    "file": "CSAN3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "CSAN3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "d82d74c4980202a4"
@@ -228,6 +249,7 @@
    "file": "CSMG3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "CSMG3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "c63bde3d8a8d7343"
@@ -238,6 +260,7 @@
    "file": "CSNA3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "CSNA3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "b46098b302c4a5ca"
@@ -248,6 +271,7 @@
    "file": "CURY3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "CURY3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "2e6b3651dfc37511"
@@ -258,6 +282,7 @@
    "file": "CXSE3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "CXSE3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "285ec5a9506d1796"
@@ -268,6 +293,7 @@
    "file": "CYRE3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "CYRE3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "d3cd65a49fd846a8"
@@ -278,6 +304,7 @@
    "file": "DIRR3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "DIRR3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "8cdf8d021d7a5629"
@@ -288,6 +315,7 @@
    "file": "EGIE3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "EGIE3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "adcc96d68959bded"
@@ -298,6 +326,7 @@
    "file": "EMBJ3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "EMBJ3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 256,
    "sha256": "0634e42d56aef3d9"
@@ -308,6 +337,7 @@
    "file": "ENEV3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "ENEV3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "e545da9fbce143f9"
@@ -318,6 +348,7 @@
    "file": "ENGI11.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "ENGI11.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "058b720eb7516f71"
@@ -328,6 +359,7 @@
    "file": "EQTL3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "EQTL3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "639fdb9e582f9d4b"
@@ -338,6 +370,7 @@
    "file": "FLRY3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "FLRY3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "7db46879ac7955b5"
@@ -348,6 +381,7 @@
    "file": "GGBR4.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "GGBR4.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "b61e1f36f73bf5c5"
@@ -358,6 +392,7 @@
    "file": "GOAU4.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "GOAU4.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "b61e1f36f73bf5c5"
@@ -368,6 +403,7 @@
    "file": "HAPV3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "HAPV3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "3fa6a972fd74d6bf"
@@ -378,6 +414,7 @@
    "file": "HYPE3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "HYPE3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "841099e2447fb81d"
@@ -388,6 +425,7 @@
    "file": "IGTI11.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "IGTI11.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "57a3a638826a96a1"
@@ -398,6 +436,7 @@
    "file": "ISAE4.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "ISAE4.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "83207bb2c17c6e79"
@@ -408,6 +447,7 @@
    "file": "ITSA4.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "ITSA4.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "7f0a42796d9a1198"
@@ -418,6 +458,7 @@
    "file": "ITUB4.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "ITUB4.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "6eaaa470393958e9"
@@ -428,6 +469,7 @@
    "file": "KLBN11.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "KLBN11.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "c9786abbc2639048"
@@ -438,6 +480,7 @@
    "file": "LREN3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "LREN3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "d5370f249f0f9f05"
@@ -448,6 +491,7 @@
    "file": "MBRF3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "MBRF3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 48,
    "sha256": "bf694d861d1e4369"
@@ -458,6 +502,7 @@
    "file": "MGLU3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "MGLU3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "5962a046c6f63285"
@@ -468,6 +513,7 @@
    "file": "MOTV3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "MOTV3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 192,
    "sha256": "30177c4376ce1c8b"
@@ -478,6 +524,7 @@
    "file": "MRVE3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "MRVE3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "8c88d135344cb5d1"
@@ -488,6 +535,7 @@
    "file": "MULT3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "MULT3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "bd391947bd238553"
@@ -498,6 +546,7 @@
    "file": "NATU3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "NATU3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 256,
    "sha256": "de950a0ce3d3a3b9"
@@ -508,6 +557,7 @@
    "file": "PETR3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "PETR3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "38161471c60b765c"
@@ -518,6 +568,7 @@
    "file": "PETR4.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "PETR4.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "38161471c60b765c"
@@ -528,6 +579,7 @@
    "file": "POMO4.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "POMO4.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "1bd22eceaa986616"
@@ -538,6 +590,7 @@
    "file": "PRIO3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "PRIO3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "3b207a718bc603ea"
@@ -548,6 +601,7 @@
    "file": "PSSA3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "PSSA3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "535af8d9b2125237"
@@ -558,6 +612,7 @@
    "file": "RADL3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "RADL3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "ee684c867fcafc5e"
@@ -568,6 +623,7 @@
    "file": "RAIL3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "RAIL3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "3ebd1993b32ad504"
@@ -578,6 +634,7 @@
    "file": "RDOR3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "RDOR3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "3cfd14e97ba66489"
@@ -588,6 +645,7 @@
    "file": "RENT3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "RENT3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "178ea23b2c7afbe8"
@@ -598,6 +656,7 @@
    "file": "SANB11.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "SANB11.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "2627b983ef9a6c2d"
@@ -608,6 +667,7 @@
    "file": "SBSP3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "SBSP3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "6bf05ef3f19da530"
@@ -618,6 +678,7 @@
    "file": "SMFT3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "SMFT3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "d59b8cc0feb14464"
@@ -628,6 +689,7 @@
    "file": "SUZB3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "SUZB3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "635337e374edcd8d"
@@ -638,6 +700,7 @@
    "file": "TAEE11.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "TAEE11.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "b84d932a20fd7b3a"
@@ -648,6 +711,7 @@
    "file": "TEND3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "TEND3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "4ed803854734a66a"
@@ -658,6 +722,7 @@
    "file": "TIMS3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "TIMS3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "3f0f1b501d28be92"
@@ -668,6 +733,7 @@
    "file": "TOTS3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "TOTS3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "50b6d1f1e2f56295"
@@ -678,6 +744,7 @@
    "file": "UGPA3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "UGPA3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "6745fa7bb4b864d7"
@@ -688,6 +755,7 @@
    "file": "USIM5.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "USIM5.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "58415b803281b89a"
@@ -698,6 +766,7 @@
    "file": "VALE3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "VALE3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "52e26c8c19544e09"
@@ -708,6 +777,7 @@
    "file": "VAMO3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "VAMO3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "c558c20a35f76c46"
@@ -718,6 +788,7 @@
    "file": "VBBR3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "VBBR3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "49065356d4a04584"
@@ -728,6 +799,7 @@
    "file": "VIVA3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "VIVA3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "23159e138a9162eb"
@@ -738,6 +810,7 @@
    "file": "VIVT3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "VIVT3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "1bb240bc19e82d9c"
@@ -748,6 +821,7 @@
    "file": "WEGE3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "WEGE3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "f8982d200a5f2a0a"
@@ -758,9 +832,11 @@
    "file": "YDUQ3.png",
    "source": "github.com/mqteuss/logos_b3",
    "source_file": "YDUQ3.png",
+   "match": "exact",
    "commit": "08d8f15cf50b5cd6338ad5101d0c22519721447a",
    "px": 56,
    "sha256": "f04309bdbc96d0bf"
   }
- ]
+ ],
+ "missing": []
 }

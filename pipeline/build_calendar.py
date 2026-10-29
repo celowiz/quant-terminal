@@ -408,15 +408,26 @@ def cnpj_map(tickers):
         except Exception as e: print('fca', yr, e)
     return {}
 
-def logo_map():
-    p = os.path.join(HERE, '..', 'public', 'logos', 'manifest.json')
-    try: return {x['ticker']: 'logos/' + x['file'] for x in json.load(open(p, encoding='utf-8'))['logos']}
-    except Exception: return {}
+def logo_map(tickers=()):
+    """ticker → 'logos/<arquivo>' pelo manifest; quem não estiver nele cai na regra de pipeline/logos.py
+    (override, exato, mesma raiz 3/4/11/5/6/7/8) sobre os arquivos já presentes em public/logos."""
+    d = os.path.join(HERE, '..', 'public', 'logos')
+    try: m = {x['ticker']: 'logos/' + x['file'] for x in json.load(open(os.path.join(d, 'manifest.json'), encoding='utf-8'))['logos']}
+    except Exception: m = {}
+    try:
+        from logos import resolve
+        have = {f[:-4] for f in os.listdir(d) if f.endswith('.png')}
+        for t in tickers:
+            if t not in m:
+                src, _ = resolve(t, have)
+                if src: m[t] = f'logos/{src}.png'
+    except Exception as e: print('logos', e)
+    return m
 
 def main():
     today = today_brt(); y, q = season(today)
     base = universe_rows(); tickers = {b['ticker'] for b in base}
-    srcs = load_sources(); logos = logo_map()
+    srcs = load_sources(); logos = logo_map(tickers)
     cn = cnpj_map(tickers)
     unit_cnpj = {'TAEE11': 'TAEE3', 'KLBN11': 'KLBN3', 'ENGI11': 'ENGI3', 'IGTI11': 'IGTI3', 'SANB11': 'SANB3', 'BPAC11': 'BPAC3'}
     for t, alt in unit_cnpj.items():

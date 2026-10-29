@@ -140,3 +140,30 @@ def test_fetcher_disjuntor_e_robots(monkeypatch):
     assert f.get('https://b.x/agenda').text == 'ok'
     assert bc.Fetcher(session=_Sess(status=403)).get('https://c.x/agenda') is None
     assert bc.Fetcher(budget_s=-1, session=_Sess()).open                                                # orçamento de tempo
+
+
+# ---------- regra de logos ----------
+from logos import resolve
+
+
+def test_logo_exact_first():
+    assert resolve('PETR4', {'PETR3', 'PETR4'}) == ('PETR4', 'exact')
+
+
+def test_logo_root_order():
+    assert resolve('ABCD3', {'ABCD5', 'ABCD11', 'ABCD4'}) == ('ABCD4', 'root')
+    assert resolve('ABCD4', {'ABCD5', 'ABCD11'}) == ('ABCD11', 'root')
+    assert resolve('ABCD11', {'ABCD8', 'ABCD6'}) == ('ABCD6', 'root')
+    assert resolve('ABCD3', {'ABCE3', 'ABCD9'}) == (None, None)
+
+
+def test_logo_override_axia():
+    assert resolve('AXIA3', {'AXIA5', 'AXIA7'}) == ('AXIA7', 'override')
+
+
+def test_manifest_matches_rule():
+    import json, os
+    m = json.load(open(os.path.join(os.path.dirname(__file__), '..', 'public', 'logos', 'manifest.json'), encoding='utf-8'))
+    ax = {x['ticker']: x for x in m['logos']}['AXIA3']
+    assert ax['source_file'] == 'AXIA7.png' and ax['match'] == 'override'
+    assert all(x['match'] in ('exact', 'root', 'override') for x in m['logos'])

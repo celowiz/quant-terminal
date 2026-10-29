@@ -211,6 +211,7 @@ export function CALView() {
   const curMonth = month ?? curMon.slice(0, 7)
   if (!data) return <FnScreen code="CAL"><Loading err={err} /></FnScreen>
   const nDated = data.rows.filter(r => r.date).length
+  const undated = data.rows.filter(r => !r.date).sort(byTicker)
   const nWeek = [0, 1, 2, 3, 4].reduce((a, i) => a + (byDate.get(addDays(curMon, i)) || []).length, 0)
 
   const exportPng = async () => {
@@ -272,6 +273,12 @@ export function CALView() {
               {exporting && <div className="flex items-baseline justify-between mb-3"><span className="text-[24px] font-bold" style={{ color: C.amber }}>{t('cal.title')} · {data.quarter}</span><span className="text-[18px] font-bold" style={{ color: C.white }}>{weekLabel(curMon)}</span></div>}
               <WeekBoard mon={curMon} byDate={byDate} sel={sel?.ticker ?? null} onPick={setSel} exporting={exporting} />
               {!nWeek && <div className="text-[12px] mt-1" style={{ color: C.muted }}>{t('cal.noEvents')}</div>}
+              {!exporting && undated.length > 0 && (
+                <div className="mt-2 border flex items-center gap-2 p-1 max-lg:flex-col max-lg:items-start" style={{ borderColor: C.line }}>
+                  <span className="px-1 text-[12px] font-bold whitespace-nowrap" style={{ color: C.amber }}>{t('cal.none')} · {undated.length}</span>
+                  <div className="flex flex-wrap gap-1">{undated.map(r => <Card key={r.ticker} r={r} size={desk ? 28 : 40} sel={sel?.ticker === r.ticker} onPick={setSel} />)}</div>
+                </div>
+              )}
               {exporting && <>
                 <div className="flex items-center gap-2 mt-3 text-[12px]" style={{ color: C.muted }}>
                   {(['expected', 'confirmed', 'released'] as const).map(s => <Status key={s} s={s} />)}
