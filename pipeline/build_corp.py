@@ -1,8 +1,8 @@
 """Dados por empresa: DES, CF, CN (parte CVM), FUND, VAL, DY, DVD, SPLIT, e CAL (universo IBOV).
 Fontes oficiais abertas: CVM (cadastro, IPE, DFP, ITR, FCA) e Yahoo Finance (proventos, desdobramentos, preços brutos, datas de resultado)."""
-import zipfile, datetime as dt, json, os, re
+import zipfile, datetime as dt, json, os, re, time
 import pandas as pd, yfinance as yf
-from common import save, get_json, cached, clean, step, now_iso, load_prev, br_universe, CNPJ, EQUITIES, OUT, today_brt
+from common import with_timeout, save, get_json, cached, clean, step, now_iso, load_prev, br_universe, CNPJ, EQUITIES, OUT, today_brt
 
 CVM = 'https://dados.cvm.gov.br/dados/CIA_ABERTA'
 Y = today_brt().year
@@ -255,9 +255,13 @@ def corp():
     st = load_statements(cnpjs)
     docs = ipe(cnpjs)
     off, off_date = official_closes()
-    raw = yf.download(tickers, period='12y', auto_adjust=False, actions=True, progress=False, group_by='ticker', threads=True)
-    yfail = 0; done = {}
-    for t in tickers:
+    try:
+        raw = with_timeout(yf.download, 600, tickers, period='12y', auto_adjust=False, actions=True, progress=False, group_by='ticker', threads=True, timeout=30)
+    except Exception as e:
+        print('  yf.download falhou/travou:', e); raw = pd.DataFrame()
+    yfail = 0; done = {}; t0 = time.time(); YBUDGET = 600   # teto de 10 min para as chamadas tk.info
+    for i, t in enumerate(tickers):
+        if i % 25 == 0: print(f'  corp {i}/{len(tickers)} ({int(time.time() - t0)}s)', flush=True)
         c = M[t]; o = {'ticker': t, 'cnpj': c, 'generated_at': now_iso()}
         prev = load_prev(f'corp/{key(t)}.json') or {}
         r = cad[(cad.CNPJ_CIA == c)].sort_values('DT_INI_SIT').tail(1)
@@ -269,9 +273,9 @@ def corp():
         if not o['fundamentals']: print('  sem DFP/ITR na CVM:', t); continue
         o['fundamentals']['basis'] = 'individual' if c in ONLY_IND else 'consolidated'
         tk = yf.Ticker(t)
-        if yfail < 5:
+        if yfail < 5 and time.time() - t0 < YBUDGET:
             try:
-                info = tk.info
+                info = with_timeout(lambda: tk.info, 30)
                 o['profile'] = {k: info.get(k) for k in ['longName', 'sector', 'industry', 'fullTimeEmployees', 'website', 'longBusinessSummary', 'city', 'country', 'exchange', 'currency']}
                 o['yahoo_stats'] = {k: clean(info.get(k), 4) for k in ['marketCap', 'sharesOutstanding', 'trailingPE', 'priceToBook', 'enterpriseToEbitda', 'dividendYield', 'beta']}
                 yfail = 0

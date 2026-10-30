@@ -26,6 +26,26 @@ def save(rel, obj):
         json.dump(obj, f, ensure_ascii=False, separators=(',', ':'), allow_nan=False, default=str)
     print('  ->', rel, os.path.getsize(p)//1024, 'KB')
 
+
+class CallTimeout(Exception):
+    pass
+
+
+def with_timeout(fn, secs, *a, **kw):
+    """Roda fn(*a, **kw) numa thread daemon e desiste após `secs` (levanta CallTimeout).
+    O Yahoo (yfinance/curl_cffi) às vezes não responde e não tem timeout próprio confiável:
+    em 30/10/2026 uma chamada travou o passo corp por 40+ min. A thread presa é daemon,
+    então não impede o processo de terminar."""
+    import threading
+    box = {}
+    def run():
+        try: box['v'] = fn(*a, **kw)
+        except BaseException as e: box['e'] = e
+    th = threading.Thread(target=run, daemon=True); th.start(); th.join(secs)
+    if th.is_alive(): raise CallTimeout(f'{getattr(fn, "__name__", fn)}: sem resposta em {secs}s')
+    if 'e' in box: raise box['e']
+    return box.get('v')
+
 def get(url, tries=3, timeout=60, **kw):
     last = None
     for i in range(tries):
