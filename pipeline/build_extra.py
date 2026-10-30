@@ -3,8 +3,8 @@ HDS (acionistas – CVM FRE), FA (demonstrações detalhadas – CVM DFP/ITR) e 
 Cada etapa é independente e mantém o JSON anterior se a fonte falhar."""
 import datetime as dt, math, sys, json, os, urllib.parse
 import pandas as pd, yfinance as yf
-from common import save, get_json, load_prev, clean, step, now_iso, cached, CNPJ, EQUITIES, OUT, today_brt
-from build_corp import csv_in_zip, cvm_zip, key, ticker_cnpj_map, load_statements, build_fund, shares_cvm, Y
+from common import save, get_json, load_prev, clean, step, now_iso, cached, corp_map, CNPJ, EQUITIES, OUT, today_brt
+from build_corp import csv_in_zip, cvm_zip, key, ticker_cnpj_map, load_statements, build_fund, shares_cvm, fix_share_units, is_bank, Y
 
 def bars(df):
     out = []
@@ -131,25 +131,26 @@ def holders():
             if len(d): break
         except Exception as e: print('fre', yr, e)
     if not len(d): raise RuntimeError('FRE indisponível')
-    n = 0
-    for t in EQUITIES:
-        g = d[d.CNPJ_Companhia == CNPJ[t]]
+    n = 0; M = corp_map()
+    for t in sorted(M):
+        g = d[d.CNPJ_Companhia == M[t]]
         if not len(g): continue
         g = g[g.Data_Referencia == g.Data_Referencia.max()]
         g = g[g.Versao.astype(int) == g.Versao.astype(int).max()]
         f = lambda x: clean(x, 4) if pd.notna(x) and x != '' else None
         s = lambda x: None if pd.isna(x) else x
         def row(r):
-            return {'name': r.get('Acionista'), 'id': s(r.get('ID_Acionista')), 'parent': s(r.get('ID_Acionista_Relacionado')),
+            return {'name': s(r.get('Acionista')), 'id': s(r.get('ID_Acionista')), 'parent': s(r.get('ID_Acionista_Relacionado')),
                     'controller': s(r.get('Acionista_Controlador')), 'foreign': s(r.get('Acionista_Estrangeiro')),
                     'qty_on': f(r.get('Quantidade_Acao_Ordinaria_Circulacao')), 'pct_on': f(r.get('Percentual_Acao_Ordinaria_Circulacao')),
                     'qty_pn': f(r.get('Quantidade_Acao_Preferencial_Circulacao')), 'pct_pn': f(r.get('Percentual_Acao_Preferencial_Circulacao')),
                     'qty': f(r.get('Quantidade_Total_Acoes_Circulacao')), 'pct': f(r.get('Percentual_Total_Acoes_Circulacao')),
                     'updated': s(r.get('Data_Ultima_Alteracao'))}
         allr = [row(r) for _, r in g.iterrows()]
-        save(f'holders/{key(t)}.json', {'ticker': t, 'cnpj': CNPJ[t], 'generated_at': now_iso(), 'ref_date': g.Data_Referencia.iloc[0],
+        try: save(f'holders/{key(t)}.json', {'ticker': t, 'cnpj': M[t], 'generated_at': now_iso(), 'ref_date': g.Data_Referencia.iloc[0],
                                         'version': int(g.Versao.iloc[0]), 'top': [r for r in allr if not r['parent']], 'all': allr,
                                         'source': f'CVM – Formulário de Referência (FRE {yr}), item posição acionária'})
+        except ValueError as e: print('holders', t, e); continue   # um emissor com dado inválido não derruba os demais
         n += 1
     if not n: raise RuntimeError('nenhuma empresa no FRE')
 
@@ -157,10 +158,11 @@ def holders():
 def _mdiff(a, b): a, b = pd.Timestamp(a), pd.Timestamp(b); return (b.year - a.year) * 12 + b.month - a.month + 1
 
 def fa():
-    st = load_statements(sorted(set(CNPJ.values())))
+    M = corp_map()
+    st = load_statements(sorted(set(M.values())))
     names = {'DRE': 'Demonstração do resultado', 'BPA': 'Balanço – ativo', 'BPP': 'Balanço – passivo e PL', 'DFC_MI': 'Fluxo de caixa (método indireto)'}
-    for t in EQUITIES:
-        c = CNPJ[t]; out = {'ticker': t, 'cnpj': c, 'generated_at': now_iso(), 'stmts': {}}
+    for t in sorted(M):
+        c = M[t]; out = {'ticker': t, 'cnpj': c, 'generated_at': now_iso(), 'stmts': {}}
         for s in names:
             d = st[s]
             if not len(d): continue
@@ -212,12 +214,13 @@ def screener():
     setor = cad.sort_values('DT_INI_SIT').drop_duplicates('CNPJ_CIA', keep='last').set_index('CNPJ_CIA').SETOR_ATIV.to_dict()
     raw = yf.download([c['cod'] + '.SA' for c in comps], period='1y', auto_adjust=False, actions=True, progress=False, group_by='ticker')
     fund_cache, share_cache, rows = {}, {}, []
+    off = (load_prev('official_close.json') or {}).get('closes') or {}
     for c in comps:
-        cod = c['cod']; cnpj = cn.get(cod); px = None
+        cod = c['cod']; cnpj = cn.get(cod); px = None; pcl = None
         r = {'cod': cod, 'name': c['name'], 'sector': c['sector'], 'subsector': c['subsector'], 'weight': c['weight'], 'cnpj': cnpj}
         try:
             d = raw[cod + '.SA'].dropna(subset=['Close']); cl = d.Close
-            px = float(cl.iloc[-1]); r.update({'price': clean(px, 2), 'date': d.index[-1].strftime('%Y-%m-%d'), 'pct': clean((px / cl.iloc[-2] - 1) * 100, 2),
+            px = float(cl.iloc[-1]); pcl = float(cl.iloc[-2]); r.update({'price': clean(px, 2), 'date': d.index[-1].strftime('%Y-%m-%d'), 'pct': clean((px / cl.iloc[-2] - 1) * 100, 2),
                 'vol_fin': clean(float(cl.iloc[-1] * d.Volume.iloc[-1]), 0), 'vol_qty': int(d.Volume.iloc[-1]),
                 'vol_fin_avg30': clean(float((cl * d.Volume).tail(30).mean()), 0), 'hi52': clean(d.High.max(), 2), 'lo52': clean(d.Low.min(), 2),
                 'm1': clean((px / cl[cl.index <= d.index[-1] - pd.Timedelta(days=30)].iloc[-1] - 1) * 100, 2), 'y1': clean((px / cl.iloc[0] - 1) * 100, 2)})
@@ -225,16 +228,25 @@ def screener():
             r['ytd'] = clean((px / b.iloc[-1] - 1) * 100, 2) if len(b) else None
             dv = d['Dividends'][d['Dividends'] > 0]; r['div12m'] = clean(float(dv.sum()), 4); r['dy'] = clean(float(dv.sum()) / px * 100, 2)
         except Exception as e: print('px', cod, e)
+        b = off.get(cod)
+        if b and px and b['time'] >= r.get('date', ''):
+            base = px if b['time'] > r['date'] else pcl   # Yahoo ainda sem o último pregão → a base é a última barra dele
+            r['pct'] = clean((b['close'] / base - 1) * 100, 2)
+            px = b['close']; r.update({'price': clean(px, 2), 'date': b['time'], 'official': True, 'vol_fin': clean(b['value'], 0), 'vol_qty': int(b['volume'])})
         if cnpj and px:
             bank = (setor.get(cnpj) or '').startswith('Bancos') or 'Interms Financs' in c['subsector']
             if cnpj not in fund_cache:
                 try: fund_cache[cnpj] = build_fund(cnpj, st, bank)
                 except Exception as e: print('fund', cod, e); fund_cache[cnpj] = None
-                try: share_cache[cnpj] = shares_cvm(cnpj)
-                except Exception: share_cache[cnpj] = None
+                cp = load_prev(f'corp/{key(cod + ".SA")}.json') or {}
+                if cp.get('shares'): share_cache[cnpj] = cp['shares']   # já conferida (unidade) no build_corp
+                else:
+                    try: share_cache[cnpj] = fix_share_units(shares_cvm(cnpj))
+                    except Exception: share_cache[cnpj] = None
             f, sh = fund_cache[cnpj], share_cache[cnpj]; r['bank'] = bank
             if sh:
-                n = sh['total'] - (sh.get('treasury') or 0); r['shares'] = n; r['mcap'] = clean(px * n, 0)
+                n = sh['equiv'] if 'equiv' in sh else sh['total'] - (sh.get('treasury') or 0)
+                if n: r['shares'] = n; r['mcap'] = clean(px * n, 0)
             if f and f['quarterly']:
                 q = [x for x in f['quarterly'] if x.get('net') is not None][-4:]
                 bal = f['quarterly'][-1]; r['fund_period'] = bal['period']

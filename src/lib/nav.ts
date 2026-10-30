@@ -1,5 +1,6 @@
 /** Navegação entre funções preservando o ativo corrente (ver activeTicker.mjs). */
 import tickers from '../../public/data/tickers.json'
+import './coverage'
 import { functionPath, readStoredTicker, writeStoredTicker } from './activeTicker.mjs'
 import { go } from './static'
 import { navFunction } from './track'

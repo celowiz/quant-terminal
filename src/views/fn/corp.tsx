@@ -1,14 +1,14 @@
 'use client'
-import React, { useMemo, useState } from 'react'
-import { FitBox, FnScreen, Panel, Grid, Btns, Field, KV, Loading, NA, C, nf, pf, big, dBR, dBRfull, clr, short, useJSON, corpPath, isEquity, inputCls, inputStyle, isoMinus } from '../../components/fn/kit'
+import React, { useEffect, useMemo, useState } from 'react'
+import { FitBox, FnScreen, Panel, Grid, Btns, Field, KV, Loading, NA, C, nf, pf, big, dBR, dBRfull, clr, short, useJSON, corpPath, hasData, inputCls, inputStyle, isoMinus } from '../../components/fn/kit'
 import FnChart, { type PaneDef } from '../../components/fn/FnChart'
 import { usePrices } from './tech'
-import { tickerKey } from '../../lib/static'
+import { getJSON, tickerKey } from '../../lib/static'
 
 const SRC_CVM = 'CVM Open Data (DFP/ITR, FCA, IPE) + Yahoo Finance (profile, raw price, distributions). Scripts: tools/pipeline/build_corp.py.'
 const useCorp = (t: string) => useJSON<any>(corpPath(t))
 const Guard = ({ code, ticker, children }: { code: string; ticker: string; children: React.ReactNode }) =>
-  isEquity(ticker) ? <>{children}</> : <FnScreen code={code} ticker={ticker}><NA ticker={ticker} what="corporate data (CVM)" code={code.toLowerCase()} /></FnScreen>
+  hasData(code, ticker) ? <>{children}</> : <FnScreen code={code} ticker={ticker}><NA ticker={ticker} what="corporate data (CVM)" code={code.toLowerCase()} /></FnScreen>
 
 /** valor de mercado e múltiplos a partir do preço bruto e ações CVM */
 function valuation(d: any) {
@@ -16,7 +16,8 @@ function valuation(d: any) {
   const last4 = q.slice(-4)
   const ltm = (k: string) => last4.length === 4 && last4.every(r => r[k] != null) ? last4.reduce((s, r) => s + r[k], 0) : null
   const px = d.raw_close[d.raw_close.length - 1]
-  const shares = d.shares?.total ? d.shares.total - (d.shares.treasury || 0) : null
+  // units (código 11): ações equivalentes calculadas no pipeline com os fechamentos oficiais das classes ON/PN
+  const shares = d.shares && 'equiv' in d.shares ? d.shares.equiv : d.shares?.total ? d.shares.total - (d.shares.treasury || 0) : null
   const mcap = shares ? px[1] * shares : null
   const bs = q[q.length - 1] || a[a.length - 1]
   const netLtm = ltm('net'), ebitdaLtm = ltm('ebitda'), revLtm = ltm('revenue')
@@ -43,17 +44,17 @@ export function DESView({ ticker }: { ticker: string }) {
     const ann = d.fundamentals.annual.slice(-5)
     return (
       <FnScreen code="DES" ticker={ticker} title={`Description — ${p.longName || cad.DENOM_SOCIAL}`} tabs={['Profile', 'Revenue & Earnings', 'CVM registry']} tab={tab} setTab={setTab}
-        source={SRC_CVM} note="Market cap = raw closing price × shares outstanding (CVM capital breakdown, all classes). Multiples use trailing 4-quarter earnings/EBITDA.">
+        source={SRC_CVM} note={<>Market cap = raw closing price × shares outstanding (CVM capital breakdown, all classes). Multiples use trailing 4-quarter earnings/EBITDA.{d.shares?.note ? ` ${d.shares.note}.` : ''}</>}>
         {tab === 0 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1.3fr 1fr 1fr' }}>
           <Panel title="Company description">
             <div className="p-2 text-[12px] leading-snug" style={{ color: C.text, maxHeight: 210, overflow: 'auto', borderBottom: `1px solid ${C.line}` }}>{p.longBusinessSummary}</div>
             <KV rows={[['Sector (Yahoo)', `${p.sector || '—'} / ${p.industry || '—'}`], ['CVM sector', cad.SETOR_ATIV || '—'], ['Employees', p.fullTimeEmployees ? nf(p.fullTimeEmployees, 0) : '—'], ['Headquarters', `${p.city || cad.MUN || '—'}, ${p.country || ''}`], ['Site', p.website || '—'], ['CNPJ', d.cnpj], ['Shareholder control', cad.CONTROLE_ACIONARIO || '—']]} />
           </Panel>
-          <Panel title="Price — 1 year">
+          <Panel title="Price — 1 year" asOf={v.px[0]}>
             {r1.length > 0 && <FnChart height={190} panes={[{ series: [{ kind: 'area', data: r1.map(r => ({ time: r.time, value: r.close })), color: C.white, title: short(ticker) }] }]} />}
             <KV rows={[['Last (raw)', `R$ ${nf(v.px[1])}`, C.amber], ['Date', dBR(v.px[0])], ['1Y return (adj.)', pf(ret1), clr(ret1)], ['52w High', nf(hi)], ['52w Low', nf(lo)]]} />
           </Panel>
-          <Panel title="Key data">
+          <Panel title="Key data" asOf={v.bs?.period}>
             <KV rows={[['Market cap', `R$ ${big(v.mcap)}`, C.amber], ['Shares (ON+PN)', big(v.shares, 2)], ['EV', `R$ ${big(v.ev)}`], ['P/E (LTM)', nf(v.pe)], ['P/B', nf(v.pb)], ['EV/EBITDA (LTM)', nf(v.evEbitda)], ['Div. yield 12m', pf(v.dy, 2, false)], ['ROE (LTM)', pf(v.roe, 1, false)], ['Net margin', pf(v.margin, 1, false)], ['Net debt/EBITDA', nf(v.ndEbitda)], ['Revenue LTM', `R$ ${big(v.revLtm)}`], ['Earnings LTM', `R$ ${big(v.netLtm)}`]]} />
           </Panel>
         </div>}
@@ -84,9 +85,9 @@ export function FUNDView({ ticker }: { ticker: string }) {
     const lbl = (p: string) => per === 'a' ? p.slice(0, 4) : `Q${Math.ceil(+p.slice(5, 7) / 3)}'${p.slice(2, 4)}`
     const isRatio = tab === 3
     return (
-      <FnScreen code="FUND" ticker={ticker} title="Fundamentals — financial statements" tabs={['Income Statement', 'Balance Sheet', 'Cash Flow', 'Ratios']} tab={tab} setTab={setTab}
+      <FnScreen code="FUND" ticker={ticker} asOf={src.length ? src[src.length - 1].period : null} title="Fundamentals — financial statements" tabs={['Income Statement', 'Balance Sheet', 'Cash Flow', 'Ratios']} tab={tab} setTab={setTab}
         right={<Btns opts={[{ v: 'a', l: 'Yearly' }, { v: 'q', l: 'Quarterly' }] as any} value={per} onChange={setPer as any} />}
-        source={SRC_CVM} note={<>{d.fundamentals.note} Values in R$ millions. Amber figures = reported (no consensus estimates in this version).{d.fundamentals.bank_format ? ' Bank: financial-institution layout — EBIT/EBITDA/debt do not apply.' : ''}</>}>
+        source={SRC_CVM} note={<>{d.fundamentals.note} Values in R$ millions. Amber figures = reported (no consensus estimates in this version).{d.fundamentals.bank_format ? ' Bank: financial-institution layout — EBIT/EBITDA/debt do not apply.' : ''}{d.fundamentals.basis === 'individual' ? ' Individual (parent-only) statements: the company does not file consolidated statements with CVM.' : ''}</>}>
         <div className="overflow-auto border" style={{ borderColor: C.line }}>
           <table className="w-full border-collapse text-[12px]">
             <thead><tr style={{ background: C.panel2 }}><th className="px-2 py-1 text-left font-normal" style={{ color: C.amber }}>R$ mi</th>{src.map((r: any) => <th key={r.period} className="px-2 py-1 text-right font-normal" style={{ color: C.amber }}>{lbl(r.period)}</th>)}</tr></thead>
@@ -104,10 +105,29 @@ export function FUNDView({ ticker }: { ticker: string }) {
 }
 
 // ---------------- VAL ----------------
+/** Pares do VAL: mesmo subsetor (senão setor) da carteira do IBOV no screener, com dados CVM; até 5, maior valor de mercado primeiro. */
+function usePeers(ticker: string) {
+  const { data: sc } = useJSON<any>('screener.json')
+  const [rows, setRows] = useState<[string, any][]>([])
+  const [sector, setSector] = useState('')
+  useEffect(() => {
+    if (!sc) return
+    const all = sc.rows as any[], me = all.find(r => `${r.cod}.SA` === ticker.toUpperCase())
+    const pick = (k: 'subsector' | 'sector') => me ? all.filter(r => r[k] === me[k] && `${r.cod}.SA` !== ticker.toUpperCase() && hasData('VAL', `${r.cod}.SA`)) : []
+    let list = pick('subsector'), label = me?.subsector || ''
+    if (list.length < 2) { list = pick('sector'); label = me?.sector || '' }
+    if (!me) { list = all.filter(r => ['PETR4', 'VALE3', 'ITUB4', 'B3SA3'].includes(r.cod) && `${r.cod}.SA` !== ticker.toUpperCase()); label = '' }
+    const top = list.sort((a, b) => (b.mcap || 0) - (a.mcap || 0)).slice(0, 5).map(r => `${r.cod}.SA`)
+    let alive = true
+    Promise.all(top.map(t => getJSON<any>(`corp/${tickerKey(t)}.json`).then(x => [t, x] as [string, any]).catch(() => null)))
+      .then(r => { if (alive) { setRows(r.filter(Boolean) as [string, any][]); setSector(label) } })
+    return () => { alive = false }
+  }, [sc, ticker])
+  return { rows, sector }
+}
 export function VALView({ ticker }: { ticker: string }) {
   const { data: d, err } = useCorp(ticker)
-  const peers = ['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'B3SA3.SA']
-  const p0 = useJSON<any>('corp/PETR4.json'), p1 = useJSON<any>('corp/VALE3.json'), p2 = useJSON<any>('corp/ITUB4.json'), p3 = useJSON<any>('corp/B3SA3.json')
+  const peerData = usePeers(ticker)
   const [metric, setMetric] = useState<'pe' | 'pb' | 'dy'>('pe')
   return <Guard code="VAL" ticker={ticker}>{!d ? <FnScreen code="VAL" ticker={ticker}><Loading err={err} /></FnScreen> : (() => {
     const v = valuation(d)
@@ -125,12 +145,12 @@ export function VALView({ ticker }: { ticker: string }) {
     const ser = hist.filter(h => h[metric] != null).map(h => ({ time: h.time, value: h[metric] as number }))
     const avg = ser.reduce((s, x) => s + x.value, 0) / (ser.length || 1)
     const ys = d.yahoo_stats || {}
-    const peerRows = [p0, p1, p2, p3].map((x, i) => x.data ? { t: short(peers[i]), ...valuation(x.data), cur: peers[i] === ticker } : null).filter(Boolean) as any[]
+    const peerRows = [[ticker, d] as [string, any], ...peerData.rows].map(([t, x]) => ({ t: short(t), ...valuation(x), cur: t === ticker }))
     return (
       <FnScreen code="VAL" ticker={ticker} title="Valuation — multiples and history" source={SRC_CVM}
         note="Multiples computed in the pipeline from raw price × CVM share count and trailing 4-quarter results (DFP/ITR). History assumes results are released 45 days after quarter end. Yahoo column shown for cross-checking; differences come from share-count/LTM criteria.">
         <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '300px 1fr' }}>
-          <Panel title="Current multiples">
+          <Panel title="Current multiples" asOf={v.px[0]}>
             <Grid cols={[{ k: 'l', label: 'Indicator' }, { k: 'v', label: 'Computed', align: 'r', color: () => C.amber }, { k: 'y', label: 'Yahoo', align: 'r', color: () => C.muted }]} rows={[
               { l: 'Price (raw)', v: nf(v.px[1]), y: '—' }, { l: 'Market cap', v: big(v.mcap), y: big(ys.marketCap) }, { l: 'EV', v: big(v.ev), y: '—' },
               { l: 'P/E LTM', v: nf(v.pe), y: nf(ys.trailingPE) }, { l: 'P/B', v: nf(v.pb), y: nf(ys.priceToBook) }, { l: 'EV/EBITDA', v: nf(v.evEbitda), y: nf(ys.enterpriseToEbitda) },
@@ -142,7 +162,7 @@ export function VALView({ ticker }: { ticker: string }) {
             <FnChart height={330} panes={[{ series: [{ kind: 'line', data: ser, color: C.amber, title: metric.toUpperCase(), lines: [{ price: avg, color: '#888', title: 'Average' }] }] }]} />
           </div>
         </div>
-        <div className="mt-2"><Panel title="Peer comparison (same methodology)">
+        <div className="mt-2"><Panel title={`Peer comparison (same methodology)${peerData.sector ? ` — ${peerData.sector}` : ''}`}>
           <Grid cols={[{ k: 't', label: 'Ticker', color: (_, r: any) => r.cur ? C.amber : C.text }, { k: 'mcap', label: 'Mkt cap', align: 'r', fmt: (v: any) => big(v) }, { k: 'pe', label: 'P/E', align: 'r', fmt: (v: any) => nf(v) }, { k: 'pb', label: 'P/B', align: 'r', fmt: (v: any) => nf(v) }, { k: 'evEbitda', label: 'EV/EBITDA', align: 'r', fmt: (v: any) => nf(v) }, { k: 'dy', label: 'DY %', align: 'r', fmt: v => nf(v) }, { k: 'roe', label: 'ROE %', align: 'r', fmt: v => nf(v, 1) }, { k: 'margin', label: 'Net mg. %', align: 'r', fmt: v => nf(v, 1) }]} rows={peerRows} />
         </Panel></div>
       </FnScreen>)
@@ -247,7 +267,7 @@ export function CNView({ ticker }: { ticker: string }) {
 
 // ---------------- OMON ----------------
 export function OMONView({ ticker }: { ticker: string }) {
-  const { data: d, err } = useJSON<any>(isEquity(ticker) ? `options/${tickerKey(ticker)}.json` : null)
+  const { data: d, err } = useJSON<any>(hasData('OMON', ticker) ? `options/${tickerKey(ticker)}.json` : null)
   const { rows: px } = usePrices(ticker)
   const [ei, setEi] = useState<number | null>(null)
   const [range, setRange] = useState(10)

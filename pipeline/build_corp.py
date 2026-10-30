@@ -1,8 +1,8 @@
 """Dados por empresa: DES, CF, CN (parte CVM), FUND, VAL, DY, DVD, SPLIT, e CAL (universo IBOV).
 Fontes oficiais abertas: CVM (cadastro, IPE, DFP, ITR, FCA) e Yahoo Finance (proventos, desdobramentos, preços brutos, datas de resultado)."""
-import zipfile, datetime as dt, json, os
+import zipfile, datetime as dt, json, os, re
 import pandas as pd, yfinance as yf
-from common import save, cached, clean, step, now_iso, CNPJ, EQUITIES, OUT, today_brt
+from common import save, get_json, cached, clean, step, now_iso, load_prev, br_universe, CNPJ, EQUITIES, OUT, today_brt
 
 CVM = 'https://dados.cvm.gov.br/dados/CIA_ABERTA'
 Y = today_brt().year
@@ -31,19 +31,31 @@ def ticker_cnpj_map():
 # ---------------- demonstrações financeiras ----------------
 STMTS = ['DRE', 'BPA', 'BPP', 'DFC_MI']
 
+ONLY_IND = set()   # CNPJs cujas demonstrações vieram das individuais (última chamada de load_statements)
+
 def load_statements(cnpjs):
-    frames = {s: [] for s in STMTS}
+    """DFP/ITR consolidadas; para quem não publica consolidado (sem controladas, ex.: Sanepar), usa as individuais."""
+    frames = {b: {s: [] for s in STMTS} for b in ('con', 'ind')}
     srcs = [('DFP', y) for y in range(Y - 6, Y)] + [('ITR', y) for y in range(Y - 3, Y + 1)]
     for kind, yr in srcs:
         try: p = cvm_zip(kind, yr)
         except Exception as e: print('skip', kind, yr, e); continue
-        for s in STMTS:
-            d = csv_in_zip(p, f'{kind.lower()}_cia_aberta_{s}_con_{yr}.csv')
-            if not len(d): continue
-            d = d[d.CNPJ_CIA.isin(cnpjs) & (d.ORDEM_EXERC == 'ÚLTIMO')].copy()
-            d['KIND'] = kind; frames[s].append(d)
+        for b in ('con', 'ind'):
+            for s in STMTS:
+                d = csv_in_zip(p, f'{kind.lower()}_cia_aberta_{s}_{b}_{yr}.csv')
+                if not len(d): continue
+                d = d[d.CNPJ_CIA.isin(cnpjs) & (d.ORDEM_EXERC == 'ÚLTIMO')].copy()
+                d['KIND'] = kind; frames[b][s].append(d)
+    has_con = set()
+    for L in frames['con'].values():
+        for d in L: has_con |= set(d.CNPJ_CIA)
+    only_ind = set(cnpjs) - has_con
+    if only_ind: print(f'  demonstrações individuais (sem consolidado): {len(only_ind)} empresa(s)')
+    ONLY_IND.clear(); ONLY_IND.update(only_ind)
     out = {}
-    for s, L in frames.items():
+    for s in STMTS:
+        L = frames['con'][s] + [d[d.CNPJ_CIA.isin(only_ind)] for d in frames['ind'][s]]
+        L = [d for d in L if len(d)]
         d = pd.concat(L) if L else pd.DataFrame()
         if len(d):
             d['VL'] = d.VL_CONTA.astype(float) * d.ESCALA_MOEDA.map({'MIL': 1e3, 'UNIDADE': 1}).fillna(1)
@@ -140,11 +152,17 @@ def build_fund(cnpj, st, bank):
     return {'annual': A, 'quarterly': Q, 'currency': 'BRL', 'unit': 'R$', 'bank_format': bank,
             'note': 'Demonstrações consolidadas (CVM DFP/ITR). 4º trimestre = anual − 9 meses acumulados. EBITDA = EBIT + D&A da DFC (método indireto).'}
 
-def fix_share_units(o):
-    # O formulário da CVM não traz a unidade: algumas companhias (ex.: VALE, ITAÚ) informam
-    # a composição do capital em MILHARES de ações. Large caps da B3 têm > 50 mi de ações,
-    # então totais abaixo disso são tratados como milhares (×1000) e sinalizados.
-    if o and 0 < o['total'] < 50_000_000:
+def fix_share_units(o, ref=None):
+    # O formulário da CVM não traz a unidade: algumas companhias (ex.: VALE, ITAÚ) informam a composição do capital
+    # em MILHARES de ações. Com referência externa (ações em circulação do Yahoo), vale o fator (1 ou 1000) mais
+    # próximo dela; sem referência, totais abaixo de 50 mi são tratados como milhares (regra das large caps).
+    if not o or o['total'] <= 0: return o
+    import math
+    if ref and ref > 0:
+        f = min((1, 1000), key=lambda k: abs(math.log(o['total'] * k / ref)))
+    else:
+        f = 1000 if o['total'] < 50_000_000 else 1
+    if f == 1000:
         for k in ('on', 'pn', 'total', 'treasury'): o[k] *= 1000
         o['unit_note'] = 'CVM informada em milhares de ações (convertido ×1000)'
     return o
@@ -159,7 +177,7 @@ def shares_cvm(cnpj):
                 n = lambda c: int(float(r[c])) if pd.notna(r[c]) else 0
                 o = {'date': r.DT_REFER, 'source': f'CVM {kind} {yr} – composição do capital', 'on': n('QT_ACAO_ORDIN_CAP_INTEGR'), 'pn': n('QT_ACAO_PREF_CAP_INTEGR'),
                      'total': n('QT_ACAO_TOTAL_CAP_INTEGR'), 'treasury': n('QT_ACAO_TOTAL_TESOURO')}
-                return fix_share_units(o)
+                return o
         except Exception as e: print('shares', kind, yr, e)
     return None
 
@@ -172,43 +190,131 @@ def ipe(cnpjs):
     d = pd.concat(L) if L else pd.DataFrame()
     return d.sort_values('Data_Entrega', ascending=False)
 
+def b3_cnpj(root):
+    """CNPJ do emissor pelo cadastro oficial de companhias listadas da B3 (código de emissor exato, ex.: CSNA)."""
+    import base64
+    q = base64.b64encode(json.dumps({'language': 'pt-br', 'pageNumber': 1, 'pageSize': 20, 'company': root}).encode()).decode()
+    r = get_json('https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetInitialCompanies/' + q)
+    for x in r.get('results') or []:
+        c = re.sub(r'\D', '', x.get('cnpj') or '').zfill(14)
+        if x.get('issuingCompany') == root and c.strip('0'):
+            return f'{c[:2]}.{c[2:5]}.{c[5:8]}/{c[8:12]}-{c[12:]}'
+    return None
+
+def coverage_map():
+    """ticker → CNPJ para todas as ações BR do seletor, pelo FCA da CVM (código de negociação); se o FCA não traz o
+    código, pelo cadastro de companhias listadas da B3 e, por fim, pelo mapeamento da execução anterior / núcleo fixo."""
+    fca = ticker_cnpj_map()
+    prev = (load_prev('corp_index.json') or {}).get('cnpj') or {}
+    m = {}
+    for t in br_universe():
+        c = fca.get(t[:-3])
+        if not c:
+            try: c = b3_cnpj(t[:4])
+            except Exception as e: print('  b3 cadastro', t, e)
+        c = c or prev.get(t) or CNPJ.get(t)
+        if c: m[t] = c
+    print(f'  CVM: {len(m)} de {len(br_universe())} ações BR do seletor com CNPJ no FCA')
+    return m
+
+def is_bank(cad_row, st, cnpj):
+    """Layout de instituição financeira (DFP/ITR modelo IF): setor CVM de bancos ou DRE 3.01 = intermediação financeira."""
+    setor = (cad_row or {}).get('SETOR_ATIV') or ''
+    if 'Bancos' in setor or 'Intermediação Financeira' in setor: return True
+    d = st['DRE']
+    if len(d):
+        x = d[(d.CNPJ_CIA == cnpj) & (d.CD_CONTA == '3.01')]
+        if len(x) and x.DS_CONTA.str.contains('Intermedia', case=False, na=False).any(): return True
+    return False
+
+def official_closes():
+    """fechamentos oficiais do último pregão (official_close.json, gravado pelo build_prices a partir do COTAHIST)."""
+    o = load_prev('official_close.json') or {}
+    return o.get('closes') or {}, o.get('date')
+
+def unit_equiv(t, shares, off):
+    """Units (código 11): o preço é por unit, não por ação. Ações equivalentes = (P_ON·ON + P_PN·PN) / P_unit, com os
+    fechamentos oficiais de <raiz>3 e <raiz>4 no COTAHIST; sem esses preços, não há valor de mercado (None)."""
+    root = t[:-3][:4]; u = off.get(t[:-3]); on, pn = off.get(root + '3'), off.get(root + '4')
+    if not shares or not u: return None
+    tr = shares.get('treasury') or 0; tot = shares.get('total') or 0
+    k = 1 - (tr / tot if tot else 0)  # tesouraria proporcional (a CVM não separa por classe aqui)
+    mc = 0.0
+    for cls, px in (('on', on), ('pn', pn)):
+        q = (shares.get(cls) or 0) * k
+        if q and not px: return None
+        if q: mc += q * px['close']
+    return {'equiv': clean(mc / u['close'], 0), 'equiv_date': u['time'],
+            'note': f'Unit: ações equivalentes = (P {root}3 × ON + P {root}4 × PN) / P {t[:-3]} (B3 COTAHIST {u["time"]})'}
+
 def corp():
     cad = pd.read_csv(cached(f'{CVM}/CAD/DADOS/cad_cia_aberta.csv', 'cad_cia_aberta.csv', 20), sep=';', encoding='latin1', dtype=str)
-    cnpjs = sorted(set(CNPJ.values()))
+    M = coverage_map()
+    tickers = sorted(M)
+    cnpjs = sorted(set(M.values()))
     st = load_statements(cnpjs)
     docs = ipe(cnpjs)
-    raw = yf.download(EQUITIES, period='12y', auto_adjust=False, actions=True, progress=False, group_by='ticker')
-    for t in EQUITIES:
-        c = CNPJ[t]; o = {'ticker': t, 'cnpj': c, 'generated_at': now_iso()}
+    off, off_date = official_closes()
+    raw = yf.download(tickers, period='12y', auto_adjust=False, actions=True, progress=False, group_by='ticker', threads=True)
+    yfail = 0; done = {}
+    for t in tickers:
+        c = M[t]; o = {'ticker': t, 'cnpj': c, 'generated_at': now_iso()}
+        prev = load_prev(f'corp/{key(t)}.json') or {}
         r = cad[(cad.CNPJ_CIA == c)].sort_values('DT_INI_SIT').tail(1)
         if len(r):
             r = r.iloc[0]; o['cad'] = {k: (None if pd.isna(r[k]) else r[k]) for k in ['DENOM_SOCIAL', 'DENOM_COMERC', 'DT_REG', 'DT_CONST', 'SIT', 'CD_CVM', 'SETOR_ATIV', 'TP_MERC', 'CATEG_REG',
                                                                                    'SIT_EMISSOR', 'CONTROLE_ACIONARIO', 'LOGRADOURO', 'COMPL', 'BAIRRO', 'MUN', 'UF', 'CEP', 'DDD_TEL', 'TEL', 'EMAIL', 'TP_RESP', 'RESP', 'EMAIL_RESP', 'AUDITOR']}
-        bank = (o.get('cad') or {}).get('SETOR_ATIV', '') .startswith('Bancos') or t.startswith('ITUB')
+        bank = is_bank(o.get('cad'), st, c) or t.startswith('ITUB')
         o['fundamentals'] = build_fund(c, st, bank)
-        o['shares'] = shares_cvm(c)
+        if not o['fundamentals']: print('  sem DFP/ITR na CVM:', t); continue
+        o['fundamentals']['basis'] = 'individual' if c in ONLY_IND else 'consolidated'
         tk = yf.Ticker(t)
+        if yfail < 5:
+            try:
+                info = tk.info
+                o['profile'] = {k: info.get(k) for k in ['longName', 'sector', 'industry', 'fullTimeEmployees', 'website', 'longBusinessSummary', 'city', 'country', 'exchange', 'currency']}
+                o['yahoo_stats'] = {k: clean(info.get(k), 4) for k in ['marketCap', 'sharesOutstanding', 'trailingPE', 'priceToBook', 'enterpriseToEbitda', 'dividendYield', 'beta']}
+                yfail = 0
+            except Exception as e: print('info', t, e); yfail += 1
+        for k in ('profile', 'yahoo_stats'):
+            if k not in o and prev.get(k): o[k] = prev[k]   # Yahoo fora: perfil da execução anterior
+        o['shares'] = fix_share_units(shares_cvm(c), (o.get('yahoo_stats') or {}).get('sharesOutstanding'))
+        if t.endswith('11.SA') and o['shares']:
+            ue = unit_equiv(t, o['shares'], off)
+            if ue: o['shares'].update(ue)
+            else: o['shares']['equiv'] = None; o['shares']['note'] = 'Unit sem preço oficial das classes ON/PN: valor de mercado não calculado'
         try:
-            info = tk.info
-            o['profile'] = {k: info.get(k) for k in ['longName', 'sector', 'industry', 'fullTimeEmployees', 'website', 'longBusinessSummary', 'city', 'country', 'exchange', 'currency']}
-            o['yahoo_stats'] = {k: clean(info.get(k), 4) for k in ['marketCap', 'sharesOutstanding', 'trailingPE', 'priceToBook', 'enterpriseToEbitda', 'dividendYield', 'beta']}
-        except Exception as e: print('info', t, e)
-        try:
-            d = raw[t]
+            d = raw[t] if len(tickers) > 1 else raw
             o['raw_close'] = [[i.strftime('%Y-%m-%d'), clean(v, 4)] for i, v in d['Close'].dropna().items() if i.dayofweek < 5]
             dv = d['Dividends'][d['Dividends'] > 0]; o['dividends'] = [[i.strftime('%Y-%m-%d'), clean(v, 6)] for i, v in dv.items()]
             sp = d['Stock Splits'][d['Stock Splits'] > 0]; o['splits'] = [[i.strftime('%Y-%m-%d'), clean(v, 6)] for i, v in sp.items()]
         except Exception as e: print('raw', t, e)
-        try:
-            full_div = tk.dividends; o['dividends_full'] = [[i.strftime('%Y-%m-%d'), clean(v, 6)] for i, v in full_div.items()]
-            full_sp = tk.splits; o['splits_full'] = [[i.strftime('%Y-%m-%d'), clean(v, 6)] for i, v in full_sp.items()]
-        except Exception as e: print('actions', t, e)
+        if not o.get('raw_close') and prev.get('raw_close'):
+            for k in ('raw_close', 'dividends', 'splits'): o[k] = prev.get(k) or []
+        # preço bruto do último pregão = fechamento oficial da B3 (COTAHIST)
+        b = off.get(t[:-3])
+        if b and o.get('raw_close'):
+            rc = o['raw_close']
+            if rc[-1][0] == b['time']: rc[-1] = [b['time'], b['close']]
+            elif rc[-1][0] < b['time']: rc.append([b['time'], b['close']])
+            if rc[-1][0] == b['time']: o['official_close'] = {'date': b['time'], 'close': b['close'], 'source': 'B3 COTAHIST'}
+        if not o.get('raw_close'): print('  sem preço bruto:', t); continue
+        if yfail < 5:
+            try:
+                full_div = tk.dividends; o['dividends_full'] = [[i.strftime('%Y-%m-%d'), clean(v, 6)] for i, v in full_div.items()]
+                full_sp = tk.splits; o['splits_full'] = [[i.strftime('%Y-%m-%d'), clean(v, 6)] for i, v in full_sp.items()]
+            except Exception as e: print('actions', t, e)
+        if 'dividends_full' not in o: o['dividends_full'] = prev.get('dividends_full') or o.get('dividends') or []
+        if 'splits_full' not in o: o['splits_full'] = prev.get('splits_full') or o.get('splits') or []
         dd = docs[docs.CNPJ_Companhia == c]
         o['filings'] = [{'date': r.Data_Entrega, 'ref': r.Data_Referencia, 'cat': r.Categoria, 'type': None if pd.isna(r.Tipo) else r.Tipo,
                          'species': None if pd.isna(r.Especie) else r.Especie, 'subject': None if pd.isna(r.Assunto) else r.Assunto[:300],
                          'version': r.Versao, 'link': r.Link_Download} for r in dd.head(400).itertuples()]
-        o['source'] = 'CVM – dados abertos (cadastro, IPE, DFP, ITR); Yahoo Finance via yfinance (proventos, desdobramentos, preço sem ajuste, perfil)'
-        save(f'corp/{key(t)}.json', o)
+        o['source'] = 'CVM – dados abertos (cadastro, IPE, DFP, ITR, FCA); B3 – COTAHIST (fechamento oficial); Yahoo Finance via yfinance (proventos, desdobramentos, preço sem ajuste, perfil)'
+        save(f'corp/{key(t)}.json', o); done[t] = c
+    if len(done) < len(EQUITIES): raise RuntimeError(f'só {len(done)} empresas com dados CVM')
+    save('corp_index.json', {'generated_at': now_iso(), 'n': len(done), 'cnpj': done, 'official_close': off_date,
+                             'source': 'CVM FCA (código de negociação → CNPJ; B3 cadastro de companhias listadas quando o FCA não traz o código) para as ações BR do seletor (carteiras IBOV/SMLL)'})
 
 if __name__ == '__main__':
     import sys

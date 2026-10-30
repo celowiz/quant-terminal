@@ -8,13 +8,42 @@ export const TICKER_FUNCTIONS = [
   'HP', 'TRA', 'COMP', 'DY', 'DVD', 'SPLIT', 'BETA', 'VOL', 'HS', 'HRA', 'MRR',
 ]
 
-/** Ações com dados corporativos (CVM) — espelha EQUITIES em components/fn/kit.tsx. */
+/** Núcleo de ações com dados corporativos — reserva quando o tickers.json não traz cobertura (`cov`). */
 const EQUITIES = ['PETR4.SA', 'PETR3.SA', 'VALE3.SA', 'ITUB4.SA', 'ITUB3.SA', 'B3SA3.SA']
-/** Universos restritos por função; as demais aceitam todo o data/tickers.json. */
-export const FUNCTION_UNIVERSE = {
-  DES: EQUITIES, CN: EQUITIES, CF: EQUITIES, FUND: EQUITIES, VAL: EQUITIES, DY: EQUITIES,
-  DVD: EQUITIES, SPLIT: EQUITIES, OMON: EQUITIES, TRA: EQUITIES, HDS: EQUITIES, FA: EQUITIES,
-  GIP: [...EQUITIES, '^BVSP'],
+/** Dataset por ativo que cada função restrita precisa (pipeline: corp/, holders/, fa/, options/, intraday/). */
+export const FUNCTION_DATASET = {
+  DES: 'corp', CN: 'corp', CF: 'corp', FUND: 'corp', VAL: 'corp', DY: 'corp', DVD: 'corp', SPLIT: 'corp', TRA: 'corp',
+  HDS: 'holders', FA: 'fa', OMON: 'options', GIP: 'intraday',
+}
+const STATIC_UNIVERSE = {
+  corp: EQUITIES, holders: EQUITIES, fa: EQUITIES, options: EQUITIES, intraday: [...EQUITIES, '^BVSP'],
+}
+/** Universos restritos por função; as demais aceitam todo o data/tickers.json. Preenchido por registerCoverage. */
+export const FUNCTION_UNIVERSE = {}
+function fill(byDataset) {
+  for (const [fn, ds] of Object.entries(FUNCTION_DATASET)) FUNCTION_UNIVERSE[fn] = byDataset[ds] || []
+}
+fill(STATIC_UNIVERSE)
+
+/**
+ * Cobertura real a partir do tickers.json: cada ticker traz `cov` (datasets por ativo que o pipeline gerou).
+ * Sem nenhum `cov` (seed antigo), mantém o núcleo fixo. Devolve o mapa dataset → tickers.
+ */
+export function registerCoverage(tickers) {
+  const by = {}
+  let any = false
+  for (const t of tickers || []) {
+    for (const ds of t.cov || []) { (by[ds] ||= []).push(String(t.ticker).toUpperCase()); any = true }
+  }
+  if (!any) { fill(STATIC_UNIVERSE); return STATIC_UNIVERSE }
+  fill(by)
+  return by
+}
+
+/** O ativo tem os dados da função? (DES/FUND… → corp, HDS → holders, FA → fa, OMON → options, GIP → intraday) */
+export const covers = (code, ticker) => {
+  const own = FUNCTION_UNIVERSE[String(code || '').toUpperCase()]
+  return !own || own.includes(String(ticker || '').toUpperCase())
 }
 
 export const STORAGE_KEY = 'qt.ticker'

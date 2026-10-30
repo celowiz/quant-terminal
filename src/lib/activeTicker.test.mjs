@@ -76,3 +76,14 @@ test('functionUniverse: DES lista só ações com CVM', () => {
   assert.deepEqual(functionUniverse('DES', U), ['PETR4.SA', 'VALE3.SA'])
   assert.deepEqual(functionUniverse('GP', U), U)
 })
+
+test('registerCoverage: universo por função vem do cov do tickers.json; sem cov, núcleo fixo', async () => {
+  const m = await import('./activeTicker.mjs')
+  m.registerCoverage([{ ticker: 'WEGE3.SA', cov: ['corp', 'holders', 'fa'] }, { ticker: 'PETR4.SA', cov: ['corp', 'options'] }, { ticker: '^BVSP', cov: ['intraday'] }])
+  assert.ok(m.covers('DES', 'WEGE3.SA') && m.covers('HDS', 'wege3.sa') && m.covers('FA', 'WEGE3.SA'))
+  assert.ok(!m.covers('OMON', 'WEGE3.SA') && m.covers('OMON', 'PETR4.SA') && !m.covers('HDS', 'PETR4.SA'))
+  assert.ok(m.covers('GP', 'ANYTHING'))                       // função sem universo próprio
+  assert.deepEqual(m.functionUniverse('GIP', ['^BVSP', 'WEGE3.SA']), ['^BVSP'])
+  m.registerCoverage([{ ticker: 'X' }])                        // seed antigo sem cov
+  assert.ok(m.covers('DES', 'PETR4.SA') && !m.covers('DES', 'WEGE3.SA'))
+})

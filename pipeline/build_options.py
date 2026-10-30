@@ -2,33 +2,10 @@
 COTAHIST diário da B3. Não há book nem tempo real. Vol. implícita e gregas por Black-Scholes, com o CDI como juro."""
 import io, zipfile, math, datetime as dt, json, os
 from common import save, get, step, now_iso, OUT, today_brt
+from cotahist import latest_cotahist, parse
 
 UNDER = {  # prefixo do código de opção, espécie do subjacente -> ativo-objeto
     'PETR4.SA': ('PETR', 'PN'), 'PETR3.SA': ('PETR', 'ON'), 'VALE3.SA': ('VALE', 'ON'), 'ITUB4.SA': ('ITUB', 'PN'), 'ITUB3.SA': ('ITUB', 'ON'), 'B3SA3.SA': ('B3SA', 'ON'), 'BOVA11.SA': ('BOVA', 'CI')}
-
-def latest_cotahist():
-    d = today_brt()
-    for i in range(0, 10):
-        x = d - dt.timedelta(days=i)
-        if x.weekday() >= 5: continue
-        url = f'https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_D{x:%d%m%Y}.ZIP'
-        try:
-            r = get(url, tries=1, timeout=120)
-            if r.content[:2] == b'PK': return x, r.content, url
-        except Exception as e: print('cotahist', x, e)
-    raise RuntimeError('COTAHIST indisponível')
-
-def parse(content):
-    z = zipfile.ZipFile(io.BytesIO(content)); txt = z.read(z.namelist()[0]).decode('latin1')
-    rows = []
-    for ln in txt.splitlines():
-        if not ln.startswith('01'): continue
-        f = lambda a, b: ln[a - 1:b]
-        n = lambda a, b, dv=100: int(f(a, b)) / dv
-        rows.append({'codbdi': f(11, 12), 'code': f(13, 24).strip(), 'tpmerc': f(25, 27), 'nomres': f(28, 39).strip(), 'especi': f(40, 49).strip(),
-                     'open': n(57, 69), 'high': n(70, 82), 'low': n(83, 95), 'avg': n(96, 108), 'last': n(109, 121), 'bid': n(122, 134), 'ask': n(135, 147),
-                     'trades': int(f(148, 152)), 'qty': int(f(153, 170)), 'vol': n(171, 188), 'strike': n(189, 201), 'exp': f(203, 210), 'fatcot': int(f(211, 217))})
-    return rows
 
 N = lambda x: 0.5 * (1 + math.erf(x / math.sqrt(2)))
 n = lambda x: math.exp(-x * x / 2) / math.sqrt(2 * math.pi)

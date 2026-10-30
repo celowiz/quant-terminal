@@ -7,6 +7,7 @@ import { X } from 'lucide-react'
 import { FUNCTION_LIST } from '@/constants/functions'
 import { HELP } from '@/lib/helpContent'
 import { getHelp, subscribeHelp } from '@/lib/help'
+import { getRefs, subscribeRefs } from '@/lib/refDates'
 import { en } from '@/lib/enText'
 import { lang } from '@/lib/settings'
 import { t } from '@/lib/i18n'
@@ -22,6 +23,7 @@ const tr = (n: React.ReactNode): React.ReactNode => {
 
 export default function HelpModal({ code, onClose }: { code: string; onClose: () => void }) {
   const reg = useSyncExternalStore(subscribeHelp, getHelp, () => null)
+  const refs = useSyncExternalStore(subscribeRefs, getRefs, () => [])
   const c = (reg?.code || code || 'HOME').toUpperCase()
   const pt = lang() === 'pt'
   const fi = FUNCTION_LIST.find(f => f.code === c)
@@ -55,6 +57,10 @@ export default function HelpModal({ code, onClose }: { code: string; onClose: ()
           </div> : null}
           {note && <div><div className="text-[12px] font-bold text-[#FFA028]">{t('help.notes')}</div><div className="text-[12px] text-[#bdbdbd]">{tr(note)}</div></div>}
           {source && <div><div className="text-[12px] font-bold text-[#FFA028]">{t('fn.source')}</div><div className="text-[12px] text-[#bdbdbd]">{tr(source)}</div></div>}
+          {refs.length > 0 && <div data-help-refs><div className="text-[12px] font-bold text-[#FFA028]">{t('ref.title')}</div>
+            <ul className="text-[12px] text-[#bdbdbd]">{refs.map(r => <li key={r.path}>
+              <span className="text-[#8a8a8a]">{r.path.replace(/\.json$/, '')}</span>: {r.kind === 'generated' ? `${t('ref.generated')} ` : ''}<span className="text-white">{`${r.date.slice(8, 10)}/${r.date.slice(5, 7)}/${r.date.slice(0, 4)}`}</span>{r.official ? <span className="text-[#3DDC84]"> — {t('ref.official')}</span> : null}
+            </li>)}</ul></div>}
           <div className="border-t border-[#222] pt-2 text-[11px] text-[#777]">{t('fn.edu')}</div>
         </div>
       </div>

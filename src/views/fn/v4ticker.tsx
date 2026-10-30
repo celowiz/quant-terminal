@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { en } from '@/lib/enText'
 import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
-import { C, PALETTE, nf, pf, big, dBR, dBRfull, clr, short, useJSON, FnScreen, Panel, Grid, Btns, perLabel, Field, inputCls, inputStyle, KV, Loading, NA, isEquity, corpPath, defaultBench } from '@/components/fn/kit'
+import { C, PALETTE, nf, pf, big, dBR, dBRfull, clr, short, useJSON, FnScreen, Panel, Grid, Btns, perLabel, Field, inputCls, inputStyle, KV, Loading, NA, isEquity, hasData, corpPath, defaultBench } from '@/components/fn/kit'
 import { getPrices, listTickers, tickerKey, type Price } from '@/lib/static'
 import { mean, std, regress, corr, align, weekly, monthEnds, monthlyReturns, maxDrawdown } from '@/lib/quant'
 import { usePrices } from './tech'
@@ -288,7 +288,7 @@ export function TRAView({ ticker }: { ticker: string }) {
 
 // ======================= HDS =======================
 export function HDSView({ ticker }: { ticker: string }) {
-  const { data: h, err } = useJSON<any>(isEquity(ticker) ? `holders/${tickerKey(ticker)}.json` : null)
+  const { data: h, err } = useJSON<any>(hasData('HDS', ticker) ? `holders/${tickerKey(ticker)}.json` : null)
   const [tab, setTab] = useState(0)
   const calc = useMemo(() => {
     if (!h) return null
@@ -300,11 +300,11 @@ export function HDSView({ ticker }: { ticker: string }) {
     const upd = (h.top as any[]).map(r => r.updated).filter(Boolean).sort().pop()
     return { top, tree, upd }
   }, [h])
-  if (!isEquity(ticker)) return <FnScreen code="HDS" ticker={ticker}><NA ticker={ticker} what="Shareholder structure" code="HDS" /></FnScreen>
+  if (!hasData('HDS', ticker)) return <FnScreen code="HDS" ticker={ticker}><NA ticker={ticker} what="Shareholder structure" code="HDS" /></FnScreen>
   if (!calc) return <FnScreen code="HDS" ticker={ticker}><Loading err={err} /></FnScreen>
   const yn = (x: any) => x === 'S' ? 'Yes' : x === 'N' ? 'No' : '—'
   return (
-    <FnScreen code="HDS" ticker={ticker} title="Holdings – major shareholders" tabs={['Direct shareholders', 'Control chain (indirect)']} tab={tab} setTab={setTab}
+    <FnScreen code="HDS" ticker={ticker} asOf={h.ref_date} title="Holdings – major shareholders" tabs={['Direct shareholders', 'Control chain (indirect)']} tab={tab} setTab={setTab}
       source={h.source} note={`Positions declared by the company in its Reference Form (version ${h.version}, last updated ${dBRfull(calc.upd)}): shareholders with ≥5% of any class, controlling shareholders, treasury and "Others". Does not include fund positions below the threshold or daily changes.`}>
       {tab === 0 ? <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)' }}>
         <Grid rows={calc.top} cols={[
@@ -325,15 +325,15 @@ export function HDSView({ ticker }: { ticker: string }) {
 // ======================= FA =======================
 const fiscalLabel = (iso: string, q: boolean) => q ? `Q${Math.ceil(+iso.slice(5, 7) / 3)}'${iso.slice(2, 4)}` : iso.slice(0, 4)
 export function FAView({ ticker }: { ticker: string }) {
-  const { data: f, err } = useJSON<any>(isEquity(ticker) ? `fa/${tickerKey(ticker)}.json` : null)
+  const { data: f, err } = useJSON<any>(hasData('FA', ticker) ? `fa/${tickerKey(ticker)}.json` : null)
   const [tab, setTab] = useState(0), [q, setQ] = useState(false), [sel, setSel] = useState<string | null>(null), [depth, setDepth] = useState(2)
-  if (!isEquity(ticker)) return <FnScreen code="FA" ticker={ticker}><NA ticker={ticker} what="Financial statements" code="FA" /></FnScreen>
+  if (!hasData('FA', ticker)) return <FnScreen code="FA" ticker={ticker}><NA ticker={ticker} what="Financial statements" code="FA" /></FnScreen>
   if (!f) return <FnScreen code="FA" ticker={ticker}><Loading err={err} /></FnScreen>
   const keys = Object.keys(f.stmts), st = f.stmts[keys[tab]] || f.stmts[keys[0]], blk = q ? st.quarterly : st.annual
   const periods: string[] = blk.periods, rows = (blk.rows as any[]).filter(r => r.level <= depth)
   const n = periods.length, cur = rows.find(r => r.code === sel) || rows[0]
   return (
-    <FnScreen code="FA" ticker={ticker} title="Financial Analysis – financial statements (CVM)" tabs={keys.map(k => f.stmts[k].name)} tab={tab} setTab={i => { setTab(i); setSel(null) }}
+    <FnScreen code="FA" ticker={ticker} asOf={periods[n - 1]} title="Financial Analysis – financial statements (CVM)" tabs={keys.map(k => f.stmts[k].name)} tab={tab} setTab={i => { setTab(i); setSel(null) }}
       right={<><Btns opts={[{ v: false, l: 'Yearly' }, { v: true, l: 'Quarterly' }]} value={q} onChange={setQ} /><Field label="Detail"><Btns opts={[{ v: 1, l: '1' }, { v: 2, l: '2' }, { v: 3, l: '3' }]} value={depth} onChange={setDepth} /></Field></>}
       source={f.source} note={<>{f.note} Values in R$ millions, consolidated. Income-statement/cash-flow quarters derived from the cumulative ITR figures (Q4 = annual − 9 months); balance sheet = position at period end. Click an account to chart it.</>}>
       <Grid maxH={470} onRow={(r: any) => setSel(r.code)} rowStyle={(r: any) => r.code === cur?.code ? { background: '#2a1d08' } : r.level === 1 ? { background: '#141414' } : undefined} rows={rows.map(r => ({ ...r, ...Object.fromEntries(r.vals.map((v: number | null, i: number) => [`p${i}`, v])), yoy: q ? (r.vals[n - 1] != null && r.vals[n - 5] ? (r.vals[n - 1] / Math.abs(r.vals[n - 5]) - Math.sign(r.vals[n - 5])) * 100 : null) : (r.vals[n - 1] != null && r.vals[n - 2] ? (r.vals[n - 1] / Math.abs(r.vals[n - 2]) - Math.sign(r.vals[n - 2])) * 100 : null) }))} cols={[

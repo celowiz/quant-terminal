@@ -115,7 +115,23 @@ CNPJ = {
     'ITUB3.SA': '60.872.504/0001-23', 'ITUB4.SA': '60.872.504/0001-23',
     'B3SA3.SA': '09.346.601/0001-25',
 }
-EQUITIES = list(CNPJ)
+EQUITIES = list(CNPJ)   # núcleo fixo: fica no universo mesmo se sair do índice (e é o fallback quando o FCA não carrega)
+
+def br_universe():
+    """Ações BR do seletor (tickers.json: carteiras IBOV/SMLL da B3) + núcleo fixo."""
+    try:
+        with open(os.path.join(OUT, 'tickers.json'), encoding='utf-8') as f: T = json.load(f)['tickers']
+        u = {t['ticker'] for t in T if t.get('class') == 'br_equity'}
+    except Exception: u = set()
+    return sorted(u | set(EQUITIES))
+
+def corp_map():
+    """ticker → CNPJ das ações com dados CVM, gravado pelo build_corp (corp_index.json); fallback: núcleo fixo."""
+    try:
+        with open(os.path.join(OUT, 'corp_index.json'), encoding='utf-8') as f: m = json.load(f)['cnpj']
+        if m: return m
+    except Exception: pass
+    return dict(CNPJ)
 
 def get_json(url, tries=5, **kw):
     """Como get(), mas também repete quando a resposta 200 não é JSON (a API do BCB às vezes devolve HTML sob carga)."""
@@ -133,3 +149,17 @@ def load_prev(rel):
         with open(os.path.join(OUT, rel), encoding='utf-8') as f: return json.load(f)
     except Exception:
         return None
+
+COVERAGE = {'corp': 'corp', 'holders': 'holders', 'fa': 'fa', 'options': 'options', 'intraday': 'intraday'}
+
+def file_key(t): return t.replace('^', 'IDX_').replace('.SA', '').replace('.', '_').replace('=', '_').replace('-', '_')
+
+def mark_coverage(U):
+    """Marca em cada ticker (tickers.json) quais datasets por ativo existem: o site gera as páginas de função
+    (DES, FUND, HDS, FA, OMON, GIP...) só para os ativos com dados, sem lista fixa no frontend."""
+    for t, m in U.items():
+        cov = [k for k, d in COVERAGE.items() if os.path.exists(os.path.join(OUT, d, file_key(t) + '.json'))]
+        m.pop('corp', None); m.pop('cov', None)
+        if cov: m['cov'] = cov
+        if 'corp' in cov: m['corp'] = True
+    return U
