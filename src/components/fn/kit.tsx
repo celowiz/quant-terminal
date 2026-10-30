@@ -183,7 +183,7 @@ function AsOfChip({ asOf }: { asOf?: string | null }) {
 export function Panel({ title, children, className = '', right, asOf }: { title?: React.ReactNode; children: React.ReactNode; className?: string; right?: React.ReactNode; asOf?: string | null }) {
   return (
     <div className={`border ${className}`} style={{ borderColor: C.line, background: C.panel }}>
-      {title && <div className="flex items-center px-2 py-[3px] text-[12px] font-bold border-b" style={{ color: C.amber, borderColor: C.line, background: C.panel2 }}>{tx(title)}<div className="ml-auto font-normal flex items-center gap-2">{right}{asOf ? <span className="text-[11px]" style={{ color: C.muted }}>{t('ref.asof')} {dBR(asOf)}</span> : null}</div></div>}
+      {title && <div className="flex items-center px-2 py-[3px] text-[12px] font-bold border-b" style={{ color: C.amber, borderColor: C.line, background: C.panel2 }}><span className="min-w-0 truncate" title={typeof title === 'string' ? title : undefined}>{tx(title)}</span><div className="ml-auto pl-2 shrink-0 font-normal flex items-center gap-2">{right}{asOf ? <span className="text-[11px]" style={{ color: C.muted }}>{t('ref.asof')} {dBR(asOf)}</span> : null}</div></div>}
       <div>{children}</div>
     </div>
   )

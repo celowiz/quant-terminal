@@ -4,7 +4,7 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
 import FnChart from '@/components/fn/FnChart'
 import { C, MONO, useJSON, FnScreen, Panel, Grid, Btns, Field, Spark, useFitH, useFit } from '@/components/fn/kit'
-import { n, pc, bps, cl, dUS, mLab, bigE, auto, Kpis, Loading2 } from './fn11util'
+import { n, pc, bps, cl, dUS, bigE, auto, Kpis, Loading2 } from './fn11util'
 import { lang } from '@/lib/settings'
 
 const L = (en: string, pt: string) => (lang() === 'pt' ? pt : en)
@@ -258,7 +258,7 @@ export function CBRView() {
             ...(o && o.code !== s.code ? [{ kind: 'line' as const, data: hp(o), color: C.cyan, title: o.code === 'XM' ? 'ECB' : o.code, decimals: 2 }] : []),
             { kind: 'line' as const, data: hp(s), color: C.amber, title: s.code === 'XM' ? 'ECB' : s.code, decimals: 2 },
           ] }]} />
-          <div className="px-2 pb-2 text-[11px]" style={{ color: C.muted }}>{L('Last move', 'Último movimento')}: <span style={{ color: cl(s.last_move_bp) }}>{s.last_move ? `${dUS(s.last_move)} (${bps(s.last_move_bp, 0)} bp)` : '—'}</span> · {L('history since', 'histórico desde')} {mLab(s.hist[0]?.[0] + '-01')}</div>
+          <div className="px-2 pb-2 text-[11px]" style={{ color: C.muted }}>{L('Last move', 'Último movimento')}: <span style={{ color: cl(s.last_move_bp) }}>{s.last_move ? `${dUS(s.last_move)} (${bps(s.last_move_bp, 0)} bp)` : '—'}</span> · {L('history since', 'histórico desde')} {s.hist[0]?.[0]?.slice(0, 4) ?? '—'}</div>
         </Panel>
       </div>
     </FnScreen>
