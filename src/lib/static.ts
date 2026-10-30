@@ -29,14 +29,21 @@ export function getJSON<T = any>(path: string): Promise<T> {
 // Mesma transformação que o backend usava para nomes de tabela
 export const tickerKey = (t: string) => t.toUpperCase().replace(/^\^/, 'IDX_').replace(/\.SA$/, '').replace(/[.=-]/g, '_')
 
-export type AssetClass = 'br_equity' | 'us_equity' | 'index' | 'etf' | 'commodity' | 'crypto' | 'fx'
+export type AssetClass = 'br_equity' | 'fii' | 'bdr' | 'us_equity' | 'index' | 'etf' | 'commodity' | 'crypto' | 'fx'
 export type TickerMeta = {
   ticker: string; key: string; name: string; first: string; last: string; n: number
   class?: AssetClass; currency?: string; unit?: string; index?: string[]; corp?: boolean
   link?: string; ref?: string; close_only?: boolean; official?: string; cov?: string[]
+  /** cobertura ampliada (S&P 500, FIIs, BDRs, ETFs B3, criptos): sem página estática por ticker, abre pelo 404.html */
+  ext?: boolean
 }
 export type TickersFile = { generated_at: string; source: string; tickers: TickerMeta[] }
 export type Price = { time: string; open: number; high: number; low: number; close: number; volume: number }
+/** prices/<key>.json: colunar {t,o,h,l,c,v} (pipeline atual) ou lista de linhas (artefatos antigos) */
+type PriceCols = { t: string[]; o: number[]; h: number[]; l: number[]; c: number[]; v: number[] }
+export const unpackPrices = (d: Price[] | PriceCols): Price[] => Array.isArray(d) ? d
+  : d.t.map((time, i) => ({ time, open: d.o[i], high: d.h[i], low: d.l[i], close: d.c[i], volume: d.v[i] }))
+const readPrices = async (k: string) => unpackPrices(await getJSON<Price[] | PriceCols>(`prices/${k}.json`))
 
 export const listTickers = async () => (await getJSON<TickersFile>('tickers.json')).tickers.map(t => t.ticker).sort()
 export const tickerMeta = async (ticker: string) => {
@@ -58,7 +65,7 @@ function periodKey(d: string, tf: string) {
 
 /** Equivalente a GET /prices/{ticker}?start_date&end_date&timeframe */
 export async function getPrices(ticker: string, start?: string, end?: string, timeframe = 'd'): Promise<Price[]> {
-  const rows = (await getJSON<Price[]>(`prices/${tickerKey(ticker)}.json`))
+  const rows = (await readPrices(tickerKey(ticker)))
     .filter(r => (!start || r.time >= start) && (!end || r.time <= end))
   if (timeframe === 'd' || !['w', 'm', 'q', 'y'].includes(timeframe)) return rows
   const out: Price[] = []
@@ -148,7 +155,7 @@ export async function computeRRG(p: RRGFormData): Promise<RRGResponse> {
   // como o backend: merge diário (outer) + dropna => só datas com todos os ativos; depois W-FRI last
   const daily: Record<string, Price[]> = {}
   for (const k of list) {
-    try { daily[k] = await getJSON<Price[]>(`prices/${k}.json`) } catch { /* ticker ausente: ignora, como o backend */ }
+    try { daily[k] = await readPrices(k) } catch { /* ticker ausente: ignora, como o backend */ }
   }
   const sets = Object.values(daily).map(rows => new Set(rows.map(r => r.time)))
   const common = (rows: Price[]) => rows.filter(r => sets.every(st => st.has(r.time)))

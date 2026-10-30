@@ -2,6 +2,7 @@
 /** P2-H2 – funções novas: MEMB (carteira teórica do Ibovespa), OVME (calculadora Black-Scholes), EVTS (eventos sobre o gráfico).
  *  MEMB usa universe.json (B3 GetPortfolioDay + fechamentos); OVME roda no navegador com options/<t>.json; EVTS junta corp/<t>.json e calendar.json. */
 import React, { useMemo, useState } from 'react'
+import { bs, impliedVol } from '@/lib/bsm.mjs'
 import Link from 'next/link'
 import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
@@ -128,32 +129,8 @@ function ResList({ rows }: { rows: { k: string; v: string; c?: string }[] }) {
       <span className="min-w-0" style={{ color: C.muted }}>{r.k}</span><span className="shrink-0 text-right tabular-nums" style={{ color: r.c || C.text }}>{r.v}</span>
     </div>))}</div>
 }
-const Nc = (x: number) => { // CDF normal (Abramowitz–Stegun 7.1.26 via erf)
-  const t = 1 / (1 + 0.3275911 * Math.abs(x) / Math.SQRT2), y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x / 2)
-  return x >= 0 ? (1 + y) / 2 : (1 - y) / 2
-}
-const npdf = (x: number) => Math.exp(-x * x / 2) / Math.sqrt(2 * Math.PI)
-/** Black-Scholes-Merton: S, K, T (anos), r e q contínuos (decimal), σ (decimal). Theta por dia útil (/252), vega e rho por 1 p.p. */
-export function bs(call: boolean, S: number, K: number, T: number, r: number, q: number, s: number) {
-  if (!(S > 0 && K > 0 && T > 0 && s > 0)) return null
-  const sq = s * Math.sqrt(T), d1 = (Math.log(S / K) + (r - q + s * s / 2) * T) / sq, d2 = d1 - sq
-  const dq = Math.exp(-q * T), dr = Math.exp(-r * T)
-  const price = call ? S * dq * Nc(d1) - K * dr * Nc(d2) : K * dr * Nc(-d2) - S * dq * Nc(-d1)
-  const delta = call ? dq * Nc(d1) : dq * (Nc(d1) - 1)
-  const gamma = dq * npdf(d1) / (S * sq), vega = S * dq * npdf(d1) * Math.sqrt(T) / 100
-  const theta = (-(S * dq * npdf(d1) * s) / (2 * Math.sqrt(T)) + (call ? q * S * dq * Nc(d1) - r * K * dr * Nc(d2) : -q * S * dq * Nc(-d1) + r * K * dr * Nc(-d2))) / 252
-  const rho = (call ? K * T * dr * Nc(d2) : -K * T * dr * Nc(-d2)) / 100
-  return { price, delta, gamma, vega, theta, rho, d1, d2 }
-}
-/** vol implícita por bisseção (prêmio fora dos limites de não-arbitragem → null) */
-export function impliedVol(call: boolean, prem: number, S: number, K: number, T: number, r: number, q: number) {
-  if (!(prem > 0)) return null
-  let lo = 1e-4, hi = 5
-  const f = (s: number) => bs(call, S, K, T, r, q, s)!.price - prem
-  if (f(lo) > 0 || f(hi) < 0) return null
-  for (let i = 0; i < 100; i++) { const mid = (lo + hi) / 2; if (f(mid) > 0) hi = mid; else lo = mid; if (hi - lo < 1e-7) break }
-  return (lo + hi) / 2
-}
+// Black-Scholes-Merton e vol implícita: módulo puro testado em src/lib/bsm.test.mjs
+export { bs, impliedVol }
 
 function Num({ label, value, onChange, step = 0.01, w = 84 }: { label: string; value: number; onChange: (v: number) => void; step?: number; w?: number }) {
   return <label className="flex items-center justify-between gap-2 py-[2px] text-[12px]"><span style={{ color: C.muted }}>{label}</span>

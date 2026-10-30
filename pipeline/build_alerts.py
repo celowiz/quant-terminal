@@ -2,7 +2,7 @@
 e, se rodando no Actions, escreve os alertas disparados em $GITHUB_OUTPUT/arquivo para o workflow abrir uma Issue."""
 import json, os, sys
 import yaml
-from common import save, step, now_iso, OUT
+from common import save, step, now_iso, OUT, read_prices
 
 def key(t): return t.upper().replace('^', 'IDX_').replace('.SA', '').replace('.', '_').replace('=', '_').replace('-', '_')
 
@@ -12,7 +12,7 @@ def alerts():
     out, fired = [], []
     for r in rules:
         try:
-            px = json.load(open(os.path.join(OUT, 'prices', key(r['ticker']) + '.json')))
+            px = read_prices(key(r['ticker']))
             last, prev = px[-1], px[-2]
             chg = (last['close'] / prev['close'] - 1) * 100
             v = float(r['value']); op = r['op']

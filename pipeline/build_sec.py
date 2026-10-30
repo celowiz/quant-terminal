@@ -27,7 +27,8 @@ def sec_json(url, name, max_age_h=20):
 
 def us_universe():
     with open(os.path.join(OUT, 'tickers.json'), encoding='utf-8') as f: T = json.load(f)['tickers']
-    return [t['ticker'] for t in T if t.get('class') == 'us_equity']
+    # só o núcleo fixo: o S&P 500 da cobertura ampliada (`ext`) não chama o companyfacts por ticker (tempo/limite da SEC)
+    return [t['ticker'] for t in T if t.get('class') == 'us_equity' and not t.get('ext')]
 
 # conceitos us-gaap por linha (o primeiro que existir para o período vence; empresas trocam de conceito ao longo dos anos)
 FLOW = {

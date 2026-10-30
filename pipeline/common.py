@@ -150,6 +150,20 @@ def load_prev(rel):
     except Exception:
         return None
 
+PRICE_COLS = (('t', 'time'), ('o', 'open'), ('h', 'high'), ('l', 'low'), ('c', 'close'), ('v', 'volume'))
+
+def pack_prices(rows):
+    """rows [{time,open,high,low,close,volume}] → colunar {t:[],o:[],h:[],l:[],c:[],v:[]} (~metade do JSON por linha)"""
+    return {k: [r[f] for r in rows] for k, f in PRICE_COLS}
+
+def unpack_prices(d):
+    """aceita o formato colunar (atual) e o antigo (lista de linhas, de artefatos anteriores)"""
+    if isinstance(d, list): return d
+    return [{f: d[k][i] for k, f in PRICE_COLS} for i in range(len(d['t']))]
+
+def read_prices(k):
+    with open(os.path.join(OUT, 'prices', k + '.json'), encoding='utf-8') as f: return unpack_prices(json.load(f))
+
 COVERAGE = {'corp': 'corp', 'holders': 'holders', 'fa': 'fa', 'options': 'options', 'intraday': 'intraday'}
 
 def file_key(t): return t.replace('^', 'IDX_').replace('.SA', '').replace('.', '_').replace('=', '_').replace('-', '_')
