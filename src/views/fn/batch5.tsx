@@ -59,7 +59,7 @@ export function DCFView({ ticker }: { ticker: string }) {
   const beta = useBeta(ticker)
   const [basis, setBasis] = useState<'ltm' | 'fy' | 'avg3'>('ltm')
   const [ov, setOv] = useState<DcfOv>({})
-  if (!ok) return <FnScreen code="DCF" ticker={ticker}><NA ticker={ticker} what={L('company financial statements (CVM / SEC)', 'demonstrações financeiras (CVM / SEC)')} code="dcf" /></FnScreen>
+  if (!ok) return <FnScreen code="DCF" ticker={ticker}><NA ticker={ticker} what={L('company financial statements', 'demonstrações financeiras')} code="dcf" /></FnScreen>
   if (!d) return <FnScreen code="DCF" ticker={ticker}><Loading2 err={err} /></FnScreen>
   const f = d.fundamentals, br = isBR(ticker), cur = br ? 'R$' : 'US$'
   if (f.bank_format) return <FnScreen code="DCF" ticker={ticker}><NotApplicable what={L('A free-cash-flow DCF does not apply to banks and insurers.', 'Um DCF por fluxo de caixa livre não se aplica a bancos e seguradoras.')} note={L('Banks and insurers fund themselves with deposits and float, so operating and financing cash flows cannot be separated; value them with dividend or residual-income models instead (see VAL and DVD).', 'Bancos e seguradoras se financiam com depósitos e reservas, então não dá para separar o caixa operacional do financeiro; avalie-os por dividendos ou lucro residual (veja VAL e DVD).')} /></FnScreen>
@@ -90,9 +90,9 @@ export function DCFView({ ticker }: { ticker: string }) {
   const bars = [...hist.map(r => (fcfOf(r) as number) / 1e9), ...(R ? R.years.map(y => y.fcf / 1e9) : [])]
   const line = [...hist.map(() => null), ...(R ? R.years.map(y => y.pv / 1e9) : [])]
   const dataT = L('data', 'dado'), asmT = L('assumption', 'premissa')
-  const note = L('Educational model, not a price target. Cash flows come from the company\'s filings (CVM DFP/ITR or SEC 10-K/10-Q); the risk-free rate, beta, market cap and debt are market data; ERP, cost of debt and growth rates are your assumptions (amber).',
-    'Modelo didático, não é preço-alvo. Os fluxos vêm dos documentos da empresa (DFP/ITR da CVM ou 10-K/10-Q da SEC); juro livre de risco, beta, valor de mercado e dívida são dados de mercado; prêmio de risco, custo da dívida e crescimento são premissas suas (âmbar).')
-  const src = <>{br ? 'CVM DFP/ITR' : 'SEC companyfacts'} · {rf ? (br ? `Tesouro Direto (${dUS(rf.date)})` : `FRED DGS10 (${dUS(rf.date)})`) : ''} · {L('prices', 'preços')} {dUS(px[0])}</>
+  const note = L('Educational model, not a price target. Cash flows come from the company\'s filings (DFP/ITR or 10-K/10-Q); the risk-free rate, beta, market cap and debt are market data; ERP, cost of debt and growth rates are your assumptions (amber).',
+    'Modelo didático, não é preço-alvo. Os fluxos vêm dos documentos da empresa (DFP/ITR ou 10-K/10-Q); juro livre de risco, beta, valor de mercado e dívida são dados de mercado; prêmio de risco, custo da dívida e crescimento são premissas suas (âmbar).')
+  const src = <>{br ? 'DFP/ITR' : '10-K/10-Q'} · {rf ? (br ? `Tesouro Direto (${dUS(rf.date)})` : `Treasury 10Y (${dUS(rf.date)})`) : ''} · {L('prices', 'preços')} {dUS(px[0])}</>
   return (
     <FnScreen code="DCF" ticker={ticker} source={src} note={note} asOf={bal?.period}
       right={<><Field label={L('FCF base', 'Base do FCL')}><Btns opts={[{ v: 'ltm', l: 'LTM' }, { v: 'fy', l: A.length ? `FY${A[A.length - 1].period.slice(0, 4)}` : 'FY' }, { v: 'avg3', l: L('3Y avg', 'Média 3a') }]} value={basis} onChange={setBasis} /></Field>
@@ -183,7 +183,7 @@ export function OSAView({ ticker }: { ticker: string }) {
   const [legs, setLegs] = useState<Spec[] | null>(null), [lot, setLot] = useState(100), [hd, setHd] = useState<number | null>(null)
   const exps = (d?.expiries || []) as any[]
   const defIdx = useMemo(() => { let b = 0, bn = -1; exps.forEach((e, i) => { const c = [...e.calls, ...e.puts].filter(traded).length; if (e.bdays >= 5 && c > bn) { b = i; bn = c } }); return b }, [exps])
-  if (!ok) return <FnScreen code="OSA" ticker={ticker}><NA ticker={ticker} what={L('listed options (B3 COTAHIST)', 'opções listadas (COTAHIST B3)')} code="osa" /></FnScreen>
+  if (!ok) return <FnScreen code="OSA" ticker={ticker}><NA ticker={ticker} what={L('listed options', 'opções listadas')} code="osa" /></FnScreen>
   if (!d) return <FnScreen code="OSA" ticker={ticker}><Loading2 err={err} /></FnScreen>
   const S = d.spot, r = d.r_cont, idx = ei ?? defIdx, e = exps[idx]
   const ks = (arr: any[]) => { const t = arr.filter(traded).map(o => o.strike); return (t.length >= 3 ? t : arr.map(o => o.strike)).sort((a, b) => a - b) }
@@ -209,8 +209,8 @@ export function OSAView({ ticker }: { ticker: string }) {
   const edit = (i: number, p: Partial<Spec>) => setLegs(specs.map((l, j) => j === i ? { ...l, ...p } : l))
   const strikesOf = (l: Spec) => { const x = expBy(l.exp); return (l.kind === 'C' ? x.calls : x.puts).map((o: any) => o.strike).sort((a: number, b: number) => a - b) }
   const money = (x: number) => `R$ ${n(x, 0)}`
-  const note = L('End-of-day B3 premiums (COTAHIST); P&L in R$ for the quantity of each leg (1 lot = 100 options). Values before expiry use Black-Scholes with each leg\'s implied vol, so they are model estimates.',
-    'Prêmios de fechamento da B3 (COTAHIST); resultado em R$ para a quantidade de cada perna (1 lote = 100 opções). Os valores antes do vencimento usam Black-Scholes com a vol implícita de cada perna, então são estimativas do modelo.')
+  const note = L('End-of-day premiums; P&L in R$ for the quantity of each leg (1 lot = 100 options). Values before expiry use Black-Scholes with each leg\'s implied vol, so they are model estimates.',
+    'Prêmios de fechamento; resultado em R$ para a quantidade de cada perna (1 lote = 100 opções). Os valores antes do vencimento usam Black-Scholes com a vol implícita de cada perna, então são estimativas do modelo.')
   return (
     <FnScreen code="OSA" ticker={ticker} source={<>B3 COTAHIST ({dUS(d.date)}) · {L('model computed in your browser', 'modelo calculado no navegador')}</>} note={note}
       right={<><span>Spot <b style={{ color: C.amber }}>{n(S)}</b></span><span style={{ color: C.muted }}>r {n(r * 100, 2)}%</span>
@@ -288,15 +288,15 @@ export function IVSView({ ticker }: { ticker: string }) {
   const { data: d, err } = useJSON<any>(ok ? `options/${tickerKey(ticker)}.json` : null)
   const [minT, setMinT] = useState(1), [ax, setAx] = useState<'m' | 'K'>('m')
   const sf = useMemo(() => d ? surface(d.expiries, d.spot, GRID, 3, { minTrades: minT }) : [], [d, minT])
-  if (!ok) return <FnScreen code="IVS" ticker={ticker}><NA ticker={ticker} what={L('listed options (B3 COTAHIST)', 'opções listadas (COTAHIST B3)')} code="ivs" /></FnScreen>
+  if (!ok) return <FnScreen code="IVS" ticker={ticker}><NA ticker={ticker} what={L('listed options', 'opções listadas')} code="ivs" /></FnScreen>
   if (!d) return <FnScreen code="IVS" ticker={ticker}><Loading2 err={err} /></FnScreen>
   const S = d.spot
   const all = sf.flatMap(r => r.row).filter((x): x is number => x != null)
   const lo = all.length ? Math.min(...all) : 0, hi = all.length ? Math.max(...all) : 1
   const front = sf[0], next = sf[1]
   const nPts = sf.reduce((s, r) => s + r.pts.length, 0)
-  const note = L('Implied vols from the B3 closing premiums (COTAHIST), out-of-the-money series only, that traded at least the minimum number of times. Premium and spot closes are not simultaneous; read short-dated and thinly traded points with care.',
-    'Vols implícitas dos prêmios de fechamento da B3 (COTAHIST), só séries fora do dinheiro com o mínimo de negócios escolhido. Prêmio e fechamento do ativo não são simultâneos; leia com cuidado os pontos de vencimentos curtos e pouco negociados.')
+  const note = L('Implied vols from the closing premiums, out-of-the-money series only, that traded at least the minimum number of times. Premium and spot closes are not simultaneous; read short-dated and thinly traded points with care.',
+    'Vols implícitas dos prêmios de fechamento, só séries fora do dinheiro com o mínimo de negócios escolhido. Prêmio e fechamento do ativo não são simultâneos; leia com cuidado os pontos de vencimentos curtos e pouco negociados.')
   return (
     <FnScreen code="IVS" ticker={ticker} source={<>B3 COTAHIST ({dUS(d.date)}) · {d.model || 'Black-Scholes'}</>} note={note}
       right={<><span>Spot <b style={{ color: C.amber }}>{n(S)}</b></span>

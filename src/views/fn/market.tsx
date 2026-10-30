@@ -54,7 +54,7 @@ export function WFIView() {
   return (
     <FnScreen code="WFI" title="World Fixed Income" tabs={['US Curve', '10-year sovereigns', 'Credit (indices / spreads)', 'Brazil']} tab={tab} setTab={setTab}
       source={uc.source ? d.source : 'FRED (St. Louis Fed): Treasuries (DGS*), OECD 10-year (IRLTLT01*), ICE BofA indices and OAS; BCB SGS (Selic/CDI).'}
-      note="US curve: par yields at each tenor, evenly spaced on the X axis (categorical, not to scale). The very short end (1M) is anchored by the Fed funds target, so curves from different dates can almost coincide there. 10-year sovereigns are OECD monthly averages (latest month published with a lag). Brazilian curves (DI1, Tesouro Direto) are in GC and WB.">
+      note="US curve: par yields at each tenor, evenly spaced on the X axis (categorical, not to scale). The very short end (1M) is anchored by the Fed funds target, so curves from different dates can almost coincide there. 10-year sovereigns are monthly averages (latest month published with a lag). Brazilian curves (DI1, Tesouro Direto) are in GC and WB.">
       {tab === 0 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 360px' }}>
         <XYChart height={480} series={[['y1', tc('#555'), '1 year ago'], ['m1', tc('#888'), '1 month ago'], ['w1', C.blue, '1 week ago'], ['now', C.amber, 'Current']].map(([k, c, n]) => ({ name: `${n} (${dBR(uc[k].date)})`, points: tn.map((_, i) => [i, uc[k].y[i]] as [number, number]), color: c, width: k === 'now' ? 2.5 : 1.3 }))} xTicks={lab.map((l, i) => ({ v: i, l }))} xFmt={v => lab[Math.max(0, Math.min(lab.length - 1, Math.round(v)))]} yFmt={v => nf(v, 2) + '%'} />
         <Panel title="US Treasuries"><Grid cols={[{ k: 'l', label: 'Tenor', color: () => C.amber }, { k: 'now', label: 'Rate', align: 'r', fmt: v => nf(v, 2) }, { k: 'w', label: '1W bp', align: 'r', fmt: v => nf(v, 0), color: clr }, { k: 'm', label: '1M bp', align: 'r', fmt: v => nf(v, 0), color: clr }, { k: 'y', label: '1Y bp', align: 'r', fmt: v => nf(v, 0), color: clr }]} rows={tn.map((_, i) => ({ l: lab[i], now: uc.now.y[i], w: (uc.now.y[i] - uc.w1.y[i]) * 100, m: (uc.now.y[i] - uc.m1.y[i]) * 100, y: (uc.now.y[i] - uc.y1.y[i]) * 100 }))} /></Panel>
@@ -91,7 +91,7 @@ export function ECONView() {
           <Panel title="United States"><Grid onRow={(r: any) => setSel(r.id)} rowStyle={(r: any) => r.id === sel ? { background: tc('#1a1205') } : undefined} cols={cols} rows={rows('US')} /></Panel>
         </div>
         <div className="flex flex-col gap-2">
-          <Panel title={`${s?.name} (${s?.unit}) — ${s?.source || ''}`}><FnChart height={300} panes={[{ series: [{ kind: s?.freq === 'M' && /variação|saldo/.test(s?.name) ? 'hist' : 'line', data: (s?.points || []).map((p: any) => ({ time: p[0], value: p[1], color: p[1] >= 0 ? C.amber : C.down })), color: C.amber, title: (s?.name || '').split(' – ')[0].slice(0, 18), decimals: 2 }] }]} /></Panel>
+          <Panel title={`${s?.name} (${s?.unit})`}><FnChart height={300} panes={[{ series: [{ kind: s?.freq === 'M' && /variação|saldo/.test(s?.name) ? 'hist' : 'line', data: (s?.points || []).map((p: any) => ({ time: p[0], value: p[1], color: p[1] >= 0 ? C.amber : C.down })), color: C.amber, title: (s?.name || '').split(' – ')[0].slice(0, 18), decimals: 2 }] }]} /></Panel>
           <Panel title={`Focus — medians (${dBR(focus[0]?.date)})`}>
             <table className="w-full text-[12px]"><thead><tr><th className="px-2 py-1 text-left font-normal" style={{ color: C.amber }}>Indicator</th>{fYears.map(y => <th key={y} className="px-2 py-1 text-right font-normal" style={{ color: C.amber }}>{y}</th>)}</tr></thead>
               <tbody>{fInd.map(ind => <tr key={ind} className="border-t" style={{ borderColor: tc('#1a1a1a') }}><td className="px-2 py-[2px]">{en(ind)}</td>{fYears.map(y => { const f = focus.find(x => x.indicator === ind && x.year === y); return <td key={y} className="px-2 py-[2px] text-right">{f ? nf(f.median, 2) : '—'}</td> })}</tr>)}</tbody></table>
@@ -116,7 +116,7 @@ export function FXView() {
   const x = (row: string, col: string, i: number) => at(row, i) / at(col, i)
   const ptax = d.ptax?.USD || []
   return (
-    <FnScreen code="FX" title="Currency Monitor" tabs={['Cross matrix', '1D change %', 'PTAX (BCB)', 'DXY / USDBRL']} tab={tab} setTab={setTab}
+    <FnScreen code="FX" title="Currency Monitor" tabs={['Cross matrix', '1D change %', 'PTAX', 'DXY / USDBRL']} tab={tab} setTab={setTab}
       source="Yahoo Finance (currency closes vs USD, DXY) and BCB PTAX (Olinda API); tools/pipeline/build_markets.py." note="Matrix: units of the row currency per 1 unit of the column currency. Crosses derived via USD. Daily closes, not real time.">
       {tab <= 1 && <div className="overflow-auto"><table className="border-collapse text-[12px] w-full">
         <thead><tr><th className="px-2 py-1" style={{ color: C.muted }}>{dBRfull(d.dates[L])}</th>{CCY.map(c => <th key={c} className="px-2 py-1 text-right" style={{ color: C.amber }}>{c}</th>)}</tr></thead>
@@ -257,7 +257,7 @@ export function ANBView() {
   const total = d.rows.find((r: any) => /total/i.test(r.class_name))
   return (
     <FnScreen code="ANB" title="Fund flows by class (net flows)" right={<><span style={{ color: C.muted }}>Ref. date {dBRfull(brToIso(d.data_ref))} · {en(d.unit)}</span><Btns opts={[{ v: 'd', l: 'Daily' }, { v: 'm', l: 'Monthly' }] as any} value={view} onChange={setView as any} /></>}
-      source={<>{d.source}</>} note="Net flows = subscriptions − redemptions from the CVM daily fund report, aggregated by CVM registry class (RCVM 175). Own methodology, not the ANBIMA bulletin (whose terms forbid automation). Funds of funds are included alongside target funds, so AUM is double-counted.">
+      source={<>{d.source}</>} note="Net flows = subscriptions − redemptions from the daily fund report, aggregated by registry class (RCVM 175). Own methodology. Funds of funds are included alongside target funds, so AUM is double-counted.">
       <Grid rowStyle={(r: any) => /total/i.test(r.class_name) ? { background: tc('#151515'), fontWeight: 700 } : undefined} cols={[{ k: 'class_name', label: 'Class', fmt: (v: string) => en(v), color: () => C.amber }, ...(['day', 'month', 'year', 'twelve_months'] as const).map(k => ({ k, label: { day: 'Day', month: 'Month', year: 'Year', twelve_months: '12 months' }[k], align: 'r' as const, fmt: (v: number) => nf(v, 0), color: clr })), { k: 'pl_bi', label: 'AUM (R$ bn)', align: 'r' as const, fmt: (v: number) => nf(v, 1) }]} rows={d.rows} />
       <div className="mt-2"><Panel title={`${view === 'd' ? 'Daily' : 'Monthly'} net flows by class (R$ mn)`}>
         <FnChart height={360} panes={[{ series: classes.filter(c => c !== 'Não classificado').map(c => ({ kind: (view === 'm' ? 'line' : 'line') as 'line', data: xs.map((t: string, i: number) => ({ time: view === 'm' ? t + '-28' : t, value: ser.series[c][i] })).filter((p: any) => p.value != null), color: colors[c] || C.white, title: c, decimals: 0 })) }]} />

@@ -167,7 +167,7 @@ function Detail({ r }: { r: CalRow | null }) {
       {kv(t('cal.date'), r.date ? `${dBRfull(r.date)} (${r.q})` : '—')}
       {kv(t('cal.time'), timeTxt(r))}
       {kv(t('cal.status'), <Status s={r.status} />)}
-      {kv(t('cal.src'), r.source ? <A to={r.link}>{r.source === 'RI' ? t('cal.irSite') : 'CVM'}</A> : '—')}
+      {kv(t('cal.src'), r.source ? <A to={r.link}>{r.source === 'RI' ? t('cal.irSite') : t('cal.filing')}</A> : '—')}
       {kv(t('cal.call'), r.call?.date ? `${dBR(r.call.date)}${r.call.time ? ' ' + r.call.time : ''}` : '—')}
       {kv(t('cal.cvmPlanned'), r.cvm_planned?.date ? <A to={r.cvm_planned.link}>{dBR(r.cvm_planned.date)}</A> : '—')}
       {kv(t('cal.filed'), r.filed?.date ? <A to={r.filed.link}>{dBR(r.filed.date)}</A> : '—')}
@@ -317,7 +317,7 @@ export function CALView() {
     { k: 'date', label: t('cal.date'), fmt: (_v: any, r: CalRow) => r.date ? `${dayName(r.date)} ${dBR(r.date)}` : '—' },
     { k: 'time', label: t('cal.time'), fmt: (_v: any, r: CalRow) => timeTxt(r) },
     { k: 'status', label: t('cal.status'), fmt: (_v: any, r: CalRow) => <Status s={r.status} /> },
-    { k: 'src', label: t('cal.src'), fmt: (_v: any, r: CalRow) => r.source ? <A to={r.link}>{r.source}</A> : '—' },
+    { k: 'src', label: t('cal.src'), fmt: (_v: any, r: CalRow) => r.source ? <A to={r.link}>{r.source === 'RI' ? t('cal.irSite') : t('cal.filing')}</A> : '—' },
     { k: 'call', label: t('cal.call'), fmt: (_v: any, r: CalRow) => r.call?.date ? `${dBR(r.call.date)}${r.call.time ? ' ' + r.call.time : ''}` : '—' },
     { k: 'cvm', label: t('cal.cvmPlanned'), fmt: (_v: any, r: CalRow) => r.cvm_planned?.date ? <A to={r.cvm_planned.link}>{dBR(r.cvm_planned.date)}</A> : '—' },
     { k: 'filed', label: t('cal.filed'), fmt: (_v: any, r: CalRow) => r.filed?.date ? <A to={r.filed.link}>{dBR(r.filed.date)}</A> : '—' },

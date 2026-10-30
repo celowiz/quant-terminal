@@ -46,8 +46,8 @@ export function FIIMView() {
   const f = rows.find(x => x.code === sel) || rows[0] || d.rows[0]
   const h = f.hist as any[]
   const note = L(
-    `Brazilian listed real-estate funds (FIIs) with net assets above R$ 50 million and average daily trading above R$ 50 thousand over the last ${d.sessions} sessions. Fund figures come from the monthly report each fund files with CVM (reference month ${d.ref}); price and trading value are the official B3 close (${dUS(d.price_date)}). Distribution per unit = the month's dividend yield reported to CVM × NAV per unit; the 12-month yield divides the last 12 of these by today's price. The figures are as reported by each administrator; a fund that reports late, restates or uses a different yield basis shows it here as filed.`,
-    `FIIs listados com patrimônio acima de R$ 50 milhões e giro médio diário acima de R$ 50 mil nos últimos ${d.sessions} pregões. Os números do fundo vêm do informe mensal entregue à CVM (mês de referência ${d.ref}); preço e volume são o fechamento oficial da B3 (${dUS(d.price_date)}). Distribuição por cota = DY do mês informado à CVM × valor patrimonial da cota; o DY 12m soma as 12 últimas e divide pelo preço de hoje. Os números são os informados por cada administrador: atraso, reapresentação ou outra base de cálculo do DY aparecem aqui como entregues.`)
+    `Brazilian listed real-estate funds (FIIs) with net assets above R$ 50 million and average daily trading above R$ 50 thousand over the last ${d.sessions} sessions. Fund figures come from the monthly report each fund files with the regulator (reference month ${d.ref}); price and trading value are the official exchange close (${dUS(d.price_date)}). Distribution per unit = the month's reported dividend yield × NAV per unit; the 12-month yield divides the last 12 of these by today's price. The figures are as reported by each administrator; a fund that reports late, restates or uses a different yield basis shows it here as filed.`,
+    `FIIs listados com patrimônio acima de R$ 50 milhões e giro médio diário acima de R$ 50 mil nos últimos ${d.sessions} pregões. Os números do fundo vêm do informe mensal entregue ao regulador (mês de referência ${d.ref}); preço e volume são o fechamento oficial da bolsa (${dUS(d.price_date)}). Distribuição por cota = DY do mês informado × valor patrimonial da cota; o DY 12m soma as 12 últimas e divide pelo preço de hoje. Os números são os informados por cada administrador: atraso, reapresentação ou outra base de cálculo do DY aparecem aqui como entregues.`)
   const all = d.rows as any[]
   return (
     <FnScreen code="FIIM" title="REIT (FII) Monitor" source={d.source} note={note} asOf={d.price_date}
@@ -55,7 +55,7 @@ export function FIIMView() {
         <option value="all">{L('All segments', 'Todos os segmentos')}</option>{segs.map(s => <option key={s} value={s}>{seg(s)}</option>)}</select></Field>
         <Field label={L('Sort', 'Ordenar')}><Btns opts={[{ v: 'pl', l: L('Net assets', 'PL') }, { v: 'dy', l: 'DY 12m' }, { v: 'pvp', l: L('P/NAV', 'P/VP') }, { v: 'liq', l: L('Liquidity', 'Liquidez') }, { v: 'hold', l: L('Holders', 'Cotistas') }]} value={sort} onChange={setSort} /></Field></>}>
       <Kpis items={[
-        [L('CVM report / B3 close', 'Informe CVM / fech. B3'), `${d.ref} · ${dUS(d.price_date)}`, C.white],
+        [L('Monthly report / close', 'Informe mensal / fechamento'), `${d.ref} · ${dUS(d.price_date)}`, C.white],
         [L('FIIs listed', 'FIIs na lista'), `${rows.length}${sg === 'all' ? '' : ` / ${all.length}`}`],
         [L('Median DY 12m', 'DY 12m mediano'), pc(med(rows.map(r => r.dy_12m)), 2, false), C.amber],
         [L('Median P/NAV', 'P/VP mediano'), n(med(rows.map(r => r.pvp)), 2)],
@@ -117,17 +117,17 @@ export function FNDSView() {
   if (!d) return <FnScreen code="FNDS" title="Fund Rankings"><Loading2 err={err} /></FnScreen>
   const f = rows.find(x => x.cnpj === sel) || rows[0]
   const note = L(
-    `Open-ended, non-exclusive Brazilian fund classes with net assets above R$ ${n(d.filters.min_pl / 1e6, 0)} million and at least ${d.filters.min_holders} unitholders, from the CVM daily report (latest complete day ${dUS(d.date)}); the ${d.filters.top} largest per CVM class are listed. Returns are of the unit price, net of fees and before taxes. Net flows = subscriptions − redemptions. Volatility and drawdown use the last 12 months of daily prices. Classes are CVM's, not ANBIMA's (the ANBIMA subtype is shown for reference). Funds of funds also appear, so flows can be counted twice across rows.`,
-    `Classes de fundos abertas e não exclusivas com PL acima de R$ ${n(d.filters.min_pl / 1e6, 0)} milhões e pelo menos ${d.filters.min_holders} cotistas, do informe diário da CVM (último dia completo ${dUS(d.date)}); aparecem as ${d.filters.top} maiores de cada classe CVM. Retornos são da cota, líquidos de taxas e antes de impostos. Captação líquida = aplicações − resgates. Volatilidade e drawdown usam os últimos 12 meses de cotas diárias. A classificação é a da CVM, não a da ANBIMA (o subtipo ANBIMA aparece como referência). Fundos de cotas também entram, então a captação pode aparecer duas vezes em linhas diferentes.`)
+    `Open-ended, non-exclusive Brazilian fund classes with net assets above R$ ${n(d.filters.min_pl / 1e6, 0)} million and at least ${d.filters.min_holders} unitholders, from the daily fund report (latest complete day ${dUS(d.date)}); the ${d.filters.top} largest per class are listed. Returns are of the unit price, net of fees and before taxes. Net flows = subscriptions − redemptions. Volatility and drawdown use the last 12 months of daily prices. Classes are the regulatory ones (the industry subtype is shown for reference). Funds of funds also appear, so flows can be counted twice across rows.`,
+    `Classes de fundos abertas e não exclusivas com PL acima de R$ ${n(d.filters.min_pl / 1e6, 0)} milhões e pelo menos ${d.filters.min_holders} cotistas, do informe diário dos fundos (último dia completo ${dUS(d.date)}); aparecem as ${d.filters.top} maiores de cada classe. Retornos são da cota, líquidos de taxas e antes de impostos. Captação líquida = aplicações − resgates. Volatilidade e drawdown usam os últimos 12 meses de cotas diárias. A classificação é a regulatória (o subtipo do mercado aparece como referência). Fundos de cotas também entram, então a captação pode aparecer duas vezes em linhas diferentes.`)
   const all = (d.cats[cat] || []) as any[]
   const best = [...all].filter(x => x.ret_12m != null).sort((a, b) => b.ret_12m - a.ret_12m)[0]
   const sp = (f?.spark || []) as any[]
   return (
     <FnScreen code="FNDS" title="Fund Rankings" source={d.source} note={note} asOf={d.date}
-      right={<><Field label={L('Class (CVM)', 'Classe (CVM)')}><Btns opts={FCATS.map(c => ({ v: c[0], l: L(c[1], c[2]) }))} value={cat} onChange={v => { setCat(v); setSel('') }} /></Field>
+      right={<><Field label={L('Class', 'Classe')}><Btns opts={FCATS.map(c => ({ v: c[0], l: L(c[1], c[2]) }))} value={cat} onChange={v => { setCat(v); setSel('') }} /></Field>
         <Field label={L('Sort', 'Ordenar')}><Btns opts={[{ v: 'pl', l: L('AUM', 'PL') }, { v: 'r12', l: L('12M ret.', 'Ret. 12M') }, { v: 'r1', l: L('1M ret.', 'Ret. 1M') }, { v: 'f1', l: L('1M flow', 'Capt. 1M') }, { v: 'f12', l: L('12M flow', 'Capt. 12M') }, { v: 'dd', l: 'Drawdown' }]} value={sort} onChange={setSort} /></Field></>}>
       <Kpis items={[
-        [L('CVM daily report', 'Informe diário CVM'), dUS(d.date), C.white],
+        [L('Daily report', 'Informe diário'), dUS(d.date), C.white],
         [L('Eligible classes', 'Classes elegíveis'), `${n(d.universe, 0)} · ${L('shown', 'listadas')} ${all.length}`],
         [L('AUM listed', 'PL listado'), brl(all.reduce((s, r) => s + (r.pl || 0), 0), 1)],
         [L('Net flow 1M (listed)', 'Captação 1M (listadas)'), sbrl(all.reduce((s, r) => s + (r.flow_1m || 0), 0), 1), cl(all.reduce((s, r) => s + (r.flow_1m || 0), 0))],
@@ -155,7 +155,7 @@ export function FNDSView() {
           </Panel>
           <Panel title={short(f.name)}>
             <KV cols={2} rows={[
-              [L('ANBIMA subtype', 'Subtipo ANBIMA'), f.anbima || '—'], ['CNPJ', cnpjF(f.cnpj)],
+              [L('Industry subtype', 'Subtipo'), f.anbima || '—'], ['CNPJ', cnpjF(f.cnpj)],
               [L('Return 1M / YTD', 'Retorno 1M / ano'), `${pc(f.ret_1m, 2)} / ${pc(f.ret_ytd, 2)}`], [L('Return 12M', 'Retorno 12M'), <span key="r" style={{ color: cl(f.ret_12m) }}>{pc(f.ret_12m, 2)}</span>],
               [L('Volatility 12M (ann.)', 'Volatilidade 12M (anual.)'), pc(f.vol_12m, 2, false)], [L('Max drawdown 12M', 'Drawdown máx. 12M'), pc(f.mdd_12m, 2, false)],
               [L('Net flow 1M', 'Captação 1M'), <span key="a" style={{ color: cl(f.flow_1m) }}>{sbrl(f.flow_1m, 2)}</span>], [L('Net flow 12M', 'Captação 12M'), <span key="b" style={{ color: cl(f.flow_12m) }}>{sbrl(f.flow_12m, 2)}</span>],
@@ -185,14 +185,14 @@ export function BKSView() {
   const all = d.rows as any[]
   const h = b.hist as any[]
   const note = L(
-    `The ${all.length} largest Brazilian prudential conglomerates by total assets, from the central bank's IF.data "Summary" report (quarter ${qLab(d.ref)}; the BCB publishes each quarter about 3 months after it ends). Values in BRL. Net income is the year-to-date figure of the current half (Jan–Jun or Jul–Dec), so ROE is annualised by 12 ÷ months. Basel ratio = regulatory capital ÷ risk-weighted assets; the minimum with the conservation buffer is 10.5% (plus 1% for systemically important banks). Credit portfolio = the loan book as reported in the summary.`,
-    `Os ${all.length} maiores conglomerados prudenciais do Brasil por ativo total, do relatório "Resumo" do IF.data do Banco Central (trimestre ${qLab(d.ref)}; o BCB publica cada trimestre cerca de 3 meses depois do fim). Valores em reais. O lucro líquido é o acumulado do semestre (jan–jun ou jul–dez), por isso o ROE é anualizado por 12 ÷ meses. Índice de Basileia = patrimônio de referência ÷ ativos ponderados pelo risco; o mínimo com o adicional de conservação é 10,5% (mais 1% para os sistemicamente importantes). Carteira de crédito = a carteira informada no resumo.`)
+    `The ${all.length} largest Brazilian prudential conglomerates by total assets (quarter ${qLab(d.ref)}; each quarter is published about 3 months after it ends). Values in BRL. Net income is the year-to-date figure of the current half (Jan–Jun or Jul–Dec), so ROE is annualised by 12 ÷ months. Basel ratio = regulatory capital ÷ risk-weighted assets; the minimum with the conservation buffer is 10.5% (plus 1% for systemically important banks). Credit portfolio = the loan book as reported in the summary.`,
+    `Os ${all.length} maiores conglomerados prudenciais do Brasil por ativo total (trimestre ${qLab(d.ref)}; cada trimestre é publicado cerca de 3 meses depois do fim). Valores em reais. O lucro líquido é o acumulado do semestre (jan–jun ou jul–dez), por isso o ROE é anualizado por 12 ÷ meses. Índice de Basileia = patrimônio de referência ÷ ativos ponderados pelo risco; o mínimo com o adicional de conservação é 10,5% (mais 1% para os sistemicamente importantes). Carteira de crédito = a carteira informada no resumo.`)
   return (
     <FnScreen code="BKS" title="Bank Monitor" source={d.source} note={note} asOf={qEnd(d.ref)}
       right={<><Field label={L('Segment', 'Segmento')}><Btns opts={[{ v: 'all', l: L('All', 'Todos') }, 'S1', 'S2', 'S3', 'S4'].map(x => typeof x === 'string' ? { v: x, l: x } : x)} value={sg} onChange={setSg} /></Field>
         <Field label={L('Sort', 'Ordenar')}><Btns opts={[{ v: 'assets', l: L('Assets', 'Ativo') }, { v: 'credit', l: L('Credit', 'Crédito') }, { v: 'cy', l: L('Credit YoY', 'Créd. 12m') }, { v: 'roe', l: 'ROE' }, { v: 'basel', l: L('Basel', 'Basileia') }]} value={sort} onChange={setSort} /></Field></>}>
       <Kpis items={[
-        [L('IF.data quarter', 'Trimestre IF.data'), qLab(d.ref), C.white],
+        [L('Quarter', 'Trimestre'), qLab(d.ref), C.white],
         [L('Conglomerates', 'Conglomerados'), `${rows.length}${sg === 'all' ? '' : ` / ${all.length}`}`],
         [L('Total assets', 'Ativo total'), brl(rows.reduce((s, r) => s + (r.assets || 0), 0), 2)],
         [L('Credit portfolio', 'Carteira de crédito'), brl(rows.reduce((s, r) => s + (r.credit || 0), 0), 2), C.amber],

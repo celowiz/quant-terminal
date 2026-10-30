@@ -13,7 +13,7 @@ const S_ECO = {
   title: 'Economic Calendar – Brazil & United States', country: 'Country', all: 'All', view: 'Show', key: 'Key only', allEv: 'All events', week: 'Week',
   weeks: [{ v: -1, l: 'Prev' }, { v: 0, l: 'This' }, { v: 1, l: 'Next' }, { v: 9, l: 'All' }],
   c: { time: 'Date / time', country: 'Ctry', event: 'Event', period: 'Period', survey: 'Survey', actual: 'Actual', prior: 'Prior', unit: 'Unit', agency: 'Agency' },
-  empty: 'No releases in this window.', live: 'Brazil (IBGE) loaded live from the IBGE API: the pipeline could not reach it.', liveNo: 'Brazil (IBGE) unavailable: the IBGE calendar API did not respond.', approx: '≈ time approximate', count: 'events',
+  empty: 'No releases in this window.', live: 'Brazil releases loaded live in the browser.', liveNo: 'Brazil releases unavailable right now.', approx: '≈ time approximate', count: 'events',
 }
 const fmtV = (v: any, u?: string) => v == null ? '' : n(v, u === 'US$ bn' || u === 'US$ mn' || u === 'R$ bn' ? 2 : Math.abs(+v) >= 100 ? 1 : 2)
 export function ECOView() {
@@ -100,7 +100,7 @@ export function GMMView() {
 }
 
 // ======================= FXC =======================
-const S_FXC = { title: 'Currency Cross Rates', mode: 'Mode', modes: [{ v: 'last', l: 'Last' }, { v: 'd1', l: '1D %' }, { v: 'w1', l: '1W %' }], ptax: 'BCB PTAX (BRL per unit)', c: { ccy: 'Ccy', buy: 'Buy', sell: 'Sell', chg: '1D %', date: 'Date', spark: '60D vs USD' }, base: 'Row → column: units of column per 1 row', usd: 'vs USD (units per USD)' }
+const S_FXC = { title: 'Currency Cross Rates', mode: 'Mode', modes: [{ v: 'last', l: 'Last' }, { v: 'd1', l: '1D %' }, { v: 'w1', l: '1W %' }], ptax: 'PTAX (BRL per unit)', c: { ccy: 'Ccy', buy: 'Buy', sell: 'Sell', chg: '1D %', date: 'Date', spark: '60D vs USD' }, base: 'Row → column: units of column per 1 row', usd: 'vs USD (units per USD)' }
 export function FXCView() {
   const { data: d, err } = useJSON<any>('fxc.json')
   const [mode, setMode] = useState<'last' | 'd1' | 'w1'>('last'), [hi, setHi] = useState<string | null>(null)
@@ -147,7 +147,7 @@ export function FXCView() {
 }
 
 // ======================= FXFC =======================
-const S_FXFC = { title: 'FX Forecasts – USD/BRL (BCB Focus survey)', tabs: ['Monthly', 'Annual'], c: { ref: 'Reference', median: 'Median', mean: 'Mean', sd: 'Std dev', min: 'Min', max: 'Max', n: 'N', w1: '1W ago', w4: '4W ago', forward: 'CIP fwd', vsSpot: 'vs spot' },
+const S_FXFC = { title: 'FX Forecasts – USD/BRL (Focus survey)', tabs: ['Monthly', 'Annual'], c: { ref: 'Reference', median: 'Median', mean: 'Mean', sd: 'Std dev', min: 'Min', max: 'Max', n: 'N', w1: '1W ago', w4: '4W ago', forward: 'CIP fwd', vsSpot: 'vs spot' },
   chart: 'USD/BRL spot, Focus median (min–max band) and CIP forward', spot: 'Spot', med: 'Focus median', fwd: 'CIP forward', band: 'Min–max',
   hist: 'Median history', k: { spot: 'Spot USD/BRL', survey: 'Survey date', ye: 'Year-end median', fwd: 'Year-end CIP fwd', n: 'Respondents' } }
 export function FXFCView() {

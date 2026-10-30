@@ -72,8 +72,8 @@ export function MEMBView() {
   const movers = [...byC.slice(0, 6), ...byC.slice(-6)].filter((r, i, a) => a.indexOf(r) === i)
   const maxC = Math.max(...movers.map(r => Math.abs(r.contrib)), 1e-9), maxW = Math.max(...m.sectors.map(s => s.w), 1)
   const dIdx = m.idx1 != null && m.idx0 != null ? m.idx1 - m.idx0 : null
-  const note = L('Weights and theoretical quantities are B3\'s official portfolio of the day. Index points per member = theoretical quantity × price ÷ reductor. Contributions use today\'s quantities and Yahoo adjusted closes (the Ibovespa is a total-return index, so dividends count), so for periods spanning a rebalance (Jan, May, Sep) they are an approximation; compare their sum with the actual index change.',
-    'Pesos e quantidades teóricas são a carteira oficial do dia da B3. Pontos do índice por ação = quantidade teórica × preço ÷ redutor. As contribuições usam as quantidades de hoje e fechamentos ajustados do Yahoo (o Ibovespa é um índice de retorno total, então proventos contam); em períodos que cruzam um rebalanceamento (jan, mai, set) são aproximação — compare a soma com a variação real do índice.')
+  const note = L('Weights and theoretical quantities are the official portfolio of the day. Index points per member = theoretical quantity × price ÷ reductor. Contributions use today\'s quantities and adjusted closes (the Ibovespa is a total-return index, so dividends count), so for periods spanning a rebalance (Jan, May, Sep) they are an approximation; compare their sum with the actual index change.',
+    'Pesos e quantidades teóricas são a carteira oficial do dia. Pontos do índice por ação = quantidade teórica × preço ÷ redutor. As contribuições usam as quantidades de hoje e fechamentos ajustados (o Ibovespa é um índice de retorno total, então proventos contam); em períodos que cruzam um rebalanceamento (jan, mai, set) são aproximação — compare a soma com a variação real do índice.')
   return (
     <FnScreen code="MEMB" title={L('Index Members (Ibovespa)', 'Composição do índice (Ibovespa)')} source={u.source} note={note}
       right={<><span style={{ color: C.muted }}>{L('Portfolio', 'Carteira')} {u.date_portfolio}</span><Field label={L('Period', 'Período')}><Btns opts={PER} value={per} onChange={setPer} /></Field>
@@ -143,7 +143,7 @@ export function OVMEView({ ticker }: { ticker: string }) {
   const { data: d, err } = useJSON<any>(ok ? `options/${tickerKey(ticker)}.json` : null)
   const [ei, setEi] = useState<number | null>(null), [code, setCode] = useState<string | null>(null)
   const [ov, setOv] = useState<Record<string, number | boolean>>({})
-  if (!ok) return <FnScreen code="OVME" ticker={ticker}><NA ticker={ticker} what={L('listed options (B3 COTAHIST)', 'opções listadas (COTAHIST B3)')} code="ovme" /></FnScreen>
+  if (!ok) return <FnScreen code="OVME" ticker={ticker}><NA ticker={ticker} what={L('listed options', 'opções listadas')} code="ovme" /></FnScreen>
   if (!d) return <FnScreen code="OVME" ticker={ticker}><Loading2 err={err} /></FnScreen>
   const exps = d.expiries as any[]
   const idx = ei ?? Math.max(0, exps.findIndex(e => e.bdays >= 15))
@@ -167,8 +167,8 @@ export function OVMEView({ ticker }: { ticker: string }) {
   const smile = (call: boolean) => (call ? e.calls : e.puts).filter((o: any) => o.iv != null && o.trades > 0).map((o: any) => [o.strike, o.iv] as [number, number]).sort((a: any, b: any) => a[0] - b[0])
   const parity = g && other ? (v.call ? g.price - other.price : other.price - g.price) : null
   const fwdGap = v.S * Math.exp(-q * T) - v.K * Math.exp(-r * T)
-  const note = L('Black-Scholes-Merton for European options: B3 stock options are mostly American (calls on non-dividend days behave like European ones; puts can be exercised early, so the model can underprice them). Market inputs are the end-of-day COTAHIST snapshot used by OMON; edit any field to run scenarios. Theta is per business day (÷252); vega and rho per 1 percentage point.',
-    'Black-Scholes-Merton para opções europeias: as opções de ações da B3 são em geral americanas (calls sem proventos no período equivalem às europeias; puts podem ser exercidas antes, e o modelo pode subprecificá-las). Os dados de mercado são o fechamento do COTAHIST usado no OMON; edite qualquer campo para simular cenários. Theta por dia útil (÷252); vega e rho por 1 ponto percentual.')
+  const note = L('Black-Scholes-Merton for European options: Brazilian stock options are mostly American (calls on non-dividend days behave like European ones; puts can be exercised early, so the model can underprice them). Market inputs are the end-of-day snapshot used by OMON; edit any field to run scenarios. Theta is per business day (÷252); vega and rho per 1 percentage point.',
+    'Black-Scholes-Merton para opções europeias: as opções de ações no Brasil são em geral americanas (calls sem proventos no período equivalem às europeias; puts podem ser exercidas antes, e o modelo pode subprecificá-las). Os dados de mercado são o fechamento usado no OMON; edite qualquer campo para simular cenários. Theta por dia útil (÷252); vega e rho por 1 ponto percentual.')
   return (
     <FnScreen code="OVME" ticker={ticker} title={L('Option Valuation (Black-Scholes)', 'Calculadora de opções (Black-Scholes)')} source={<>B3 COTAHIST ({dUS(d.date)}) · {L('model computed in your browser', 'modelo calculado no navegador')}</>} note={note}
       right={<><span>Spot <b style={{ color: C.amber }}>{n(d.spot)}</b></span><span style={{ color: C.muted }}>r {n(d.r_cont * 100, 2)}%</span></>}>
@@ -262,7 +262,7 @@ export function EVTSView({ ticker }: { ticker: string }) {
   const [on, setOn] = useState<Record<string, boolean>>({ R: true, F: true, D: true, S: true, N: true })
   const [rng, setRng] = useState('2Y')
   const evs = useMemo(() => (d ? buildEvents(d, cal, ticker) : []), [d, cal, ticker])
-  if (!ok) return <FnScreen code="EVTS" ticker={ticker}><NA ticker={ticker} what={L('corporate events (CVM/SEC)', 'eventos corporativos (CVM/SEC)')} code="evts" /></FnScreen>
+  if (!ok) return <FnScreen code="EVTS" ticker={ticker}><NA ticker={ticker} what={L('corporate events', 'eventos corporativos')} code="evts" /></FnScreen>
   if (!d || !px) return <FnScreen code="EVTS" ticker={ticker}><Loading2 err={err} /></FnScreen>
   const last = px[px.length - 1]?.time || ''
   const from = rng === '1Y' ? isoAgo(last, 366) : rng === '2Y' ? isoAgo(last, 731) : rng === '5Y' ? isoAgo(last, 1827) : ''
@@ -275,8 +275,8 @@ export function EVTSView({ ticker }: { ticker: string }) {
   const counts = (k: string) => evs.filter(e => e.kind === k && e.date >= from).length
   const next = evs.find(e => e.kind === 'N')
   const react = (e: Ev) => { const i = times.indexOf(snap(e.date) || ''); return i > 0 && i < times.length ? (pxs[i].close / pxs[i - 1].close - 1) * 100 : null }
-  const note = L('Markers sit on the first trading day on or after each event. R = results release (CVM IPE press release / SEC 10-Q, 10-K or 8-K item 2.02), F = material fact (CVM) or other 8-K (SEC), D = dividend ex-date, S = split. The "day %" column is the close-to-close move on that trading day (adjusted prices), useful to see how the market reacted.',
-    'Os marcadores ficam no primeiro pregão na data do evento ou depois. R = divulgação de resultados (press release no IPE da CVM / 10-Q, 10-K ou 8-K item 2.02 na SEC), F = fato relevante (CVM) ou outro 8-K (SEC), D = data ex de proventos, S = desdobramento. A coluna "dia %" é a variação de fechamento a fechamento naquele pregão (preços ajustados), útil para ver a reação do mercado.')
+  const note = L('Markers sit on the first trading day on or after each event. R = results release (press release / 10-Q, 10-K or 8-K item 2.02), F = material fact or other 8-K, D = dividend ex-date, S = split. The "day %" column is the close-to-close move on that trading day (adjusted prices), useful to see how the market reacted.',
+    'Os marcadores ficam no primeiro pregão na data do evento ou depois. R = divulgação de resultados (press release / 10-Q, 10-K ou 8-K item 2.02), F = fato relevante ou outro 8-K, D = data ex de proventos, S = desdobramento. A coluna "dia %" é a variação de fechamento a fechamento naquele pregão (preços ajustados), útil para ver a reação do mercado.')
   return (
     <FnScreen code="EVTS" ticker={ticker} title={L('Events on Chart', 'Eventos no gráfico')} note={note}
       source={d.country === 'US' ? 'SEC EDGAR (submissions) · Yahoo Finance (distributions, adjusted prices)' : 'CVM open data (IPE) · company IR calendar (CAL) · Yahoo Finance (distributions, adjusted prices)'}

@@ -42,7 +42,7 @@ export function COTView() {
   const hi = ext('hi'), lo = ext('lo')
   const mover = [...M].sort((a, b) => Math.abs(b.spec_chg / (b.oi || 1)) - Math.abs(a.spec_chg / (a.oi || 1)))[0]
   const gl = (g: string) => { const x = GROUPS.find(G => G[0] === g); return x ? L(x[1], x[2]) : g }
-  const note = L(d.note, 'Posições de terça-feira, divulgadas pela CFTC na sexta (15h30 de Nova York). Especuladores = não comerciais; hedgers = comerciais; pequenos = não reportáveis. Líquido = comprado − vendido, em contratos. Índice COT = onde o líquido está entre a mínima (0) e a máxima (100) de 3 anos.')
+  const note = L(d.note, 'Posições de terça-feira, divulgadas na sexta (15h30 de Nova York). Especuladores = não comerciais; hedgers = comerciais; pequenos = não reportáveis. Líquido = comprado − vendido, em contratos. Índice COT = onde o líquido está entre a mínima (0) e a máxima (100) de 3 anos.')
   return (
     <FnScreen code="COT" title="Commitments of Traders" source={d.source} note={note} asOf={d.date}
       right={<><Field label={L('Group', 'Grupo')}><Btns opts={GROUPS.map(g => ({ v: g[0], l: L(g[1], g[2]) }))} value={grp} onChange={setGrp} /></Field>
@@ -85,7 +85,7 @@ export function COTView() {
               [L('Speculators net', 'Especuladores líquido'), <span key="a" style={{ color: cl(m.spec_net) }}>{sn(m.spec_net, 0)}</span>], [L('Weekly change', 'Variação na semana'), <span key="b" style={{ color: cl(m.spec_chg) }}>{sn(m.spec_chg, 0)}</span>],
               [L('3Y high / low (net)', 'Máx. / mín. 3 anos (líquido)'), `${sn(m.spec_max, 0)} / ${sn(m.spec_min, 0)}`], [L('COT index (specs / hedgers)', 'Índice COT (espec. / hedgers)'), `${n(m.spec_idx, 0)} / ${n(m.comm_idx, 0)}`],
               [L('Hedgers net', 'Hedgers líquido'), sn(m.comm_net, 0)], [L('Small traders net', 'Pequenos líquido'), sn(m.small_net, 0)],
-              [L('Open interest', 'Contratos em aberto'), `${n(m.oi, 0)} (${sn(m.oi_chg, 0)})`], [L('CFTC code', 'Código CFTC'), m.code],
+              [L('Open interest', 'Contratos em aberto'), `${n(m.oi, 0)} (${sn(m.oi_chg, 0)})`], [L('Contract code', 'Código do contrato'), m.code],
             ]} />
           </Panel>
         </div>

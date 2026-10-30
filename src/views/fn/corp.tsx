@@ -17,7 +17,7 @@ const srcOf = (d: any) => isUS(d) ? SRC_SEC : SRC_CVM
 const US_NOTE = 'Quarterly flows: the standalone quarter as filed, or the difference between consecutive year-to-date figures (10-Q cash flows are cumulative); Q4 = fiscal year − 9 months. Columns are labelled by the calendar quarter in which the fiscal period ends. EBIT = operating income (pre-tax income + interest expense when operating income is not tagged). Lines the company does not tag in XBRL (without dimensions) show —.'
 const useCorp = (t: string) => useJSON<any>(corpPath(t))
 const Guard = ({ code, ticker, children }: { code: string; ticker: string; children: React.ReactNode }) =>
-  hasData(code, ticker) ? <>{children}</> : <FnScreen code={code} ticker={ticker}><NA ticker={ticker} what="corporate data (CVM/SEC)" code={code.toLowerCase()} /></FnScreen>
+  hasData(code, ticker) ? <>{children}</> : <FnScreen code={code} ticker={ticker}><NA ticker={ticker} what="corporate data" code={code.toLowerCase()} /></FnScreen>
 
 /** valor de mercado e múltiplos a partir do preço bruto e ações CVM */
 function valuation(d: any) {
@@ -185,10 +185,10 @@ export function VALView({ ticker }: { ticker: string }) {
     const peerRows = [[ticker, d] as [string, any], ...peerData.rows].map(([t, x]) => ({ t: short(t), ...valuation(x), cur: t === ticker }))
     return (
       <FnScreen code="VAL" ticker={ticker} title="Valuation — multiples and history" source={srcOf(d)}
-        note={isUS(d) ? `Multiples computed from raw price × SEC share count (10-K/10-Q cover) and trailing 4-quarter results (10-K/10-Q XBRL; latest fiscal year when 4 quarters are not available, shown as ${v.basis}). History assumes results are released 45 days after quarter end. Yahoo column shown for cross-checking; differences come from share-count/LTM criteria.` : 'Multiples computed in the pipeline from raw price × CVM share count and trailing 4-quarter results (DFP/ITR). History assumes results are released 45 days after quarter end. Yahoo column shown for cross-checking; differences come from share-count/LTM criteria.'}>
+        note={isUS(d) ? `Multiples computed from raw price × share count (10-K/10-Q cover) and trailing 4-quarter results (10-K/10-Q XBRL; latest fiscal year when 4 quarters are not available, shown as ${v.basis}). History assumes results are released 45 days after quarter end. Ref. column shown for cross-checking; differences come from share-count/LTM criteria.` : 'Multiples computed in the pipeline from raw price × share count and trailing 4-quarter results (DFP/ITR). History assumes results are released 45 days after quarter end. Ref. column shown for cross-checking; differences come from share-count/LTM criteria.'}>
         <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '300px 1fr' }}>
           <Panel title="Current multiples" asOf={v.px[0]}>
-            <Grid cols={[{ k: 'l', label: 'Indicator' }, { k: 'v', label: 'Computed', align: 'r', color: () => C.amber }, { k: 'y', label: 'Yahoo', align: 'r', color: () => C.muted }]} rows={[
+            <Grid cols={[{ k: 'l', label: 'Indicator' }, { k: 'v', label: 'Computed', align: 'r', color: () => C.amber }, { k: 'y', label: 'Ref.', align: 'r', color: () => C.muted }]} rows={[
               { l: 'Price (raw)', v: nf(v.px[1]), y: '—' }, { l: 'Market cap', v: big(v.mcap), y: big(ys.marketCap) }, { l: 'EV', v: big(v.ev), y: '—' },
               { l: `P/E ${v.basis}`, v: nf(v.pe), y: nf(ys.trailingPE) }, { l: 'P/B', v: nf(v.pb), y: nf(ys.priceToBook) }, { l: 'EV/EBITDA', v: nf(v.evEbitda), y: nf(ys.enterpriseToEbitda) },
               { l: 'Div. yield 12m', v: pf(v.dy, 2, false), y: pf(ys.dividendYield, 2, false) }, { l: 'ROE', v: pf(v.roe, 1, false), y: '—' }, { l: 'Net debt/EBITDA', v: nf(v.ndEbitda), y: '—' },
@@ -241,7 +241,7 @@ export function DVDView({ ticker }: { ticker: string }) {
     void px
     return (
       <FnScreen code="DVD" ticker={ticker} title="Dividend / Split History" tabs={us ? undefined : ['Distribution history', 'CVM notices (IPE)']} tab={tab} setTab={setTab} source={srcOf(d)}
-        note={us ? 'Yahoo only provides the ex-date and amount per share. Declaration, record and payment dates are in the company\'s press releases (often furnished on Form 8-K, see CF).' : 'Yahoo only provides the ex-date and gross amount per share. Declaration/record/payment dates and the type (dividend vs JCP) are in the CVM notices (tab 2), linked to the original document.'}>
+        note={us ? 'Only the ex-date and amount per share are available here. Declaration, record and payment dates are in the company\'s press releases (often furnished on Form 8-K, see CF).' : 'Only the ex-date and gross amount per share are available here. Declaration/record/payment dates and the type (dividend vs JCP) are in the company notices (tab 2), linked to the original document.'}>
         {tab === 0 || us ? <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
           <Panel title={`Distributions (${rows.length})`}><Grid maxH={560} cols={[{ k: 'ex', label: 'Ex-date', fmt: dBRfull }, { k: 'amt', label: `Amount ${$}`, align: 'r', fmt: v => nf(v, 6), color: () => C.amber }, { k: 'px', label: 'Prev. price', align: 'r', fmt: (v: any) => nf(v) }, { k: 'y', label: 'Yield', align: 'r', fmt: v => pf(v, 2, false) }, { k: 'type', label: 'Type' }]} rows={rows} /></Panel>
           <Panel title={`Total per year (${$}/share)`}><FnChart height={560} panes={[{ series: [{ kind: 'hist', data: Array.from(byY.entries()).sort().map(([y, v]) => ({ time: `${y}-12-31`, value: v })), color: C.amber, title: `${$}/share`, decimals: 3 }] }]} /></Panel>
@@ -279,7 +279,7 @@ export function CFView({ ticker }: { ticker: string }) {
     const cats = ['All', ...Array.from(new Set((d.filings as any[]).map(f => f.cat))).slice(0, 10)]
     const rows = (d.filings as any[]).filter(f => (cat === 'All' || f.cat === cat) && (!q || (f.subject + f.type).toLowerCase().includes(q.toLowerCase())))
     return (
-      <FnScreen code="CF" ticker={ticker} title={isUS(d) ? 'Company Filings — SEC EDGAR' : 'Company Filings — CVM documents'} right={<Field label="Search"><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
+      <FnScreen code="CF" ticker={ticker} title="Company Filings" right={<Field label="Search"><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
         source={isUS(d) ? 'SEC EDGAR – submissions API (10-K, 10-Q, 8-K, proxy statements…), links to the original document on sec.gov.' : 'CVM Open Data – IPE (periodic and ad-hoc filings), links to RAD/ENET.'}
         note={isUS(d) ? `10-K = annual report, 10-Q = quarterly report, 8-K = current report (subject = official Form 8-K item titles), DEF 14A = proxy statement. Latest ${d.filings.length} filings${d.cad?.PREDECESSOR ? `, including the predecessor registrant ${d.cad.PREDECESSOR}` : ''}.` : 'Brazilian equivalent of 10-K/10-Q/8-K: DFP/ITR, Material Facts, Notices, Minutes. Latest 400 documents.'}>
         <div className="flex flex-wrap gap-0 pb-2">{cats.map(c => <button key={c} onClick={() => setCat(c)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: cat === c ? C.amber : 'transparent', color: cat === c ? tc('#000') : C.amber }}>{c.length > 34 ? c.slice(0, 32) + '…' : c}</button>)}</div>
@@ -295,14 +295,14 @@ export function CNView({ ticker }: { ticker: string }) {
     const k = tickerKey(ticker), nm = (d.profile?.longName || '').split(/[ .-]/)[0]
     const us = isUS(d)
     // EUA: os 8-K (current reports) são o fluxo oficial de notícias da empresa; destaque para resultados (item 2.02)
-    const fil = us ? (d.filings as any[]).filter(f => /^8-K/.test(f.cat)).map(f => ({ date: f.date, src: `SEC ${f.cat}`, title: f.subject || f.type, link: f.link, hot: /Results of Operations/.test(f.subject || '') }))
-      : (d.filings as any[]).filter(f => /Fato Relevante|Comunicado|Aviso|Assembleia|Dados Econ/i.test(f.cat)).map(f => ({ date: f.date, src: f.cat === 'Fato Relevante' ? 'MAT FACT' : 'CVM', title: f.subject || f.type, link: f.link, hot: f.cat === 'Fato Relevante' }))
+    const fil = us ? (d.filings as any[]).filter(f => /^8-K/.test(f.cat)).map(f => ({ date: f.date, src: f.cat, title: f.subject || f.type, link: f.link, hot: /Results of Operations/.test(f.subject || '') }))
+      : (d.filings as any[]).filter(f => /Fato Relevante|Comunicado|Aviso|Assembleia|Dados Econ/i.test(f.cat)).map(f => ({ date: f.date, src: f.cat === 'Fato Relevante' ? 'MAT FACT' : 'NOTICE', title: f.subject || f.type, link: f.link, hot: f.cat === 'Fato Relevante' }))
     const nw = (news.data?.items || []).filter((n: any) => n.tags?.includes(k) || (nm.length > 3 && n.title.toLowerCase().includes(nm.toLowerCase()))).map((n: any) => ({ date: n.date.slice(0, 10), src: n.source.split('–')[0].trim(), title: n.title, link: n.link, hot: false }))
     const rows = [...nw, ...fil].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 200)
     return (
       <FnScreen code="CN" ticker={ticker} title="Company News" source={us ? 'SEC EDGAR – Form 8-K current reports + open-license RSS filtered by company name.' : 'CVM IPE (Material Facts, Market Notices, Notices) + open-license RSS (Agência Brasil, CC BY 4.0) filtered by company name.'}
         note={us ? 'No paid news-agency feed: the stream is the company\'s official regulatory news (Form 8-K, official item titles). Earnings releases (item 2.02) highlighted.' : 'No paid news-agency feed: the stream is the company\'s official regulatory news. Material Facts highlighted.'}>
-        <Grid maxH={700} rowStyle={(r: any) => r.hot ? { background: tc('#1a1205') } : undefined} cols={[{ k: 'date', label: 'Date', fmt: dBR, w: '70px' }, { k: 'src', label: 'Source', w: '90px', color: (_, r: any) => r.hot ? C.down : C.amber }, { k: 'title', label: 'Headline', fmt: (v, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: r.hot ? C.white : C.text, fontWeight: r.hot ? 700 : 400 }}>{v}</a> }]} rows={rows} />
+        <Grid maxH={700} rowStyle={(r: any) => r.hot ? { background: tc('#1a1205') } : undefined} cols={[{ k: 'date', label: 'Date', fmt: dBR, w: '70px' }, { k: 'src', label: 'Type', w: '90px', color: (_, r: any) => r.hot ? C.down : C.amber }, { k: 'title', label: 'Headline', fmt: (v, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: r.hot ? C.white : C.text, fontWeight: r.hot ? 700 : 400 }}>{v}</a> }]} rows={rows} />
       </FnScreen>)
   })()}</Guard>
 }

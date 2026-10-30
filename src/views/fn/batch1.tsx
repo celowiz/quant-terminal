@@ -214,7 +214,7 @@ export function CBRView() {
   const last = s.hist[s.hist.length - 1]?.[0] + '-01'
   const from = rangeFrom(last, rng)?.slice(0, 7) ?? null
   const hp = (b: any) => cut(b.hist, from).map((r: any) => ({ time: r[0] + '-01', value: r[1] }))
-  const note = L(d.note, 'Taxa básica compilada pelo BIS (para alguns países uma aproximação, como a taxa de refinanciamento ou a meta). Último movimento = última mudança na série diária (mensal, se não houver diária). Zona do euro = BCE.')
+  const note = L(d.note, 'Taxa básica (para alguns países uma aproximação, como a taxa de refinanciamento ou a meta). Último movimento = última mudança na série diária (mensal, se não houver diária). Zona do euro = BCE.')
   const cols = 18, rowsN = 8
   return (
     <FnScreen code="CBR" title="Central Bank Rates" source={d.source} note={note}
@@ -276,7 +276,7 @@ export function CRYPView() {
   if (!d) return <FnScreen code="CRYP" title="Crypto Monitor"><Loading2 err={err} /></FnScreen>
   const g = d.global, f = d.fng[d.fng.length - 1], tv = d.tvl[d.tvl.length - 1]
   const last = (f?.[0] || d.generated_at).slice(0, 10), from = rangeFrom(last, rng)
-  const note = L(d.note, 'Preços em US$, foto no momento da atualização (cripto negocia 24/7). TVL = valor total travado em protocolos DeFi (metodologia DefiLlama; por padrão exclui dupla contagem).')
+  const note = L(d.note, 'Preços em US$, foto no momento da atualização (cripto negocia 24/7). TVL = valor total travado em protocolos DeFi (por padrão exclui dupla contagem).')
   const fl = (s: string) => lang() === 'pt' ? FNG_PT[s] || s : s
   return (
     <FnScreen code="CRYP" title="Crypto Monitor" source={d.source} note={note} asOf={d.generated_at?.slice(0, 10)}
