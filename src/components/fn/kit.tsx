@@ -56,8 +56,8 @@ export function useJSON<T = any>(path: string | null) {
 }
 /** Núcleo mostrado primeiro nas sugestões (a cobertura real vem do tickers.json → `cov`). */
 export const EQUITIES = ['PETR4.SA', 'PETR3.SA', 'VALE3.SA', 'ITUB4.SA', 'ITUB3.SA', 'B3SA3.SA']
-/** Ação com dados corporativos (CVM: corp/<ticker>.json) */
-export const isEquity = (t: string) => covers('DES', t)
+/** Ação com dados corporativos (CVM/SEC: corp/<ticker>.json). DES também cobre FIIs/BDRs/ETFs (des/), por isso FUND. */
+export const isEquity = (t: string) => covers('FUND', t)
 /** O ativo tem o dataset da função (HDS → holders, FA → fa, OMON → options, GIP → intraday) */
 export const hasData = (code: string, t: string) => covers(code, t)
 /** Benchmark padrão por mercado: ações e índices BR → Ibovespa; Ibovespa → dólar (BRL=X); S&P 500 → Nasdaq-100;

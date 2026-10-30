@@ -184,7 +184,7 @@ def unpack_prices(d):
 def read_prices(k):
     with open(os.path.join(OUT, 'prices', k + '.json'), encoding='utf-8') as f: return unpack_prices(json.load(f))
 
-COVERAGE = {'corp': 'corp', 'holders': 'holders', 'fa': 'fa', 'options': 'options', 'intraday': 'intraday'}
+COVERAGE = {'corp': 'corp', 'holders': 'holders', 'fa': 'fa', 'options': 'options', 'intraday': 'intraday', 'des': 'des'}
 
 def file_key(t): return t.replace('^', 'IDX_').replace('.SA', '').replace('.', '_').replace('=', '_').replace('-', '_')
 

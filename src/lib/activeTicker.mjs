@@ -22,8 +22,14 @@ const STATIC_UNIVERSE = {
 }
 /** Universos restritos por função; as demais aceitam todo o data/tickers.json. Preenchido por registerCoverage. */
 export const FUNCTION_UNIVERSE = {}
+/** Datasets extras que também abrem a função: DES cobre ações (corp) e FIIs, BDRs e ETFs (des/). */
+export const EXTRA_DATASETS = { DES: ['des'] }
 function fill(byDataset) {
-  for (const [fn, ds] of Object.entries(FUNCTION_DATASET)) FUNCTION_UNIVERSE[fn] = byDataset[ds] || []
+  for (const [fn, ds] of Object.entries(FUNCTION_DATASET)) {
+    const u = [...(byDataset[ds] || [])]
+    for (const x of EXTRA_DATASETS[fn] || []) for (const t of byDataset[x] || []) if (!u.includes(t)) u.push(t)
+    FUNCTION_UNIVERSE[fn] = u
+  }
 }
 fill(STATIC_UNIVERSE)
 
@@ -42,7 +48,7 @@ export function registerCoverage(tickers) {
   return by
 }
 
-/** O ativo tem os dados da função? (DES/FUND… → corp, HDS → holders, FA → fa, OMON → options, GIP → intraday) */
+/** O ativo tem os dados da função? (DES → corp ou des; FUND… → corp, HDS → holders, FA → fa, OMON → options, GIP → intraday) */
 export const covers = (code, ticker) => {
   const own = FUNCTION_UNIVERSE[String(code || '').toUpperCase()]
   return !own || own.includes(String(ticker || '').toUpperCase())
