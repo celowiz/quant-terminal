@@ -5,11 +5,11 @@ import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
 import { C, PALETTE, nf, pf, big, dBR, dBRfull, clr, useJSON, FnScreen, Panel, Grid, Btns, perLabel, Field, inputCls, inputStyle, KV, Loading, Spark } from '@/components/fn/kit'
 import { corr } from '@/lib/quant'
-import { downloadCSV, CsvBtn, dayNum, fromDay, heat, HBars } from './v4util'
+import { en, monLabel } from '@/lib/enText'
+import { downloadCSV, CsvBtn, dayNum, fromDay, heat, HBars, VertexBars } from './v4util'
 
 const bp = (v: any, d = 1) => v == null || !isFinite(+v) ? '—' : `${+v > 0 ? '+' : ''}${nf(v, d)}`
-const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-const mLabel = (iso: string) => `${MES[+iso.slice(5, 7) - 1]}/${iso.slice(2, 4)}`
+const mLabel = monLabel
 
 // ======================= CDIE =======================
 export function CDIEView() {
@@ -37,7 +37,7 @@ export function CDIEView() {
   const first = v.path[0]
   return (
     <FnScreen code="CDIE" title="CDI / Copom expectations implied by DI futures" tabs={['Copom meetings', 'DI1 contracts', 'History']} tab={tab} setTab={setTab}
-      source={d.source} note={<>{d.method} The implied rate is what the market prices in (not a forecast); it includes a risk premium that grows with maturity. Focus = median Selic per meeting (BCB).</>}>
+      source={d.source} note={<>{en(d.method)} The implied rate is what the market prices in (not a forecast); it includes a risk premium that grows with maturity. Focus = median Selic per meeting (BCB). Implied Selic = implied CDI + current Selic−CDI spread ({nf(d.spread_selic_cdi, 2)} p.p.). Δ meeting vs the previous period; 25 bp = a &quot;standard&quot; cut/hike. Est. only exists up to the last expiry covered by the published Copom calendar. History starts with the sessions available in the B3 Daily Bulletin and grows by one session per day with each pipeline run.</>}>
       <div className="mb-2 grid gap-2 text-[12px] fn-kpi" style={{ gridTemplateColumns: 'repeat(6,minmax(0,1fr))' }}>
         {[
           ['Reference date (settlement)', dBRfull(d.ref_date), C.text],
@@ -62,7 +62,6 @@ export function CDIEView() {
             { k: 'focus', label: 'Focus (med.)', align: 'r', fmt: x => x ? nf(x.median, 2) : '—', color: () => C.purple },
             { k: 'dif', label: 'Impl.−Focus (bp)', align: 'r', fmt: (_, r: any) => r.focus ? bp((r.selic - r.focus.median) * 100) : '—', color: (_, r: any) => r.focus ? clr(r.selic - r.focus.median) : C.muted },
           ]} />
-          <div className="p-2 text-[11px]" style={{ color: C.muted }}>Implied Selic = implied CDI + current Selic−CDI spread ({nf(d.spread_selic_cdi, 2)} p.p.). Δ meeting vs the previous period; 25 bp = a "standard" cut/hike.</div>
         </Panel>
         <div>
           <XYChart height={330} legend zeroLine={false} xFmt={x => dBR(fromDay(Math.round(x)))} yFmt={y => nf(y, 2)} yLabel="% p.a." series={[
@@ -97,7 +96,6 @@ export function CDIEView() {
             { name: 'Forward between expiries', points: d.contracts.flatMap((c: any, i: number) => [[i ? d.contracts[i - 1].du / 252 : 0, c.fwd], [c.du / 252, c.fwd]]), color: C.cyan, width: 1, dash: '3 2' },
             { name: 'Est. (Copom path)', points: d.contracts.filter((c: any) => c.est != null).map((c: any) => [c.du / 252, c.est]), color: C.white, width: 1 },
           ]} />
-          <div className="mt-1 p-2 text-[11px]" style={{ color: C.muted }}>Forward between expiries i−1 → i: [(1+r<sub>i</sub>)<sup>du<sub>i</sub>/252</sup> / (1+r<sub>i−1</sub>)<sup>du<sub>i−1</sub>/252</sup>]<sup>252/(du<sub>i</sub>−du<sub>i−1</sub>)</sup> − 1. Est. only exists up to the last expiry covered by the published Copom calendar.</div>
         </div>
       </div>}
       {tab === 2 && <div>
@@ -109,9 +107,8 @@ export function CDIEView() {
           <Grid maxH={260} rows={d.history.slice().reverse()} cols={[
             { k: 'date', label: 'Date', fmt: x => dBRfull(x) }, { k: 'cdi', label: 'CDI', align: 'r', fmt: x => nf(x, 2) }, { k: 'next', label: 'Next meeting' },
             { k: 'next_move_bp', label: 'Δ impl. (bp)', align: 'r', fmt: x => bp(x), color: x => clr(x) }, { k: 'cum_12m_bp', label: 'Cum. 12m (bp)', align: 'r', fmt: x => bp(x), color: x => clr(x) },
-            { k: 'year_end_cdi', label: 'Year-end CDI', align: 'r', fmt: x => nf(x, 2) }, { k: 'di1_1y', label: 'DI1 ~1A', align: 'r', fmt: x => nf(x, 3) },
+            { k: 'year_end_cdi', label: 'Year-end CDI', align: 'r', fmt: x => nf(x, 2) }, { k: 'di1_1y', label: 'DI1 ~1Y', align: 'r', fmt: x => nf(x, 3) },
           ]} />
-          <div className="p-2 text-[11px]" style={{ color: C.muted }}>History starts with the sessions available in the B3 Daily Bulletin and grows by one session per day with each pipeline run.</div>
         </Panel>
       </div>}
     </FnScreen>
@@ -200,7 +197,7 @@ export function EQSView() {
       </div>
       <div className={`mb-2 flex flex-wrap items-end gap-3 border p-2 ${drawer ? '' : 'max-lg:hidden'}`} style={{ borderColor: C.line, background: C.panel }}>
         <Field label="Search"><input className={inputCls + ' w-28'} style={inputStyle} value={f.q} onChange={e => setF({ ...f, q: e.target.value })} /></Field>
-        <Field label="Sector"><select className={inputCls} style={inputStyle} value={f.sector} onChange={e => setF({ ...f, sector: e.target.value })}><option value="">All</option>{sectors.map(x => <option key={x}>{x}</option>)}</select></Field>
+        <Field label="Sector"><select className={inputCls} style={inputStyle} value={f.sector} onChange={e => setF({ ...f, sector: e.target.value })}><option value="">All</option>{sectors.map(x => <option key={x} value={x}>{en(x)}</option>)}</select></Field>
         {num('mcap', 'Mkt cap ≥ (R$ bn)')}{num('liq', 'Liq. 30d ≥ (R$ mn)')}{num('pe', 'P/E ≤')}{num('pb', 'P/B ≤', 'w-16', 0.1)}{num('dy', 'DY ≥ %', 'w-16', 0.5)}{num('roe', 'ROE ≥ %')}{num('nd', 'ND/EBITDA ≤', 'w-16', 0.5)}
         <button className="px-2 py-[1px] text-[12px] border" style={{ borderColor: C.line, color: C.muted }} onClick={() => setF({ sector: '', mcap: 0, pe: 0, pb: 0, dy: 0, roe: 0, nd: 0, liq: 0, q: '' })}>Clear</button>
         <span className="ml-auto text-[12px] max-lg:hidden" style={{ color: C.amber }}>{rows.length} of {s.rows.length} stocks</span>
@@ -252,9 +249,11 @@ export function GCView() {
       source={tab === 0 ? 'B3 – Daily Bulletin (DI1 settlement rate), via cdie.json' : tab === 1 ? g.td_source : 'FRED – Treasury constant maturity (DGS1MO…DGS30)'}
       note={tab === 0 ? 'X axis in business years (bd/252). DI1 history only covers sessions already collected from the Daily Bulletin; longer comparisons appear as the pipeline accumulates sessions.' : tab === 1 ? 'Zero-coupon bonds (Tesouro Prefixado / Tesouro IPCA+), morning bid rate published by the Treasury; X axis in calendar years to maturity.' : 'Treasury par curve (constant maturity), X axis in years.'}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)' }}>
-        <XYChart height={440} legend xLabel={tab === 0 ? 'business years' : 'years'} yLabel={unit} xFmt={x => nf(x, 1)} yFmt={y => nf(y, 2)} series={shown.flatMap(k => [
+        <div className="min-w-0"><XYChart height={300} legend xLabel={tab === 0 ? 'business years' : 'years'} yLabel={unit} xFmt={x => nf(x, 1)} yFmt={y => nf(y, 2)} series={shown.flatMap(k => [
           { name: `${LBL[k]} (${dBR(curves[k].date)})`, points: curves[k].pts.map(p => [p.x, p.y] as [number, number]), color: COLS[k], width: k === 'now' ? 2 : 1, dash: k === 'now' ? undefined : '4 3' },
         ])} />
+        <div className="mt-2"><VertexBars height={170} labels={tableRows.map((r: any) => String(r.l))}
+          groups={avail.filter(k => cmp.includes(k)).map(k => ({ name: `vs ${LBL[k]} (${dBR(curves[k].date)})`, values: tableRows.map((r: any) => r[k]) }))} /></div></div>
         <Panel title={`${unit} — Δ in bp vs. previous dates`}>
           <Grid maxH={440} rows={tableRows} cols={[
             { k: 'l', label: tab === 1 ? 'Expiry' : 'Tenor', color: () => C.amber },
@@ -420,7 +419,7 @@ export function GLCOView() {
         { k: 'lo52', label: '52w Low', align: 'r', fmt: x => nf(x, 2) }, { k: 'hi52', label: '52w High', align: 'r', fmt: x => nf(x, 2) }, { k: 'spark', label: '3 months', fmt: x => <Spark data={x} color={C.amber} /> }, { k: 'date', label: 'Date', fmt: x => dBR(x), color: () => C.muted },
       ]} />
       <Panel title={`${cur.name} (${cur.ticker}) — ${cur.unit}`} className="mt-2">
-        <FnChart height={260} panes={[{ series: [{ kind: 'area', data: cur.series.map((p: any) => ({ time: p[0], value: p[1] })), color: C.amber, title: cur.ticker, lines: [{ price: cur.hi52, color: '#555', title: '52w high' }, { price: cur.lo52, color: '#555', title: '52w low' }] }] }]} />
+        <FnChart height={260} panes={[{ series: [{ kind: 'area', data: cur.series.map((p: any) => ({ time: p[0], value: p[1] })), color: C.white, title: cur.ticker, lines: [{ price: cur.hi52, color: '#555', title: '52w high' }, { price: cur.lo52, color: '#555', title: '52w low' }] }] }]} />
       </Panel>
     </FnScreen>
   )

@@ -52,6 +52,24 @@ type Props = {
   highLow?: { high: Price; low: Price } | null
 }
 
+const VOL = '#7189aa'
+/** lightweight-charts não expõe peso de fonte: deixa em negrito só os canvases do eixo direito (valores de preço). */
+function boldRightAxis(root: HTMLElement) {
+  root.querySelectorAll('tr').forEach(tr => {
+    const tds = tr.querySelectorAll(':scope > td')
+    const axis = tds[tds.length - 1]
+    if (!axis || tds.length < 3) return
+    axis.querySelectorAll('canvas').forEach(cv => {
+      const ctx = (cv as HTMLCanvasElement).getContext('2d') as any
+      if (!ctx || ctx.__qtBold) return
+      const d = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'font')
+      if (!d?.set || !d.get) return
+      Object.defineProperty(ctx, 'font', { configurable: true, get() { return d.get!.call(this) }, set(v: string) { d.set!.call(this, /\bbold\b/.test(v) ? v : `bold ${v}`) } })
+      ctx.__qtBold = true
+    })
+  })
+}
+
 export default function PriceChart({ rows, history, mode, showVolume, smas, onHover, highLow }: Props) {
   const ref = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -70,7 +88,7 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
         vertLines: { color: T.grid, style: LineStyle.Dotted },
         horzLines: { color: T.grid, style: LineStyle.Dotted },
       },
-      rightPriceScale: { borderColor: '#3a3a3a', scaleMargins: { top: 0.12, bottom: 0.06 } },
+      rightPriceScale: { borderColor: '#3a3a3a', textColor: '#ffffff', scaleMargins: { top: 0.12, bottom: 0.06 } },
       leftPriceScale: { visible: false },
       timeScale: { borderColor: '#3a3a3a', rightOffset: 4, timeVisible: false, fixLeftEdge: true },
       crosshair: {
@@ -90,21 +108,25 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
     const pf = { type: 'custom', minMove: 0.0001, formatter: (v: number) => v.toLocaleString(numLocale(), { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(v) < 10 ? 4 : 2 }) } as any
     const price = mode === 'candle'
       ? chart.addSeries(CandlestickSeries, {
-          upColor: 'rgba(0,0,0,0)', borderUpColor: T.up, wickUpColor: T.up,
+          upColor: T.up, borderUpColor: T.up, wickUpColor: T.up,
           downColor: T.down, borderDownColor: T.down, wickDownColor: T.down,
           borderVisible: true, wickVisible: true,
-          priceLineColor: T.amber, priceLineStyle: LineStyle.Dotted,
+          priceLineColor: T.amber, priceLineStyle: LineStyle.Dotted, lastValueVisible: false,
           title: '', priceFormat: pf,
         })
       : chart.addSeries(AreaSeries, {
           lineColor: T.line, lineWidth: 2, topColor: T.mountain, bottomColor: 'rgba(47,123,255,0.02)',
-          priceLineColor: T.amber, priceLineStyle: LineStyle.Dotted, priceFormat: pf,
+          priceLineColor: T.amber, priceLineStyle: LineStyle.Dotted, lastValueVisible: false, priceFormat: pf,
         })
     if (mode === 'candle') {
       (price as any).setData(rows.map(r => ({ time: r.time, open: r.open, high: r.high, low: r.low, close: r.close })))
     } else {
       (price as any).setData(rows.map(r => ({ time: r.time, value: r.close })))
     }
+
+    // rótulo do último preço no eixo: fundo branco, texto preto (linha pontilhada âmbar mantida pela série)
+    const lastRow = rows[rows.length - 1]
+    price.createPriceLine({ price: lastRow.close, color: 'rgba(0,0,0,0)', lineVisible: false, axisLabelVisible: true, axisLabelColor: '#ffffff', axisLabelTextColor: '#000000', title: '' } as any)
 
     if (highLow) {
       const key = mode === 'candle' ? ['high', 'low'] as const : ['close', 'close'] as const
@@ -128,7 +150,7 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
       }, 1)
       vol.setData(rows.map((r, i) => {
         const up = mode === 'candle' ? r.close >= r.open : i === 0 || r.close >= rows[i - 1].close
-        return { time: r.time, value: r.volume, color: up ? 'rgba(220,220,220,0.55)' : 'rgba(47,123,255,0.75)' }
+        return { time: r.time, value: r.volume, color: VOL }
       }))
       const panes = chart.panes()
       panes[0].setStretchFactor(0.78)
@@ -136,6 +158,8 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
     }
 
     chart.timeScale().fitContent()
+    boldRightAxis(el)
+    chart.applyOptions({})
 
     const byTime = new Map(rows.map(r => [r.time, r]))
     const onMove = (p: MouseEventParams<Time>) => {

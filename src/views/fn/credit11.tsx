@@ -1,6 +1,7 @@
 'use client'
 /** YAS (calculadora de títulos públicos), DRSK (distância ao default de Merton), ECTR (comércio exterior Comex Stat). Strings em inglês por tela. */
 import React, { useEffect, useMemo, useState } from 'react'
+import { en } from '@/lib/enText'
 import FnChart from '@/components/fn/FnChart'
 import { C, MONO, useJSON, FnScreen, Panel, Grid, Btns, Field, KV, useFitH, useFit } from '@/components/fn/kit'
 import { HBars } from './v4util'
@@ -153,7 +154,7 @@ export function DRSKView() {
   return (
     <FnScreen code="DRSK" title={S.title}
       right={<Field label={S.sector}><select className="bg-black border px-1 py-[1px] text-[12px] outline-none" style={{ borderColor: C.line, color: C.amber, fontFamily: MONO }} value={sec} onChange={e => setSec(e.target.value)}>
-        <option value="All">{S.all}</option>{(d.sectors as any[]).map(s => <option key={s.sector} value={s.sector}>{s.sector}</option>)}</select></Field>}
+        <option value="All">{S.all}</option>{(d.sectors as any[]).map(s => <option key={s.sector} value={s.sector}>{en(s.sector)}</option>)}</select></Field>}
       source={d.source} note={<>{d.method} {S.skipped}: {(d.skipped || []).map((s: any) => `${s.cod} (${s.reason})`).join('; ')}. {S.banks}: {(d.banks_excluded || []).join(', ')}.</>}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)' }}>
         <Panel title={`${rows.length} · ${dUSfull(d.date)} · CDI ${n(d.r_cdi, 2)}%`}>

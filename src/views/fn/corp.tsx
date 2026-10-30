@@ -50,7 +50,7 @@ export function DESView({ ticker }: { ticker: string }) {
             <KV rows={[['Sector (Yahoo)', `${p.sector || '—'} / ${p.industry || '—'}`], ['CVM sector', cad.SETOR_ATIV || '—'], ['Employees', p.fullTimeEmployees ? nf(p.fullTimeEmployees, 0) : '—'], ['Headquarters', `${p.city || cad.MUN || '—'}, ${p.country || ''}`], ['Site', p.website || '—'], ['CNPJ', d.cnpj], ['Shareholder control', cad.CONTROLE_ACIONARIO || '—']]} />
           </Panel>
           <Panel title="Price — 1 year">
-            {r1.length > 0 && <FnChart height={190} panes={[{ series: [{ kind: 'area', data: r1.map(r => ({ time: r.time, value: r.close })), color: C.amber, title: short(ticker) }] }]} />}
+            {r1.length > 0 && <FnChart height={190} panes={[{ series: [{ kind: 'area', data: r1.map(r => ({ time: r.time, value: r.close })), color: C.white, title: short(ticker) }] }]} />}
             <KV rows={[['Last (raw)', `R$ ${nf(v.px[1])}`, C.amber], ['Date', dBR(v.px[0])], ['1Y return (adj.)', pf(ret1), clr(ret1)], ['52w High', nf(hi)], ['52w Low', nf(lo)]]} />
           </Panel>
           <Panel title="Key data">

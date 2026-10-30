@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect, useCallback } from 'react'
-import { Settings, Share2 } from 'lucide-react'
+import { CircleHelp, Settings, Share2 } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import ShareMenu from './ShareMenu'
 import SettingsPanel from './SettingsPanel'
 import { isPanelOpen, setPanelOpen } from '../lib/settings'
@@ -10,7 +11,10 @@ import TickerSelector from './TickerSelector'
 import { listTickers, tickerMeta, go, href, pathParts } from '../lib/static'
 import { acceptsTicker, functionPath, inUniverse } from '../lib/activeTicker.mjs'
 import { getActiveTicker, setActiveTicker, UNIVERSE } from '../lib/nav'
-import { navTicker } from '../lib/track'
+import { navTicker, trackHelp } from '../lib/track'
+import { getHelp } from '../lib/help'
+
+const HelpModal = dynamic(() => import('./help/HelpModal'), { ssr: false })
 import { usePageTitle } from '../hooks/usePageTitle'
 import { fnNameByCode } from '../constants/functions'
 // Using location-based navigation to avoid Next import types
@@ -36,6 +40,8 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
   const closeSettings = useCallback(() => { setPanelOpen(false); setShowSettings(false) }, [])
   const [showShare, setShowShare] = useState(false)
   const closeShare = useCallback(() => setShowShare(false), [])
+  const [showHelp, setShowHelp] = useState(false)
+  const closeHelp = useCallback(() => setShowHelp(false), [])
 
   const [currentCodeFromPath, setCurrentCodeFromPath] = useState('')
   const [currentTickerFromPath, setCurrentTickerFromPath] = useState('')
@@ -175,6 +181,11 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
         </div>
         <div className="flex-1 h-10 max-lg:h-11 max-lg:pr-3 border-0 flex items-center justify-end pr-4" style={{ backgroundImage: 'linear-gradient(to right, #8E0D0D, #4D0A0A)' }}>
 
+          <button type="button" data-help-toggle aria-label={t('help.open')} title={t('help.open')} aria-haspopup="dialog" aria-expanded={showHelp} aria-controls="qt-help"
+            className={`p-1 mr-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA028] ${showHelp ? 'text-white' : 'text-[#FFA028] hover:text-white'}`}
+            onClick={() => { const v = !showHelp; setShowHelp(v); if (v) { setShowShare(false); toggleSettings(false); trackHelp(getHelp()?.code || (pathParts()[0] || '').toUpperCase() || 'HOME') } }}>
+            <CircleHelp className="w-5 h-5" aria-hidden strokeWidth={2} />
+          </button>
           <button type="button" data-share-toggle aria-label={t('share.open')} title={t('share.title')} aria-haspopup="menu" aria-expanded={showShare} aria-controls="qt-share"
             className={`p-1 mr-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA028] ${showShare ? 'text-white' : 'text-[#FFA028] hover:text-white'}`}
             onClick={() => { setShowShare(!showShare); if (!showShare) toggleSettings(false) }}>
@@ -189,6 +200,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
       </div>
       {showSettings && <SettingsPanel onClose={closeSettings} />}
       {showShare && <ShareMenu onClose={closeShare} />}
+      {showHelp && <HelpModal code={(pathParts()[0] || '').toUpperCase() || 'HOME'} onClose={closeHelp} />}
     </div>
   )
 }

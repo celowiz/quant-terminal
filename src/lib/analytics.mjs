@@ -90,6 +90,10 @@ export function buildOutboundParams(href, currentHost) {
 export function buildChartInteractionParams({ functionCode, period }) {
   return sanitizeParams({ function_code: String(functionCode || 'HOME').toUpperCase(), interaction: 'period_change', period: String(period) })
 }
+export function buildHelpOpenParams({ functionCode }) {
+  const c = String(functionCode || 'HOME').toUpperCase()
+  return sanitizeParams({ function: c, function_code: c })
+}
 export function buildShareParams({ functionCode, ticker, method }) {
   if (!SHARE_METHODS.includes(method)) return null
   return sanitizeParams({ function_code: String(functionCode || 'HOME').toUpperCase(), ticker: ticker || undefined, method })

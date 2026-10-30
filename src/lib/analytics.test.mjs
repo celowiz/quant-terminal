@@ -140,3 +140,8 @@ test('event names and params are snake_case and <= 40 chars', () => {
     A.buildOutboundParams('https://x.com/a', 'y'), A.buildChartInteractionParams({ functionCode: 'A', period: 1 }), A.buildShareParams({ functionCode: 'A', ticker: 'B', method: 'link' })]
   for (const p of ps) for (const k of Object.keys(p)) assert.match(k, /^[a-z][a-z0-9_]{0,39}$/)
 })
+
+test('buildHelpOpenParams: help_open carries the function code', () => {
+  assert.deepEqual(A.buildHelpOpenParams({ functionCode: 'cdie' }), { function: 'CDIE', function_code: 'CDIE' })
+  assert.deepEqual(A.buildHelpOpenParams({ functionCode: '' }), { function: 'HOME', function_code: 'HOME' })
+})
