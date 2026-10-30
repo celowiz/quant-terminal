@@ -19,7 +19,7 @@ run() {
   local name="$1"; shift
   echo "::group::$name"
   local t0=$SECONDS
-  if timeout 1200 python3 "$@"; then echo "[ok] $name ($((SECONDS - t0))s)"; else echo "[FALHOU] $name"; FAILED+=("$name"); fi
+  if timeout -k 30 1200 python3 "$@"; then echo "[ok] $name ($((SECONDS - t0))s)"; else echo "[FALHOU] $name"; FAILED+=("$name"); fi
   echo "::endgroup::"
 }
 

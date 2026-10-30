@@ -4,7 +4,7 @@ Grava corp/{T}.json e fa/{T}.json no mesmo formato das ações BR (CVM) e screen
 Preço sem ajuste, proventos e desdobramentos vêm do Yahoo Finance, como nas ações BR."""
 import sys, time, json, os, datetime as dt
 import pandas as pd, requests, yfinance as yf
-from common import save, clean, step, now_iso, today_brt, load_prev, OUT, CACHE, file_key as key
+from common import with_timeout, save, clean, step, now_iso, today_brt, load_prev, OUT, CACHE, file_key as key
 
 # A SEC exige um User-Agent com contato (https://www.sec.gov/os/accessing-edgar-data); e-mail público dos commits do projeto.
 SEC_UA = {'User-Agent': 'quant-terminal celowiz marcelo_wz@hotmail.com', 'Accept-Encoding': 'gzip, deflate'}
@@ -302,7 +302,10 @@ def sec():
     tk = sec_json('https://www.sec.gov/files/company_tickers.json', 'company_tickers.json')
     cikmap = {v['ticker'].upper(): str(v['cik_str']).zfill(10) for v in tk.values()}
     U = us_universe()
-    raw = yf.download(U, period='12y', auto_adjust=False, actions=True, progress=False, group_by='ticker', threads=True)
+    try:
+        raw = with_timeout(yf.download, 600, U, period='12y', auto_adjust=False, actions=True, progress=False, group_by='ticker', threads=True, timeout=30)
+    except Exception as e:
+        print('  yf.download falhou/travou:', e); raw = pd.DataFrame()
     done, rows, yfail = {}, [], 0
     for t in U:
         cik = cikmap.get(t.upper()) or cikmap.get(t.upper().replace('-', '.'))

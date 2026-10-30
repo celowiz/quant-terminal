@@ -262,9 +262,9 @@ export function OSAView({ ticker }: { ticker: string }) {
             <Grid maxH={260} rows={[-0.15, -0.1, -0.05, 0, 0.05, 0.1, 0.15].map(m => ({ m, s: S * (1 + m), now: pnl(R, S * (1 + m), 0, r), mid: h > 0 ? pnl(R, S * (1 + m), Math.min(h, hMax) / 252, r) : null, exp: pnl(R, S * (1 + m), Tmin, r) }))} cols={[
               { k: 'm', label: L('Move', 'Variação'), fmt: x => pc(x * 100, 0), color: x => cl(x) },
               { k: 's', label: L('Price', 'Preço'), align: 'r', fmt: x => n(x) },
-              { k: 'now', label: L('Today', 'Hoje'), align: 'r', fmt: x => n(x, 0), color: x => cl(x) },
-              { k: 'mid', label: `+${h} ${L('bd', 'du')}`, align: 'r', fmt: x => x == null ? '—' : n(x, 0), color: x => cl(x) },
-              { k: 'exp', label: L('Expiry', 'Venc.'), align: 'r', fmt: x => n(x, 0), color: x => cl(x) },
+              { k: 'now', label: L('Today', 'Hoje'), align: 'r', fmt: x => n(x, 0), color: x => cl(x == null ? x : Math.round(x)) },
+              { k: 'mid', label: `+${h} ${L('bd', 'du')}`, align: 'r', fmt: x => x == null ? '—' : n(x, 0), color: x => cl(x == null ? x : Math.round(x)) },
+              { k: 'exp', label: L('Expiry', 'Venc.'), align: 'r', fmt: x => n(x, 0), color: x => cl(x == null ? x : Math.round(x)) },
             ]} />
           </Panel>
         </div>

@@ -9,9 +9,11 @@ import { fmtDate, fmtDateFull, fmtDayMonth, fmtMonth } from '@/lib/dates'
 
 const ok = (v: any) => v != null && v !== '' && isFinite(+v)
 /** número no formato escolhido em Settings (padrão en-US) */
-export const n = (v: any, d = 2) => !ok(v) ? '—' : (+v).toLocaleString(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: d })
+/** valor que arredonda para zero vira 0 (evita "-0" e "+0,00") */
+const z = (v: any, d: number) => Math.abs(+v) < 0.5 * 10 ** -d ? 0 : +v
+export const n = (v: any, d = 2) => !ok(v) ? '—' : z(v, d).toLocaleString(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: d })
 /** com sinal */
-export const sn = (v: any, d = 2) => !ok(v) ? '—' : `${+v > 0 ? '+' : ''}${n(v, d)}`
+export const sn = (v: any, d = 2) => !ok(v) ? '—' : `${z(v, d) > 0 ? '+' : ''}${n(v, d)}`
 export const pc = (v: any, d = 2, sign = true) => !ok(v) ? '—' : `${sign ? sn(v, d) : n(v, d)}%`
 export const bps = (v: any, d = 1) => !ok(v) ? '—' : sn(v, d)
 /** decimais automáticos pelo tamanho (câmbio) */

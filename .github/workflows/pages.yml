@@ -140,8 +140,12 @@ jobs:
             qt-cache-v2-
             qt-cache-
 
+      # Teto do passo: se uma fonte travar além do timeout por etapa (run_all.sh), o deploy segue
+      # com os dados já gerados + os do último artefato, em vez de prender a fila até os 90 min do job.
       - name: Pipeline de dados
         if: steps.mode.outputs.full == 'true'
+        timeout-minutes: 50
+        continue-on-error: true
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: bash pipeline/run_all.sh
