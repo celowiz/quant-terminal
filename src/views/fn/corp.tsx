@@ -5,6 +5,7 @@ import { FitBox, FnScreen, Panel, Grid, Btns, Field, KV, Loading, NA, C, nf, pf,
 import FnChart, { type PaneDef } from '../../components/fn/FnChart'
 import { usePrices } from './tech'
 import { getJSON, tickerKey } from '../../lib/static'
+import { L, regLabel, regValue, sectorEN, fyEnd, isoDate } from './desLabels'
 
 const SRC_CVM = 'CVM Open Data (DFP/ITR, FCA, IPE) + Yahoo Finance (profile, raw price, distributions). Scripts: tools/pipeline/build_corp.py.'
 const SRC_SEC = 'SEC EDGAR (XBRL companyfacts, submissions) + Yahoo Finance (profile, raw price, distributions). Script: pipeline/build_sec.py.'
@@ -57,30 +58,44 @@ export function DESView({ ticker }: { ticker: string }) {
     const ret1 = r1.length ? (r1[r1.length - 1].close / r1[0].close - 1) * 100 : null
     const ann = d.fundamentals.annual.slice(-5)
     const us = isUS(d), $ = ccy(d)
+    const reg = (k: string) => cad[k] != null && cad[k] !== '' ? regValue(k, String(cad[k]), us) : null
+    const profRows: [string, string][] = [
+      [L('Sector / industry', 'Setor / indústria'), p.sector || p.industry ? `${p.sector || '—'} / ${p.industry || '—'}` : '—'],
+      us ? [L('Industry (SIC)', 'Indústria (SIC)'), cad.SIC ? `${cad.SIC}${cad.SETOR_ATIV ? ` · ${cad.SETOR_ATIV}` : ''}` : '—'] : [L('Registered sector', 'Setor no registro'), cad.SETOR_ATIV ? sectorEN(cad.SETOR_ATIV) : '—'],
+      [L('Employees', 'Funcionários'), p.fullTimeEmployees ? nf(p.fullTimeEmployees, 0) : '—'],
+      [L('Headquarters', 'Sede'), [p.city || cad.MUN, p.country].filter(Boolean).join(', ') || '—'],
+      [L('Website', 'Site'), p.website || '—'],
+      ...(us ? [['CIK', d.cik || '—'], [L('Fiscal year end', 'Fim do exercício fiscal'), cad.FISCAL_YEAR_END ? fyEnd(cad.FISCAL_YEAR_END) : '—']] as [string, string][]
+        : [['CNPJ', d.cnpj], [L('Shareholder control', 'Controle acionário'), reg('CONTROLE_ACIONARIO') || '—'],
+          ...(cad.DT_CONST ? [[L('Founded', 'Constituição'), isoDate(cad.DT_CONST)]] : []),
+          ...(cad.AUDITOR ? [[L('Auditor', 'Auditor'), cad.AUDITOR]] : []),
+          ...(cad.RESP ? [[L('IR officer', 'Diretor de RI'), cad.RESP]] : [])] as [string, string][]),
+    ]
     return (
-      <FnScreen code="DES" ticker={ticker} title={`Description — ${p.longName || cad.DENOM_SOCIAL}`} tabs={['Profile', 'Revenue & Earnings', us ? 'SEC registry' : 'CVM registry']} tab={tab} setTab={setTab}
-        source={srcOf(d)} note={us ? <>Market cap = raw closing price × shares outstanding ({d.shares?.source || 'SEC'}). Multiples use trailing 4-quarter earnings/EBITDA from 10-K/10-Q (latest fiscal year when 4 quarters are not available). EV = market cap + net debt + non-controlling interests; — when debt is not tagged in XBRL.</> : <>Market cap = raw closing price × shares outstanding (CVM capital breakdown, all classes). Multiples use trailing 4-quarter earnings/EBITDA.{d.shares?.note ? ` ${d.shares.note}.` : ''}</>}>
+      <FnScreen code="DES" ticker={ticker} title={`${L('Description', 'Descrição')} — ${p.longName || cad.DENOM_SOCIAL}`} tabs={[L('Profile', 'Perfil'), L('Revenue & Earnings', 'Receita e lucro'), L('Registry', 'Cadastro')]} tab={tab} setTab={setTab}
+        source={srcOf(d)} note={us ? L(`Market cap = raw closing price × shares outstanding. Multiples use trailing 4-quarter earnings/EBITDA from 10-K/10-Q (latest fiscal year when 4 quarters are not available). EV = market cap + net debt + non-controlling interests; — when debt is not tagged in XBRL. Net margin = net income / revenue; EBITDA margin = EBITDA / revenue.`, `Valor de mercado = preço de fechamento bruto × ações em circulação. Os múltiplos usam lucro/EBITDA dos últimos 4 trimestres (10-K/10-Q; último exercício quando não há 4 trimestres). EV = valor de mercado + dívida líquida + participação de não controladores; — quando a dívida não é informada em XBRL. Margem líquida = lucro líquido / receita; margem EBITDA = EBITDA / receita.`)
+          : L(`Market cap = raw closing price × shares outstanding (capital breakdown, all classes). Multiples use trailing 4-quarter earnings/EBITDA. Net margin = net income / revenue; EBITDA margin = EBITDA / revenue.${d.shares?.note ? ` ${d.shares.note}.` : ''}`, `Valor de mercado = preço de fechamento bruto × ações (composição do capital, todas as classes). Os múltiplos usam lucro/EBITDA dos últimos 4 trimestres. Margem líquida = lucro líquido / receita; margem EBITDA = EBITDA / receita.${d.shares?.note ? ` ${d.shares.note}.` : ''}`)}>
         {tab === 0 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1.3fr 1fr 1fr' }}>
-          <Panel title="Company description">
-            <div className="p-2 text-[12px] leading-snug" style={{ color: C.text, maxHeight: 210, overflow: 'auto', borderBottom: `1px solid ${C.line}` }}>{p.longBusinessSummary}</div>
-            <KV rows={[['Sector (Yahoo)', `${p.sector || '—'} / ${p.industry || '—'}`], [us ? 'SIC' : 'CVM sector', us ? `${cad.SIC || '—'} ${cad.SETOR_ATIV || ''}` : cad.SETOR_ATIV || '—'], ['Employees', p.fullTimeEmployees ? nf(p.fullTimeEmployees, 0) : '—'], ['Headquarters', `${p.city || cad.MUN || '—'}, ${p.country || ''}`], ['Site', p.website || '—'], ...(us ? [['CIK', d.cik || '—'], ['Fiscal year end', cad.FISCAL_YEAR_END ? `${cad.FISCAL_YEAR_END.slice(2)}/${cad.FISCAL_YEAR_END.slice(0, 2)}` : '—']] as [string, string][] : [['CNPJ', d.cnpj], ['Shareholder control', cad.CONTROLE_ACIONARIO || '—']] as [string, string][])]} />
+          <Panel title={L('Company description', 'Descrição da empresa')}>
+            <div className="p-2 text-[12px] leading-snug" style={{ color: C.text, maxHeight: 210, overflow: 'auto', borderBottom: `1px solid ${C.line}` }}>{p.longBusinessSummary || '—'}</div>
+            <KV rows={profRows} />
           </Panel>
-          <Panel title="Price — 1 year" asOf={v.px[0]}>
+          <Panel title={L('Price — 1 year', 'Preço — 1 ano')} asOf={v.px[0]}>
             {r1.length > 0 && <FnChart height={190} panes={[{ series: [{ kind: 'area', data: r1.map(r => ({ time: r.time, value: r.close })), color: C.white, title: short(ticker) }] }]} />}
-            <KV rows={[['Last (raw)', `${$} ${nf(v.px[1])}`, C.amber], ['Date', dBR(v.px[0])], ['1Y return (adj.)', pf(ret1), clr(ret1)], ['52w High', nf(hi)], ['52w Low', nf(lo)]]} />
+            <KV rows={[[L('Last (raw)', 'Último (bruto)'), `${$} ${nf(v.px[1])}`, C.amber], [L('Date', 'Data'), dBR(v.px[0])], [L('1Y return (adj.)', 'Retorno 1 ano (ajust.)'), pf(ret1), clr(ret1)], [L('52w high', 'Máxima 52 sem.'), nf(hi)], [L('52w low', 'Mínima 52 sem.'), nf(lo)]]} />
           </Panel>
-          <Panel title="Key data" asOf={v.bs?.period}>
-            <KV rows={[['Market cap', v.mcap != null ? `${$} ${big(v.mcap)}` : '—', C.amber], [us ? 'Shares outstanding' : 'Shares (ON+PN)', big(v.shares, 2)], ['EV', v.ev != null ? `${$} ${big(v.ev)}` : '—'], [`P/E (${v.basis})`, nf(v.pe)], ['P/B', nf(v.pb)], [`EV/EBITDA (${v.basis})`, nf(v.evEbitda)], ['Div. yield 12m', pf(v.dy, 2, false)], [`ROE (${v.basis})`, pf(v.roe, 1, false)], ['Net margin', pf(v.margin, 1, false)], ['Net debt/EBITDA', nf(v.ndEbitda)], [`Revenue ${v.basis}`, v.revLtm != null ? `${$} ${big(v.revLtm)}` : '—'], [`Earnings ${v.basis}`, v.netLtm != null ? `${$} ${big(v.netLtm)}` : '—']]} />
+          <Panel title={L('Key data', 'Dados principais')} asOf={v.bs?.period}>
+            <KV rows={[[L('Market cap', 'Valor de mercado'), v.mcap != null ? `${$} ${big(v.mcap)}` : '—', C.amber], [us ? L('Shares outstanding', 'Ações em circulação') : L('Shares (ON+PN)', 'Ações (ON+PN)'), big(v.shares, 2)], ['EV', v.ev != null ? `${$} ${big(v.ev)}` : '—'], [`${L('P/E', 'P/L')} (${v.basis})`, nf(v.pe)], [L('P/B', 'P/VP'), nf(v.pb)], [`EV/EBITDA (${v.basis})`, nf(v.evEbitda)], [L('Div. yield 12m', 'Div. yield 12m'), pf(v.dy, 2, false)], [`ROE (${v.basis})`, pf(v.roe, 1, false)], [L('Net margin', 'Margem líquida'), pf(v.margin, 1, false)], [L('Net debt/EBITDA', 'Dív. líq./EBITDA'), nf(v.ndEbitda)], [`${L('Revenue', 'Receita')} ${v.basis}`, v.revLtm != null ? `${$} ${big(v.revLtm)}` : '—'], [`${L('Earnings', 'Lucro')} ${v.basis}`, v.netLtm != null ? `${$} ${big(v.netLtm)}` : '—']]} />
           </Panel>
         </div>}
         {tab === 1 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-          <Panel title={`Annual revenue (${$} bn)`}><FnChart height={300} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.annual.filter((r: any) => r.revenue).map((r: any) => ({ time: r.period, value: r.revenue / 1e9 })), color: C.amber, title: 'Revenue', decimals: 1 }] }]} /></Panel>
-          <Panel title={`Quarterly net income (${$} bn)`}><FnChart height={300} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.quarterly.filter((r: any) => r.net != null).map((r: any) => ({ time: r.period, value: r.net / 1e9, color: r.net >= 0 ? C.up : C.down })), title: 'Earnings', decimals: 1 }] }]} /></Panel>
-          <div className="col-span-2"><Panel title="Annual summary">
-            <Grid cols={[{ k: 'period', label: 'Fiscal year', fmt: v => v.slice(0, 4) }, { k: 'revenue', label: 'Revenue', align: 'r', fmt: v => big(v) }, { k: 'ebitda', label: 'EBITDA', align: 'r', fmt: v => big(v) }, { k: 'net', label: 'Net income', align: 'r', fmt: v => big(v), color: clr }, { k: 'mg', label: 'Margin', align: 'r', fmt: v => pf(v, 1, false) }]} rows={ann.map((r: any) => ({ ...r, mg: r.net && r.revenue ? (r.net / r.revenue) * 100 : null }))} />
+          <Panel title={`${L('Annual revenue', 'Receita anual')} (${$} ${L('bn', 'bi')})`}><FnChart height={300} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.annual.filter((r: any) => r.revenue).map((r: any) => ({ time: r.period, value: r.revenue / 1e9 })), color: C.amber, title: L('Revenue', 'Receita'), decimals: 1 }] }]} /></Panel>
+          <Panel title={`${L('Quarterly net income', 'Lucro líquido trimestral')} (${$} ${L('bn', 'bi')})`}><FnChart height={300} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.quarterly.filter((r: any) => r.net != null).map((r: any) => ({ time: r.period, value: r.net / 1e9, color: r.net >= 0 ? C.up : C.down })), title: L('Earnings', 'Lucro'), decimals: 1 }] }]} /></Panel>
+          <div className="col-span-2"><Panel title={L('Annual summary', 'Resumo anual')}>
+            <Grid cols={[{ k: 'period', label: L('Fiscal year', 'Exercício'), fmt: v => v.slice(0, 4) }, { k: 'revenue', label: L('Revenue', 'Receita'), align: 'r', fmt: v => big(v) }, { k: 'ebitda', label: 'EBITDA', align: 'r', fmt: v => big(v) }, { k: 'mge', label: L('EBITDA margin', 'Margem EBITDA'), align: 'r', fmt: v => pf(v, 1, false) }, { k: 'net', label: L('Net income', 'Lucro líquido'), align: 'r', fmt: v => big(v), color: clr }, { k: 'mg', label: L('Net margin', 'Margem líquida'), align: 'r', fmt: v => pf(v, 1, false) }]} rows={ann.map((r: any) => ({ ...r, mg: r.net != null && r.revenue ? (r.net / r.revenue) * 100 : null, mge: r.ebitda != null && r.revenue ? (r.ebitda / r.revenue) * 100 : null }))} />
           </Panel></div>
         </div>}
-        {tab === 2 && <Panel title={us ? 'Registry (SEC EDGAR submissions)' : 'Registry (CVM cad_cia_aberta)'}><KV cols={2} rows={Object.entries(cad).filter(([, x]) => x != null && x !== '').map(([k, x]) => [k, String(x)] as [string, string])} /></Panel>}
+        {tab === 2 && <Panel title={L('Registry', 'Cadastro')}><KV cols={2} rows={Object.entries(cad).filter(([, x]) => x != null && x !== '').map(([k, x]) => [regLabel(k, us), regValue(k, String(x), us)] as [string, string])} /></Panel>}
       </FnScreen>)
   })()}</Guard>
 }

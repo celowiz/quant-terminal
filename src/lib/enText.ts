@@ -108,8 +108,10 @@ export function toEN(s: string): string {
   u = u.split(' — ').map(x => MAP[x] || x).join(' — ')
   if (u !== t) return u
   const M3 = '(?:jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)'
+  const MFULL = '(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)'
   return t
-    .replace(new RegExp('(?<!\\p{L})(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?!\\p{L})', 'giu'), w => MON_EN[MON_PT.indexOf(w.toLowerCase())])
+    // só em contexto de data (número ao lado: "30 de janeiro", "janeiro de 2026", "janeiro/26"), nunca em nomes próprios como "Rio de Janeiro"
+    .replace(new RegExp(`(?<=\\d\\s(?:de\\s)?)${MFULL}(?!\\p{L})|(?<!\\p{L})${MFULL}(?=\\s(?:de\\s)?\\d|\\/\\d)`, 'giu'), w => MON_EN[MON_PT.indexOf(w.toLowerCase())])
     .replace(new RegExp(`(?<!\\p{L})${M3}(?=\\/\\d\\d(?!\\d)|\\s\\d{4}(?!\\d)|-${M3}(?!\\p{L}))|(?<=(?<!\\p{L})${M3}-)${M3}(?!\\p{L})`, 'gu'), w => MON3_EN[MON3_PT.indexOf(w)])
 }
 /** Texto de dados para exibição: EN por padrão, original em PT. */
