@@ -1,4 +1,5 @@
 "use client"
+import { tc } from './themeRuntime'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type Options = {
@@ -110,7 +111,7 @@ export function useBlockCaret(
     top: `${coords.top}px`,
     width: `${coords.width}px`,
     height: `${coords.height}px`,
-    background: '#ffffff',
+    background: tc('#ffffff'),
     pointerEvents: 'none' as const,
     animation: 'bbCaretBlink 1s step-end infinite',
   }), [coords])

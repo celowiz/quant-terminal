@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 import React, { useEffect, useMemo, useState } from 'react'
 import { getPrices, type Price, listTickers } from '../../lib/static'
 import { FnScreen, Panel, Grid, Btns, Field, KV, Loading, C, nf, pf, dBR, clr, short, isoMinus, inputCls, inputStyle, PALETTE, useJSON, defaultBench, isBR } from '../../components/fn/kit'
@@ -32,7 +33,7 @@ export function MACDView({ ticker }: { ticker: string }) {
     const panes: PaneDef[] = [
       { stretch: 0.6, series: [{ kind: 'candle', data: idx.map(i => ({ time: rows[i].time, open: rows[i].open, high: rows[i].high, low: rows[i].low, close: rows[i].close })), title: short(ticker) }] },
       { stretch: 0.4, series: [
-        { kind: 'hist', data: idx.filter(i => m.hist[i] != null).map(i => ({ time: rows[i].time, value: m.hist[i]!, color: m.hist[i]! >= 0 ? (m.hist[i]! >= (m.hist[i - 1] ?? 0) ? '#3DDC84' : '#1f7a49') : (m.hist[i]! <= (m.hist[i - 1] ?? 0) ? '#FF4D4D' : '#8a2a2a') })), title: 'Hist', decimals: 3 },
+        { kind: 'hist', data: idx.filter(i => m.hist[i] != null).map(i => ({ time: rows[i].time, value: m.hist[i]!, color: m.hist[i]! >= 0 ? (m.hist[i]! >= (m.hist[i - 1] ?? 0) ? tc('#3DDC84') : tc('#1f7a49')) : (m.hist[i]! <= (m.hist[i - 1] ?? 0) ? tc('#FF4D4D') : tc('#8a2a2a')) })), title: 'Hist', decimals: 3 },
         { kind: 'line', data: idx.filter(i => m.macd[i] != null).map(i => ({ time: rows[i].time, value: m.macd[i]! })), color: C.white, title: 'MACD', decimals: 3, markers: cross.slice(-12) },
         { kind: 'line', data: idx.filter(i => m.signal[i] != null).map(i => ({ time: rows[i].time, value: m.signal[i]! })), color: C.amber, title: 'Signal', decimals: 3 },
       ] },
@@ -79,7 +80,7 @@ export function RSIView({ ticker }: { ticker: string }) {
     const vals = idx.map(i => r[i]).filter((v): v is number => v != null)
     const panes: PaneDef[] = [
       { stretch: 0.62, series: [{ kind: 'line', data: idx.map(i => ({ time: rows[i].time, value: rows[i].close })), color: C.white, title: short(ticker) }] },
-      { stretch: 0.38, series: [{ kind: 'line', data: idx.filter(i => r[i] != null).map(i => ({ time: rows[i].time, value: r[i]!, color: r[i]! >= ob ? C.down : r[i]! <= os ? C.up : C.amber })), color: C.amber, title: `RSI ${n}`, lines: [{ price: ob, color: C.down, title: String(ob) }, { price: os, color: C.up, title: String(os) }, { price: 50, color: '#555' }] }] },
+      { stretch: 0.38, series: [{ kind: 'line', data: idx.filter(i => r[i] != null).map(i => ({ time: rows[i].time, value: r[i]!, color: r[i]! >= ob ? C.down : r[i]! <= os ? C.up : C.amber })), color: C.amber, title: `RSI ${n}`, lines: [{ price: ob, color: C.down, title: String(ob) }, { price: os, color: C.up, title: String(os) }, { price: 50, color: tc('#555') }] }] },
     ]
     return { panes, last: r[r.length - 1], date: rows[rows.length - 1].time, pctOb: (vals.filter(v => v >= ob).length / vals.length) * 100, pctOs: (vals.filter(v => v <= os).length / vals.length) * 100, mx: Math.max(...vals), mn: Math.min(...vals), avg: mean(vals) }
   }, [rows, period, n, ob, os, ticker])
@@ -125,7 +126,7 @@ export function SEAGView({ ticker }: { ticker: string }) {
     const series: any[] = []
     if (mode === 'lines') past.forEach((y, i) => series.push({ name: String(y), points: curve(y), color: PALETTE[(i + 2) % PALETTE.length], width: 1, opacity: 0.8 }))
     else series.push({ name: `Max/min range ${past[0]}–${past[past.length - 1]}`, points: [], band: stats.map(s => [s[0], s[1], s[2]]), color: C.blue })
-    series.push({ name: `Average ${past[0]}–${past[past.length - 1]}`, points: stats.map(s => [s[0], s[3]]), color: '#bbbbbb', width: 1.5, dash: '5,4' })
+    series.push({ name: `Average ${past[0]}–${past[past.length - 1]}`, points: stats.map(s => [s[0], s[3]]), color: tc('#bbbbbb'), width: 1.5, dash: '5,4' })
     series.push({ name: `${cur} (current)`, points: curve(cur), color: C.amber, width: 2.5 })
     const table = [...past, cur].reverse().map(y => { const c = curve(y); return { y, ytd: c[c.length - 1][1], max: Math.max(...c.map(p => p[1])), min: Math.min(...c.map(p => p[1])) } })
     return { series, table, cur, past }
@@ -168,9 +169,9 @@ export function SEAHView({ ticker }: { ticker: string }) {
         <table className="w-full border-collapse">
           <thead><tr><th className="px-2 py-1 text-left text-[12px] font-normal" style={{ color: C.amber }}>Year</th>{MONTHS.map(m => <th key={m} className="px-2 py-1 text-right text-[12px] font-normal" style={{ color: C.amber }}>{m}</th>)}<th className="px-2 py-1 text-right text-[12px] font-normal" style={{ color: C.amber }}>Year</th></tr></thead>
           <tbody>
-            {calc.years.map(y => <tr key={y}><td className="px-2 py-[3px] text-[12px]" style={{ color: C.amber }}>{y}</td>{MONTHS.map((_, i) => { const v = calc.cell(y, i + 1); return <td key={i} className={td} style={{ background: heat(v), color: '#fff' }}>{v == null ? '' : nf(v, 1)}</td> })}<td className={td} style={{ background: heat(calc.yr(y), 30), fontWeight: 700 }}>{nf(calc.yr(y), 1)}</td></tr>)}
+            {calc.years.map(y => <tr key={y}><td className="px-2 py-[3px] text-[12px]" style={{ color: C.amber }}>{y}</td>{MONTHS.map((_, i) => { const v = calc.cell(y, i + 1); return <td key={i} className={td} style={{ background: heat(v), color: tc('#fff') }}>{v == null ? '' : nf(v, 1)}</td> })}<td className={td} style={{ background: heat(calc.yr(y), 30), fontWeight: 700 }}>{nf(calc.yr(y), 1)}</td></tr>)}
             {([['Average', calc.avg], ['Median', calc.med], ['Std. dev.', calc.sd], ['% Positive', calc.pos]] as [string, number[]][]).map(([l, arr]) => (
-              <tr key={l} style={{ background: '#151515' }}><td className="px-2 py-[3px] text-[12px] font-bold" style={{ color: C.amber }}>{l}</td>{arr.map((v, i) => <td key={i} className={td} style={{ color: l === '% Positive' ? (v >= 50 ? C.up : C.down) : l === 'Std. dev.' ? C.text : clr(v) }}>{nf(v, 1)}</td>)}<td className={td}></td></tr>
+              <tr key={l} style={{ background: tc('#151515') }}><td className="px-2 py-[3px] text-[12px] font-bold" style={{ color: C.amber }}>{l}</td>{arr.map((v, i) => <td key={i} className={td} style={{ color: l === '% Positive' ? (v >= 50 ? C.up : C.down) : l === 'Std. dev.' ? C.text : clr(v) }}>{nf(v, 1)}</td>)}<td className={td}></td></tr>
             ))}
           </tbody>
         </table>
@@ -207,9 +208,9 @@ export function VOLView({ ticker }: { ticker: string }) {
         <Panel title="Volatility cone (% p.a.)">
           <XYChart height={250} series={[
             { name: 'Max', points: calc.cone.map(c => [c.w, c.max]), color: C.down, width: 1 },
-            { name: 'P75', points: calc.cone.map(c => [c.w, c.p75]), color: '#888', width: 1, dash: '4,3' },
+            { name: 'P75', points: calc.cone.map(c => [c.w, c.p75]), color: tc('#888'), width: 1, dash: '4,3' },
             { name: 'Median', points: calc.cone.map(c => [c.w, c.p50]), color: C.white, width: 1.5 },
-            { name: 'P25', points: calc.cone.map(c => [c.w, c.p25]), color: '#888', width: 1, dash: '4,3' },
+            { name: 'P25', points: calc.cone.map(c => [c.w, c.p25]), color: tc('#888'), width: 1, dash: '4,3' },
             { name: 'Min', points: calc.cone.map(c => [c.w, c.min]), color: C.up, width: 1 },
             { name: 'Current', points: calc.cone.map(c => [c.w, c.cur]), color: C.amber, width: 2.5 },
           ]} xTicks={calc.cone.map(c => ({ v: c.w, l: `${c.w}d` }))} xFmt={v => `${Math.round(v)}d`} yFmt={v => nf(v, 0) + '%'} />
@@ -275,7 +276,7 @@ export function BETAView({ ticker }: { ticker: string }) {
               { name: `Y = ${nf(calc.reg.alpha, 3)} + ${nf(calc.reg.beta, 3)}·X`, points: calc.xs.map(v => [v, calc.reg.alpha + calc.reg.beta * v]), color: C.white, width: 2 },
             ]} xFmt={v => nf(v, 1)} yFmt={v => nf(v, 1)} />
             <div className="mt-2 text-[12px]" style={{ color: C.amber }}>Rolling beta (252 sessions, daily) — last 5 years</div>
-            <FnChart height={200} panes={[{ series: [{ kind: 'line', data: calc.roll, color: C.amber, title: 'Beta 252d', decimals: 2, lines: [{ price: 1, color: '#666' }] }] }]} />
+            <FnChart height={200} panes={[{ series: [{ kind: 'line', data: calc.roll, color: C.amber, title: 'Beta 252d', decimals: 2, lines: [{ price: 1, color: tc('#666') }] }] }]} />
           </div>
           <Panel title={`${short(ticker)} vs ${short(bench)}`}>
             <KV rows={[['Raw beta', nf(calc.reg.beta, 3), C.amber], ['Adjusted beta', nf(calc.adj, 3), C.amber], ['Alpha (intercept, %)', nf(calc.reg.alpha, 3)], ['R²', nf(calc.reg.r2, 3)], ['Correlation', nf(calc.reg.corr, 3)], ['Beta standard error', nf(calc.reg.se, 3)], ['Observations', String(calc.n)], ['Frequency', freq === 'w' ? 'Weekly (Friday)' : 'Daily'], ['Window', `${yrs} yr(s)`]]} />
@@ -285,7 +286,7 @@ export function BETAView({ ticker }: { ticker: string }) {
         <div className="overflow-auto">
           <table className="border-collapse text-[12px]">
             <thead><tr><th></th>{matrix.codes.map(c => <th key={c} className="px-2 py-1 font-normal" style={{ color: C.amber }}>{c}</th>)}</tr></thead>
-            <tbody>{matrix.codes.map((p, i) => <tr key={p}><td className="px-2 py-1" style={{ color: C.amber }}>{p}</td>{matrix.m[i].map((v, j) => <td key={j} className="px-2 py-1 text-right border border-[#1a1a1a]" style={{ background: `rgba(${v >= 0 ? '61,220,132' : '255,77,77'},${Math.abs(v) * 0.8})`, color: '#fff', minWidth: 54 }}>{nf(v, 2)}</td>)}</tr>)}</tbody>
+            <tbody>{matrix.codes.map((p, i) => <tr key={p}><td className="px-2 py-1" style={{ color: C.amber }}>{p}</td>{matrix.m[i].map((v, j) => <td key={j} className="px-2 py-1 text-right border border-[#1a1a1a]" style={{ background: `rgba(${v >= 0 ? '61,220,132' : '255,77,77'},${Math.abs(v) * 0.8})`, color: tc('#fff'), minWidth: 54 }}>{nf(v, 2)}</td>)}</tr>)}</tbody>
           </table>
         </div>
       )}
@@ -314,7 +315,7 @@ export function GRView({ ticker }: { ticker: string }) {
         { kind: 'line', data: idx.map(i => ({ time: al.t[i], value: (al.a[i] / al.a[i0]) * 100 })), color: C.white, title: short(ticker) },
         { kind: 'line', data: idx.map(i => ({ time: al.t[i], value: (al.b[i] / al.b[i0]) * 100 })), color: C.amber, title: short(other) },
       ] },
-      { stretch: 0.5, series: [{ kind: 'line', data: idx.map((i, k) => ({ time: al.t[i], value: ratio[k] })), color: C.blue, width: 2, title: 'Ratio', decimals: 4, lines: [{ price: rm, color: '#aaa', title: 'Average' }, { price: rm + 2 * rs, color: C.down, title: '+2σ' }, { price: rm - 2 * rs, color: C.up, title: '−2σ' }] }] },
+      { stretch: 0.5, series: [{ kind: 'line', data: idx.map((i, k) => ({ time: al.t[i], value: ratio[k] })), color: C.blue, width: 2, title: 'Ratio', decimals: 4, lines: [{ price: rm, color: tc('#aaa'), title: 'Average' }, { price: rm + 2 * rs, color: C.down, title: '+2σ' }, { price: rm - 2 * rs, color: C.up, title: '−2σ' }] }] },
     ]
     const lastR = ratio[ratio.length - 1]
     return { panes, reg, rm, rs, lastR, z: (lastR - rm) / rs, perfA: (al.a[idx[idx.length - 1]] / al.a[i0] - 1) * 100, perfB: (al.b[idx[idx.length - 1]] / al.b[i0] - 1) * 100 }

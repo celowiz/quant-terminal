@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /** Funções por ticker da v4: COMP, HS, HRA, GIP, RV, HP, TRA, HDS, FA, MRR. */
 import { lastValid } from '@/lib/dataFix.mjs'
 import React, { useEffect, useMemo, useState } from 'react'
@@ -81,8 +82,8 @@ export function HSView({ ticker }: { ticker: string }) {
   }, [m, ticker, other, mode, yrs])
   const panes = useMemo(() => calc ? [
     { stretch: 0.38, series: [{ kind: 'line' as const, data: calc.T(calc.a.map(x => x / calc.a[0] * 100)), color: C.amber, title: lbl(ticker) }, { kind: 'line' as const, data: calc.T(calc.b.map(x => x / calc.b[0] * 100)), color: C.white, title: lbl(other) }] },
-    { stretch: 0.37, series: [{ kind: 'line' as const, data: calc.T(calc.s), color: C.cyan, title: mode === 'ratio' ? 'Ratio' : 'Spread', decimals: 4, lines: [{ price: calc.mu, color: '#aaa', title: 'average' }, { price: calc.mu + calc.sd, color: '#666', title: '+1σ' }, { price: calc.mu - calc.sd, color: '#666', title: '−1σ' }, { price: calc.mu + 2 * calc.sd, color: C.down, title: '+2σ' }, { price: calc.mu - 2 * calc.sd, color: C.up, title: '−2σ' }] }] },
-    { stretch: 0.25, series: [{ kind: 'hist' as const, data: calc.T(calc.z).map(p => ({ ...p, color: Math.abs(p.value) > 2 ? C.yellow : p.value >= 0 ? '#2F7BFF' : '#7a4cff' })), title: 'z-score', decimals: 2 }] },
+    { stretch: 0.37, series: [{ kind: 'line' as const, data: calc.T(calc.s), color: C.cyan, title: mode === 'ratio' ? 'Ratio' : 'Spread', decimals: 4, lines: [{ price: calc.mu, color: tc('#aaa'), title: 'average' }, { price: calc.mu + calc.sd, color: tc('#666'), title: '+1σ' }, { price: calc.mu - calc.sd, color: tc('#666'), title: '−1σ' }, { price: calc.mu + 2 * calc.sd, color: C.down, title: '+2σ' }, { price: calc.mu - 2 * calc.sd, color: C.up, title: '−2σ' }] }] },
+    { stretch: 0.25, series: [{ kind: 'hist' as const, data: calc.T(calc.z).map(p => ({ ...p, color: Math.abs(p.value) > 2 ? C.yellow : p.value >= 0 ? tc('#2F7BFF') : tc('#7a4cff') })), title: 'z-score', decimals: 2 }] },
   ] : [], [calc, ticker, other, mode])
   return (
     <FnScreen code="HS" ticker={ticker} title="Historical Spread – spread/ratio between two assets"
@@ -160,8 +161,8 @@ export function GIPView({ ticker }: { ticker: string }) {
   const panes = useMemo(() => {
     if (!calc?.st) return []
     const o = calc.off, B = calc.B as number[][]
-    const price = kind === 'candle' ? { kind: 'candle' as const, data: B.map(b => ({ time: b[0] - o, open: b[1], high: b[2], low: b[3], close: b[4] })), title: lbl(ticker) } : { kind: 'area' as const, data: B.map(b => ({ time: b[0] - o, value: b[4] })), color: C.white, title: lbl(ticker), lines: calc.prevClose ? [{ price: calc.prevClose, color: '#777', title: 'prev. close' }] : [] }
-    return [{ stretch: 0.75, series: [price] }, { stretch: 0.25, series: [{ kind: 'hist' as const, data: B.map(b => ({ time: b[0] - o, value: b[5] || 0, color: b[4] >= b[1] ? 'rgba(61,220,132,.6)' : 'rgba(255,77,77,.6)' })), title: 'Volume', decimals: 0 }] }]
+    const price = kind === 'candle' ? { kind: 'candle' as const, data: B.map(b => ({ time: b[0] - o, open: b[1], high: b[2], low: b[3], close: b[4] })), title: lbl(ticker) } : { kind: 'area' as const, data: B.map(b => ({ time: b[0] - o, value: b[4] })), color: C.white, title: lbl(ticker), lines: calc.prevClose ? [{ price: calc.prevClose, color: tc('#777'), title: 'prev. close' }] : [] }
+    return [{ stretch: 0.75, series: [price] }, { stretch: 0.25, series: [{ kind: 'hist' as const, data: B.map(b => ({ time: b[0] - o, value: b[5] || 0, color: b[4] >= b[1] ? tc('rgba(61,220,132,.6)') : tc('rgba(255,77,77,.6)') })), title: 'Volume', decimals: 0 }] }]
   }, [calc, kind, ticker])
   if (!ok) return <FnScreen code="GIP" ticker={ticker}><NA ticker={ticker} what="Intraday history" code="GIP" /></FnScreen>
   if (!d || !calc) return <FnScreen code="GIP" ticker={ticker}><Loading err={err} /></FnScreen>
@@ -210,12 +211,12 @@ export function RVView({ ticker }: { ticker: string }) {
     <FnScreen code="RV" ticker={ticker} title={`Relative Valuation – ${calc.me.cod} vs peers (${scope === 'sub' ? calc.me.subsector : calc.me.sector})`}
       right={<><Field label="Stock"><select className={inputCls} style={inputStyle} value={cod} onChange={e => setCod(e.target.value)}>{(s.rows as any[]).map(r => r.cod).sort().map(c => <option key={c}>{c}</option>)}</select></Field><Btns opts={[{ v: 'sub', l: us ? 'Industry' : 'Subsector' }, { v: 'sec', l: 'Sector' }]} value={scope} onChange={setScope} /></>}
       source={s.source} note={us ? <>Peers = covered US stocks in the same industry (Yahoo classification; widened to the sector if there are fewer than 3). {s.note} Click a column to chart it.</> : <>Peers = Ibovespa companies in the same B3 subsector (widened to the sector if there are fewer than 3). {s.note} Click a column to chart it.</>}>
-      <Grid rows={[...calc.peers, calc.med, calc.avg]} rowStyle={(r: any) => r.cod === cod ? { background: '#2a1d08' } : r.cod.startsWith('M') && !r.name ? { background: '#151515' } : undefined} cols={[
+      <Grid rows={[...calc.peers, calc.med, calc.avg]} rowStyle={(r: any) => r.cod === cod ? { background: tc('#2a1d08') } : r.cod.startsWith('M') && !r.name ? { background: tc('#151515') } : undefined} cols={[
         { k: 'cod', label: 'Ticker', color: (x: any) => x === cod ? C.amber : C.white }, { k: 'name', label: 'Company', w: '170px' },
         ...RV_M.map(m => ({ k: m.k, label: <span className="cursor-pointer" style={{ textDecoration: m.k === metric ? 'underline' : undefined }} onClick={() => setMetric(m.k)}>{m.l}</span>, align: 'r' as const, fmt: (x: any) => m.f(x), color: (x: any, r: any) => ['ytd', 'y1'].includes(m.k) ? clr(x) : r.cod === cod && calc.med[m.k] != null && x != null ? ((m.lowGood ? x < calc.med[m.k] : x > calc.med[m.k]) ? C.up : C.down) : C.text })),
       ]} />
       <div className="mt-2 grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
-        <Panel title={`${M.l} — ${calc.me.cod} vs peers`}><HBars hi={cod} rows={calc.peers.map((r: any) => ({ label: r.cod, v: r[metric] ?? null, color: r.cod === cod ? C.amber : C.blue })).concat([{ label: 'Median', v: calc.med[metric], color: '#888' }])} fmt={M.f} /></Panel>
+        <Panel title={`${M.l} — ${calc.me.cod} vs peers`}><HBars hi={cod} rows={calc.peers.map((r: any) => ({ label: r.cod, v: r[metric] ?? null, color: r.cod === cod ? C.amber : C.blue })).concat([{ label: 'Median', v: calc.med[metric], color: tc('#888') }])} fmt={M.f} /></Panel>
         <Panel title="Reading"><div className="p-2 text-[12px]" style={{ color: C.muted }}>Green/red on the stock's row = better/worse than the peer median for that metric (multiples and leverage: lower is better; profitability and DY: higher is better). Fundamentals from the {dBR(calc.me.fund_period)} {us ? 'SEC filing (10-Q/10-K)' : 'quarterly report (ITR)'}; price as of {dBR(calc.me.date)}.</div></Panel>
       </div>
     </FnScreen>
@@ -315,7 +316,7 @@ export function HDSView({ ticker }: { ticker: string }) {
           { k: 'qty_pn', label: 'Preferred shares (PN)', align: 'r', fmt: x => big(x, 2) }, { k: 'pct_pn', label: '% PN', align: 'r', fmt: x => pf(x, 2, false) },
           { k: 'pct', label: '% Total', align: 'r', fmt: x => pf(x, 2, false), color: () => C.amber }, { k: 'updated', label: 'Updated', fmt: x => dBR(x), color: () => C.muted },
         ]} />
-        <Panel title="% of total capital"><HBars rows={calc.top.map((r: any) => ({ label: r.name.replace(/ - .*$/, '').slice(0, 26), v: r.pct, color: r.controller === 'S' ? C.amber : /^Outros/.test(r.name) ? '#666' : C.blue }))} fmt={x => pf(x, 2, false)} /></Panel>
+        <Panel title="% of total capital"><HBars rows={calc.top.map((r: any) => ({ label: r.name.replace(/ - .*$/, '').slice(0, 26), v: r.pct, color: r.controller === 'S' ? C.amber : /^Outros/.test(r.name) ? tc('#666') : C.blue }))} fmt={x => pf(x, 2, false)} /></Panel>
       </div> : <Grid maxH={620} rows={calc.tree} cols={[
         { k: 'name', label: 'Entity (level)', fmt: (x, r: any) => <span style={{ paddingLeft: r.lv * 16 }}>{r.lv ? '└ ' : ''}{en(x)}</span>, color: (_, r: any) => r.lv === 0 ? C.amber : C.white },
         { k: 'controller', label: 'Controlling', align: 'c', fmt: x => yn(x) }, { k: 'pct_on', label: '% ON', align: 'r', fmt: x => pf(x, 2, false) }, { k: 'pct_pn', label: '% PN', align: 'r', fmt: x => pf(x, 2, false) }, { k: 'pct', label: '% Total', align: 'r', fmt: x => pf(x, 2, false) },
@@ -339,7 +340,7 @@ export function FAView({ ticker }: { ticker: string }) {
     <FnScreen code="FA" ticker={ticker} asOf={periods[n - 1]} title={`Financial Analysis – financial statements (${us ? 'SEC' : 'CVM'})`} tabs={keys.map(k => f.stmts[k].name)} tab={tab} setTab={i => { setTab(i); setSel(null) }}
       right={<><Btns opts={[{ v: false, l: 'Yearly' }, { v: true, l: 'Quarterly' }]} value={q} onChange={setQ} /><Field label="Detail"><Btns opts={[{ v: 1, l: '1' }, { v: 2, l: '2' }, { v: 3, l: '3' }]} value={depth} onChange={setDepth} /></Field></>}
       source={f.source} note={us ? <>{f.note} Values in US$ millions, consolidated (US GAAP). Quarterly flows as filed, or the difference between consecutive year-to-date 10-Q figures (Q4 = fiscal year − 9 months); columns labelled by the calendar quarter in which the fiscal period ends; balance sheet = position at period end. Lines not tagged by the company show —. Click an account to chart it.</> : <>{f.note} Values in R$ millions, consolidated. Income-statement/cash-flow quarters derived from the cumulative ITR figures (Q4 = annual − 9 months); balance sheet = position at period end. Click an account to chart it.</>}>
-      <Grid maxH={470} onRow={(r: any) => setSel(r.code)} rowStyle={(r: any) => r.code === cur?.code ? { background: '#2a1d08' } : r.level === 1 ? { background: '#141414' } : undefined} rows={rows.map(r => ({ ...r, ...Object.fromEntries(r.vals.map((v: number | null, i: number) => [`p${i}`, v])), yoy: q ? (r.vals[n - 1] != null && r.vals[n - 5] ? (r.vals[n - 1] / Math.abs(r.vals[n - 5]) - Math.sign(r.vals[n - 5])) * 100 : null) : (r.vals[n - 1] != null && r.vals[n - 2] ? (r.vals[n - 1] / Math.abs(r.vals[n - 2]) - Math.sign(r.vals[n - 2])) * 100 : null) }))} cols={[
+      <Grid maxH={470} onRow={(r: any) => setSel(r.code)} rowStyle={(r: any) => r.code === cur?.code ? { background: tc('#2a1d08') } : r.level === 1 ? { background: tc('#141414') } : undefined} rows={rows.map(r => ({ ...r, ...Object.fromEntries(r.vals.map((v: number | null, i: number) => [`p${i}`, v])), yoy: q ? (r.vals[n - 1] != null && r.vals[n - 5] ? (r.vals[n - 1] / Math.abs(r.vals[n - 5]) - Math.sign(r.vals[n - 5])) * 100 : null) : (r.vals[n - 1] != null && r.vals[n - 2] ? (r.vals[n - 1] / Math.abs(r.vals[n - 2]) - Math.sign(r.vals[n - 2])) * 100 : null) }))} cols={[
         ...(us ? [] : [{ k: 'code', label: 'Account', color: () => C.muted }]), { k: 'name', label: 'Description', fmt: (x, r: any) => <span style={{ paddingLeft: (r.level - 1) * 12, fontWeight: r.level === 1 ? 700 : 400 }}>{en(x)}</span>, color: (_, r: any) => r.level === 1 ? C.amber : C.text },
         ...periods.map((p, i) => ({ k: `p${i}`, label: fiscalLabel(p, q), align: 'r' as const, fmt: (x: any) => x == null ? '—' : nf(x / 1e6, 0), color: (x: any) => x < 0 ? C.down : C.text })),
         { k: 'yoy', label: q ? 'Δ a/a' : 'Δ annual', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) },
@@ -390,7 +391,7 @@ export function MRRView({ ticker }: { ticker: string }) {
           <table className="border-collapse text-[12px]">
             <thead><tr><th className="px-2 py-1" style={{ color: C.muted }}>Year</th>{MES.map(m => <th key={m} className="px-2 py-1 font-normal" style={{ color: C.amber }}>{m}</th>)}<th className="px-2 py-1 font-normal" style={{ color: C.white }}>Year</th></tr></thead>
             <tbody>
-              {heatm.years.map(y => <tr key={y}><td className="px-2 py-[3px]" style={{ color: C.amber }}>{y}</td>{MES.map((_, m) => { const v = heatm.get(y, m + 1); return <td key={m} className="px-2 py-[3px] text-right border border-[#111]" style={{ background: heat(v, 12), color: '#fff', minWidth: 58 }}>{v == null ? '' : pf(v, 1)}</td> })}<td className="px-2 text-right font-bold border border-[#111]" style={{ background: heat(heatm.yr(y), 40), color: '#fff', minWidth: 66 }}>{pf(heatm.yr(y), 1)}</td></tr>)}
+              {heatm.years.map(y => <tr key={y}><td className="px-2 py-[3px]" style={{ color: C.amber }}>{y}</td>{MES.map((_, m) => { const v = heatm.get(y, m + 1); return <td key={m} className="px-2 py-[3px] text-right border border-[#111]" style={{ background: heat(v, 12), color: tc('#fff'), minWidth: 58 }}>{v == null ? '' : pf(v, 1)}</td> })}<td className="px-2 text-right font-bold border border-[#111]" style={{ background: heat(heatm.yr(y), 40), color: tc('#fff'), minWidth: 66 }}>{pf(heatm.yr(y), 1)}</td></tr>)}
               <tr><td className="px-2 py-[3px]" style={{ color: C.white }}>Average</td>{heatm.avg.map((v, i) => <td key={i} className="px-2 text-right" style={{ color: clr(v) }}>{pf(v, 1)}</td>)}<td /></tr>
               <tr><td className="px-2 py-[3px]" style={{ color: C.white }}>% positive</td>{heatm.pos.map((v, i) => <td key={i} className="px-2 text-right" style={{ color: C.muted }}>{nf(v, 0)}%</td>)}<td /></tr>
             </tbody>

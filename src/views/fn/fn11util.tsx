@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /** Utilidades das 11 funções novas (WIRP, ECO, GMM, TAYL, WB, FOMC, DRSK, ECTR, FXC, FXFC, YAS): formatação en-US e peças de UI. */
 import React, { useEffect, useRef, useState } from 'react'
 import { C, MONO, useFitH, useFit } from '@/components/fn/kit'
@@ -61,7 +62,7 @@ export function NumIn({ value, onChange, step = 0.25, w = 64 }: { value: number 
   const [t, setT] = useState(value == null ? '' : String(value))
   useEffect(() => { setT(value == null ? '' : String(value)) }, [value])
   return <input value={t} inputMode="decimal" step={step} onChange={e => { setT(e.target.value); const x = parseFloat(e.target.value.replace(',', '.')); onChange(e.target.value.trim() === '' ? null : isFinite(x) ? x : value) }}
-    className="bg-black border px-1 py-[1px] text-[12px] outline-none text-right" style={{ borderColor: C.amberDim, color: '#000', background: C.amber, width: w, fontFamily: MONO }} />
+    className="bg-black border px-1 py-[1px] text-[12px] outline-none text-right" style={{ borderColor: C.amberDim, color: tc('#000'), background: C.amber, width: w, fontFamily: MONO }} />
 }
 
 /** barras + linha (estilo WIRP): barras no eixo direito, linha no esquerdo; SVG responsivo */
@@ -85,9 +86,9 @@ export function BarLine({ labels, bars, line, height = 240, barName, lineName, b
   return (
     <div ref={box} className="w-full" style={{ fontFamily: MONO }}>
       <svg width={W} height={H} className="block">
-        {ticks(b0 - bpad, b1 + bpad).map((t, i) => <g key={'b' + i}><line x1={m.l} x2={W - m.r} y1={yb(t)} y2={yb(t)} stroke="#1c1c1c" /><text x={W - m.r + 4} y={yb(t) + 4} fontSize={10} fill={C.amber}>{barFmt(t)}</text></g>)}
+        {ticks(b0 - bpad, b1 + bpad).map((t, i) => <g key={'b' + i}><line x1={m.l} x2={W - m.r} y1={yb(t)} y2={yb(t)} stroke={tc(tc('#1c1c1c'))} /><text x={W - m.r + 4} y={yb(t) + 4} fontSize={10} fill={C.amber}>{barFmt(t)}</text></g>)}
         {ticks(l0 - lpad, l1 + lpad).map((t, i) => <text key={'l' + i} x={m.l - 4} y={yl(t) + 4} fontSize={10} fill={C.blue} textAnchor="end">{lineFmt(t)}</text>)}
-        <line x1={m.l} x2={W - m.r} y1={yb(0)} y2={yb(0)} stroke="#555" />
+        <line x1={m.l} x2={W - m.r} y1={yb(0)} y2={yb(0)} stroke={tc(tc('#555'))} />
         {bars.map((v, i) => v == null ? null : <rect key={i} x={x(i) - cw * 0.32} width={cw * 0.64} y={Math.min(yb(0), yb(v))} height={Math.max(1, Math.abs(yb(v) - yb(0)))} fill={C.amber} opacity={0.9}><title>{`${labels[i]}: ${barFmt(v)}`}</title></rect>)}
         <polyline points={pts} fill="none" stroke={C.blue} strokeWidth={2} />
         {line.map((v, i) => v == null ? null : <circle key={i} cx={x(i)} cy={yl(v)} r={2.5} fill={C.blue}><title>{`${labels[i]}: ${lineFmt(v)}`}</title></circle>)}

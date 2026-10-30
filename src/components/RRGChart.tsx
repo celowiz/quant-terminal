@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../lib/themeRuntime'
 
 import { useMemo } from 'react'
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ResponsiveContainer, ReferenceLine, Cell, Tooltip } from 'recharts'
@@ -11,10 +12,10 @@ interface RRGChartProps {
 
 // Configuração dos quadrantes com cores estilo terminal
 const QUADRANT_COLORS = {
-  Leading: '#22c55e',     // Verde
-  Improving: '#3b82f6',   // Azul  
-  Lagging: '#ef4444',     // Vermelho
-  Weakening: '#eab308'    // Amarelo
+  Leading: tc('#22c55e'),     // Verde
+  Improving: tc('#3b82f6'),   // Azul  
+  Lagging: tc('#ef4444'),     // Vermelho
+  Weakening: tc('#eab308')    // Amarelo
 }
 
 // Função para interpolar cores entre quadrantes
@@ -184,19 +185,19 @@ export function RRGChart({ data }: RRGChartProps) {
             margin={{ top: 20, right: 80, bottom: 60, left: 80 }}
             data={chartData}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+            <CartesianGrid strokeDasharray="3 3" stroke={tc(tc('#374151'))} opacity={0.3} />
             
             <XAxis
               type="number"
               dataKey="rs_ratio"
               domain={[xMin, xMax]}
               tickFormatter={(v: number) => v.toFixed(1)}
-              tick={{ fill: '#d1d5db', fontSize: 12 }}
+              tick={{ fill: tc('#d1d5db'), fontSize: 12 }}
               label={{ 
                 value: 'JdK RS-Ratio', 
                 position: 'insideBottom', 
                 offset: -40,
-                style: { textAnchor: 'middle', fill: '#d1d5db' }
+                style: { textAnchor: 'middle', fill: tc('#d1d5db') }
               }}
             />
             
@@ -205,23 +206,23 @@ export function RRGChart({ data }: RRGChartProps) {
               dataKey="rs_momentum"
               domain={[yMin, yMax]}
               tickFormatter={(v: number) => v.toFixed(1)}
-              tick={{ fill: '#d1d5db', fontSize: 12 }}
+              tick={{ fill: tc('#d1d5db'), fontSize: 12 }}
               label={{ 
                 value: 'JdK RS-Momentum', 
                 angle: -90, 
                 position: 'insideLeft',
-                style: { textAnchor: 'middle', fill: '#d1d5db' }
+                style: { textAnchor: 'middle', fill: tc('#d1d5db') }
               }}
             />
 
             {/* Linhas de referência nos quadrantes */}
-            <ReferenceLine x={100} stroke="#6b7280" strokeDasharray="2 2" />
-            <ReferenceLine y={100} stroke="#6b7280" strokeDasharray="2 2" />
+            <ReferenceLine x={100} stroke={tc(tc('#6b7280'))} strokeDasharray="2 2" />
+            <ReferenceLine y={100} stroke={tc(tc('#6b7280'))} strokeDasharray="2 2" />
 
             {/* Trilhas dos ativos (pontos históricos) */}
             <Scatter
               dataKey="rs_momentum"
-              fill="#8884d8"
+              fill={tc(tc('#8884d8'))}
               fillOpacity={0.6}
               name="Trilha"
             >
@@ -239,7 +240,7 @@ export function RRGChart({ data }: RRGChartProps) {
             <Scatter
               dataKey="rs_momentum"
               data={currentPoints}
-              fill="#ffffff"
+              fill={tc(tc('#ffffff'))}
               name="Current"
             >
               {currentPoints.map((entry, index) => (
@@ -247,7 +248,7 @@ export function RRGChart({ data }: RRGChartProps) {
                   key={`current-${index}`} 
                   fill={entry.color}
                   r={8}
-                  stroke="#ffffff"
+                  stroke={tc(tc('#ffffff'))}
                   strokeWidth={2}
                 />
               ))}

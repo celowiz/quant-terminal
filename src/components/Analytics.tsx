@@ -6,6 +6,7 @@ import { currentRoute } from '../lib/track'
 /** GA4 (sem UI): page_view virtual + function_open/ticker_select da carga, outbound_click global. */
 export default function Analytics() {
   useEffect(() => {
+    if (document.documentElement.hasAttribute('data-embed')) return // painéis do Launchpad: a página-mãe já conta
     initGoogleAnalytics()
     trackRouteLoad(currentRoute())
     scheduleGtagScriptLoad()

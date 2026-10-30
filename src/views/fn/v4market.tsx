@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /** Funções sem ticker da v4: CDIE (refeita), CORR, EQS, GC, ECFC, ECST, WCRS, GLCO, MOST, BTMM. */
 import React, { useMemo, useState } from 'react'
 import FnChart from '@/components/fn/FnChart'
@@ -105,7 +106,7 @@ export function CDIEView() {
       {tab === 2 && <div>
         <FnChart height={420} panes={[
           { stretch: 0.5, series: [{ kind: 'hist', data: d.history.map((h: any) => ({ time: h.date, value: h.next_move_bp, color: h.next_move_bp >= 0 ? C.up : C.down })), title: 'Next meeting (bp)', decimals: 1 }, { kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.cum_12m_bp })), color: C.amber, title: 'Cum. 12m (bp)', decimals: 1 }] },
-          { stretch: 0.5, series: [{ kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.year_end_cdi })), color: C.cyan, title: 'Implied year-end CDI', decimals: 2 }, { kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.di1_1y })), color: C.white, title: 'DI1 ~1 year', decimals: 2 }, { kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.cdi })), color: '#777', dashed: true, title: 'CDI', decimals: 2 }] },
+          { stretch: 0.5, series: [{ kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.year_end_cdi })), color: C.cyan, title: 'Implied year-end CDI', decimals: 2 }, { kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.di1_1y })), color: C.white, title: 'DI1 ~1 year', decimals: 2 }, { kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.cdi })), color: tc('#777'), dashed: true, title: 'CDI', decimals: 2 }] },
         ]} />
         <Panel title="Sessions" className="mt-2">
           <Grid maxH={260} rows={d.history.slice().reverse()} cols={[
@@ -154,11 +155,11 @@ export function CORRView() {
       <div className="overflow-auto">
         <table className="border-collapse text-[11px]">
           <thead><tr><th></th>{M.codes.map(c => <th key={c} className="px-1 py-1 font-normal" style={{ color: C.amber }}>{lbl(c)}</th>)}<th className="px-2 font-normal" style={{ color: C.muted }}>Average</th></tr></thead>
-          <tbody>{M.codes.map((p, i) => <tr key={p}><td className="px-2 py-[2px]" style={{ color: C.amber }}>{lbl(p)}</td>{M.m[i].map((x, j) => <td key={j} onClick={() => i !== j && setPair([p, M.codes[j]])} className="cursor-pointer px-1 py-[2px] text-right border border-[#111]" style={{ background: i === j ? '#1a1a1a' : heat(x, 1), color: '#fff', minWidth: 44, outline: pair && pair[0] === p && pair[1] === M.codes[j] ? `1px solid ${C.amber}` : undefined }}>{nf(x, 2)}</td>)}<td className="px-2 text-right" style={{ color: C.amber }}>{nf(M.avg[i], 2)}</td></tr>)}</tbody>
+          <tbody>{M.codes.map((p, i) => <tr key={p}><td className="px-2 py-[2px]" style={{ color: C.amber }}>{lbl(p)}</td>{M.m[i].map((x, j) => <td key={j} onClick={() => i !== j && setPair([p, M.codes[j]])} className="cursor-pointer px-1 py-[2px] text-right border border-[#111]" style={{ background: i === j ? tc('#1a1a1a') : heat(x, 1), color: tc('#fff'), minWidth: 44, outline: pair && pair[0] === p && pair[1] === M.codes[j] ? `1px solid ${C.amber}` : undefined }}>{nf(x, 2)}</td>)}<td className="px-2 text-right" style={{ color: C.amber }}>{nf(M.avg[i], 2)}</td></tr>)}</tbody>
         </table>
       </div>
       {roll && pair && <div className="mt-2"><div className="text-[12px]" style={{ color: C.amber }}>63-session rolling correlation: {lbl(pair[0])} × {lbl(pair[1])}</div>
-        <FnChart height={220} panes={[{ series: [{ kind: 'line', data: roll, color: C.amber, title: 'corr 63d', decimals: 2, lines: [{ price: 0, color: '#555' }] }] }]} /></div>}
+        <FnChart height={220} panes={[{ series: [{ kind: 'line', data: roll, color: C.amber, title: 'corr 63d', decimals: 2, lines: [{ price: 0, color: tc('#555') }] }] }]} /></div>}
     </FnScreen>
   )
 }
@@ -194,7 +195,7 @@ export function EQSView() {
     <FnScreen code="EQS" title="Equity Screening – Ibovespa (CVM fundamentals + market)" right={<CsvBtn onClick={exp} />}
       source={s.source} note={<>{s.note} Fundamentals: last 12 months (sum of 4 quarters) from each company's latest ITR/DFP; equity and debt from the latest balance sheet. Click a header to sort.</>}>
       <div className="mb-2 flex items-center gap-2 lg:hidden">
-        <button className="px-3 py-1 text-[12px] border font-bold" style={{ borderColor: drawer ? C.amber : C.line, color: drawer ? '#000' : C.amber, background: drawer ? C.amber : C.panel }} onClick={() => setDrawer(!drawer)}>
+        <button className="px-3 py-1 text-[12px] border font-bold" style={{ borderColor: drawer ? C.amber : C.line, color: drawer ? tc('#000') : C.amber, background: drawer ? C.amber : C.panel }} onClick={() => setDrawer(!drawer)}>
           {lang() === 'pt' ? 'Filtros' : 'Filters'}{(() => { const n = Object.values(f).filter(v => v !== '' && v !== 0).length; return n ? ` (${n})` : '' })()} {drawer ? '▾' : '▸'}
         </button>
         <span className="ml-auto text-[12px]" style={{ color: C.amber }}>{rows.length} of {s.rows.length} stocks</span>
@@ -224,7 +225,7 @@ export function GCView() {
   const [cmp, setCmp] = useState<string[]>(['w1', 'm1'])
   const [td, setTd] = useState<'pre' | 'ipca'>('pre')
   const LBL: Record<string, string> = { now: 'Current', w1: '1 week', m1: '1 month', m3: '3 months', y1: '1 year' }
-  const COLS: Record<string, string> = { now: C.amber, w1: C.white, m1: C.cyan, m3: C.purple, y1: '#888' }
+  const COLS: Record<string, string> = { now: C.amber, w1: C.white, m1: C.cyan, m3: C.purple, y1: tc('#888') }
   const curves = useMemo(() => {
     if (!g) return null
     const sets: Record<string, { date: string; pts: { x: number; y: number; l: string }[] }> = {}
@@ -249,7 +250,7 @@ export function GCView() {
   const unit = tab === 2 ? 'Treasury (% p.a.)' : tab === 1 ? (td === 'pre' ? 'Fixed-rate (% p.a.)' : 'IPCA+ (real rate, % p.a.)') : 'DI1 (% p.a.)'
   return (
     <FnScreen code="GC" title="Yield curves – Brazil and US" tabs={['Brazil – DI1 (B3)', 'Brazil – Tesouro Direto', 'US – Treasuries']} tab={tab} setTab={setTab}
-      right={<>{tab === 1 && <Btns opts={[{ v: 'pre', l: 'Fixed-rate' }, { v: 'ipca', l: 'IPCA+' }]} value={td} onChange={setTd} />}<span className="text-[12px]" style={{ color: C.muted }}>Compare:</span>{avail.map(k => <button key={k} onClick={() => toggle(k)} className="px-2 py-[1px] text-[12px] border" style={{ borderColor: COLS[k], color: cmp.includes(k) ? '#000' : COLS[k], background: cmp.includes(k) ? COLS[k] : 'transparent' }}>{LBL[k]}</button>)}</>}
+      right={<>{tab === 1 && <Btns opts={[{ v: 'pre', l: 'Fixed-rate' }, { v: 'ipca', l: 'IPCA+' }]} value={td} onChange={setTd} />}<span className="text-[12px]" style={{ color: C.muted }}>Compare:</span>{avail.map(k => <button key={k} onClick={() => toggle(k)} className="px-2 py-[1px] text-[12px] border" style={{ borderColor: COLS[k], color: cmp.includes(k) ? tc('#000') : COLS[k], background: cmp.includes(k) ? COLS[k] : 'transparent' }}>{LBL[k]}</button>)}</>}
       source={tab === 0 ? 'B3 – Daily Bulletin (DI1 settlement rate), via cdie.json' : tab === 1 ? g.td_source : 'FRED – Treasury constant maturity (DGS1MO…DGS30)'}
       note={tab === 0 ? 'X axis in business years (bd/252). DI1 history only covers sessions already collected from the Daily Bulletin; longer comparisons appear as the pipeline accumulates sessions.' : tab === 1 ? 'Zero-coupon bonds (Tesouro Prefixado / Tesouro IPCA+), morning bid rate published by the Treasury; X axis in calendar years to maturity.' : 'Treasury par curve (constant maturity), X axis in years.'}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)' }}>
@@ -285,7 +286,7 @@ export function ECFCView() {
   return (
     <FnScreen code="ECFC" title="Economic forecasts – Brazil (Focus / BCB)"
       source={f.source} note="Median of the institutions' forecasts in the Focus Report (annual). Arrow = change in the median over the last 4 weeks. Click a row to see the dispersion (mean, std. dev., min, max, no. of respondents) and the median's evolution.">
-      <Grid onRow={(r: any) => setSel(r.k)} rowStyle={(r: any) => r.k === sel ? { background: '#2a1d08' } : undefined} rows={rows} cols={[
+      <Grid onRow={(r: any) => setSel(r.k)} rowStyle={(r: any) => r.k === sel ? { background: tc('#2a1d08') } : undefined} rows={rows} cols={[
         { k: 'k', label: 'Indicator', color: () => C.amber }, { k: 'unit', label: 'Unit', color: () => C.muted },
         ...refs.map(y => ({ k: y, label: y, align: 'r' as const, fmt: (x: any, r: any) => <>{nf(x, 2)}<span style={{ color: r[y + 'd'] > 0 ? C.up : C.down }}>{arrow(r[y + 'd'])}</span></> })),
         { k: 'date', label: 'Date', align: 'r', fmt: x => dBR(x) },
@@ -362,7 +363,7 @@ export function ECSTView() {
       source="BCB SGS, IBGE SIDRA (GDP, PNAD Contínua, PIM, PMC, PMS, IPCA-15) and FRED (US)."
       note="Latest released value of each indicator, the previous one and the change; sparkline with the last 24 observations. Daily series are sampled at each month end. Click a row for the full history.">
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,1fr)' }}>
-        <Grid maxH={640} onRow={(r: any) => setSel(r.label)} rowStyle={(r: any) => r.label === cur.label ? { background: '#2a1d08' } : undefined}
+        <Grid maxH={640} onRow={(r: any) => setSel(r.label)} rowStyle={(r: any) => r.label === cur.label ? { background: tc('#2a1d08') } : undefined}
           rows={rows.map(r => { const n = r.pts.length, l = r.pts[n - 1], p = r.pts[n - 2]; return { ...r, last: l[1], prev: p?.[1], per: r.period(l[0]), chg: p ? l[1] - p[1] : null, spark: r.pts.slice(-24).map(x => x[1]) } })}
           cols={[
             { k: 'group', label: 'Country', color: () => C.muted }, { k: 'label', label: 'Indicator', color: () => C.amber }, { k: 'per', label: 'Period' },
@@ -424,14 +425,14 @@ export function GLCOView() {
   return (
     <FnScreen code="GLCO" title="Global commodities – futures (front month)"
       source={f.source} note="Front-month continuous contract (Yahoo, ticker =F), delayed daily close. Period changes are on the close; 52w = 52-week low/high range. Click a row for the chart.">
-      <Grid onRow={(r: any) => setSel(r.ticker)} rowStyle={(r: any) => r.ticker === cur.ticker ? { background: '#2a1d08' } : undefined} rows={rows} cols={[
+      <Grid onRow={(r: any) => setSel(r.ticker)} rowStyle={(r: any) => r.ticker === cur.ticker ? { background: tc('#2a1d08') } : undefined} rows={rows} cols={[
         { k: 'g', label: 'Group', color: () => C.amber }, { k: 'name', label: 'Commodity', color: () => C.white }, { k: 'ticker', label: 'Ticker', color: () => C.muted }, { k: 'exchange', label: 'Exchange', color: () => C.muted }, { k: 'unit', label: 'Unit', color: () => C.muted },
         { k: 'last', label: 'Last', align: 'r', fmt: x => nf(x, x >= 1000 ? 1 : 2), color: () => C.amber }, { k: 'chg', label: 'Var.', align: 'r', fmt: x => nf(x, 2), color: x => clr(x) }, { k: 'pct', label: 'Var.%', align: 'r', fmt: x => pf(x), color: x => clr(x) },
         { k: 'w1', label: '1W', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) }, { k: 'm1', label: '1M', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) }, { k: 'm3', label: '3M', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) }, { k: 'ytd', label: 'YTD', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) }, { k: 'y1', label: '1Y', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) },
         { k: 'lo52', label: '52w Low', align: 'r', fmt: x => nf(x, 2) }, { k: 'hi52', label: '52w High', align: 'r', fmt: x => nf(x, 2) }, { k: 'spark', label: '3 months', fmt: x => <Spark data={x} color={C.amber} /> }, { k: 'date', label: 'Date', fmt: x => dBR(x), color: () => C.muted },
       ]} />
       <Panel title={`${cur.name} (${cur.ticker}) — ${cur.unit}`} className="mt-2">
-        <FnChart height={260} panes={[{ series: [{ kind: 'area', data: cur.series.map((p: any) => ({ time: p[0], value: p[1] })), color: C.white, title: cur.ticker, lines: [{ price: cur.hi52, color: '#555', title: '52w high' }, { price: cur.lo52, color: '#555', title: '52w low' }] }] }]} />
+        <FnChart height={260} panes={[{ series: [{ kind: 'area', data: cur.series.map((p: any) => ({ time: p[0], value: p[1] })), color: C.white, title: cur.ticker, lines: [{ price: cur.hi52, color: tc('#555'), title: '52w high' }, { price: cur.lo52, color: tc('#555'), title: '52w low' }] }] }]} />
       </Panel>
     </FnScreen>
   )

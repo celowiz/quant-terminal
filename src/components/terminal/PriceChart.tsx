@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /**
  * Gráfico de preços estilo terminal (GP = linha/montanha, GPC = candles).
  * Referências de design: ver /REFERENCIAS.md (GP, GPC).
@@ -15,19 +16,19 @@ import {
 import type { Price } from '../../lib/static'
 
 export const T = {
-  bg: '#101010',          // fundo "carvão"
-  grid: '#262626',
-  axis: '#8a8a8a',
-  text: '#d9d9d9',
-  amber: '#FFA028',
-  up: '#FFFFFF',          // candle de alta: contorno/pavio branco, corpo vazio
-  down: '#2F7BFF',        // candle de baixa: corpo e pavio azuis
-  line: '#FFFFFF',
-  mountain: 'rgba(47,123,255,0.28)',
-  high: '#3DDC84',
-  low: '#FF4D4D',
-  sma50: '#FFA028',
-  sma200: '#C77DFF',
+  bg: tc('#101010'),          // fundo "carvão"
+  grid: tc('#262626'),
+  axis: tc('#8a8a8a'),
+  text: tc('#d9d9d9'),
+  amber: tc('#FFA028'),
+  up: tc('#FFFFFF'),          // candle de alta: contorno/pavio branco, corpo vazio
+  down: tc('#2F7BFF'),        // candle de baixa: corpo e pavio azuis
+  line: tc('#FFFFFF'),
+  mountain: tc('rgba(47,123,255,0.28)'),
+  high: tc('#3DDC84'),
+  low: tc('#FF4D4D'),
+  sma50: tc('#FFA028'),
+  sma200: tc('#C77DFF'),
 }
 export const MONO = "'IBM Plex Mono','Roboto Mono','SFMono-Regular',Menlo,Consolas,ui-monospace,monospace"
 
@@ -52,7 +53,7 @@ type Props = {
   highLow?: { high: Price; low: Price } | null
 }
 
-const VOL = '#7189aa'
+const VOL = tc('#7189aa')
 /** lightweight-charts não expõe peso de fonte: deixa em negrito só os canvases do eixo direito (valores de preço). */
 function boldRightAxis(root: HTMLElement) {
   root.querySelectorAll('tr').forEach(tr => {
@@ -82,19 +83,19 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
       layout: {
         background: { color: T.bg }, textColor: T.axis, fontFamily: MONO, fontSize: 11,
         attributionLogo: false, // atribuição TradingView feita no rodapé (licença Apache-2.0)
-        panes: { separatorColor: '#3a3a3a', separatorHoverColor: '#555', enableResize: true },
+        panes: { separatorColor: tc('#3a3a3a'), separatorHoverColor: tc('#555'), enableResize: true },
       },
       grid: {
         vertLines: { color: T.grid, style: LineStyle.Dotted },
         horzLines: { color: T.grid, style: LineStyle.Dotted },
       },
-      rightPriceScale: { borderColor: '#3a3a3a', textColor: '#ffffff', scaleMargins: { top: 0.12, bottom: 0.06 } },
+      rightPriceScale: { borderColor: tc('#3a3a3a'), textColor: tc('#ffffff'), scaleMargins: { top: 0.12, bottom: 0.06 } },
       leftPriceScale: { visible: false },
-      timeScale: { borderColor: '#3a3a3a', rightOffset: 4, timeVisible: false, fixLeftEdge: true },
+      timeScale: { borderColor: tc('#3a3a3a'), rightOffset: 4, timeVisible: false, fixLeftEdge: true },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: '#777', style: LineStyle.Dashed, labelBackgroundColor: T.amber },
-        horzLine: { color: '#777', style: LineStyle.Dashed, labelBackgroundColor: T.amber },
+        vertLine: { color: tc('#777'), style: LineStyle.Dashed, labelBackgroundColor: T.amber },
+        horzLine: { color: tc('#777'), style: LineStyle.Dashed, labelBackgroundColor: T.amber },
       },
       localization: {
         locale: numLocale(),
@@ -115,7 +116,7 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
           title: '', priceFormat: pf,
         })
       : chart.addSeries(AreaSeries, {
-          lineColor: T.line, lineWidth: 2, topColor: T.mountain, bottomColor: 'rgba(47,123,255,0.02)',
+          lineColor: T.line, lineWidth: 2, topColor: T.mountain, bottomColor: tc('rgba(47,123,255,0.02)'),
           priceLineColor: T.amber, priceLineStyle: LineStyle.Dotted, lastValueVisible: false, priceFormat: pf,
         })
     if (mode === 'candle') {
@@ -126,7 +127,7 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
 
     // rótulo do último preço no eixo: fundo branco, texto preto (linha pontilhada âmbar mantida pela série)
     const lastRow = rows[rows.length - 1]
-    price.createPriceLine({ price: lastRow.close, color: 'rgba(0,0,0,0)', lineVisible: false, axisLabelVisible: true, axisLabelColor: '#ffffff', axisLabelTextColor: '#000000', title: '' } as any)
+    price.createPriceLine({ price: lastRow.close, color: tc('rgba(0,0,0,0)'), lineVisible: false, axisLabelVisible: true, axisLabelColor: tc('#ffffff'), axisLabelTextColor: tc('#000000'), title: '' } as any)
 
     if (highLow) {
       const key = mode === 'candle' ? ['high', 'low'] as const : ['close', 'close'] as const
@@ -140,7 +141,7 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
       const src = history && history.length ? history : rows
       const data = sma(src, n).filter(p => p.time >= first)
       if (!data.length) return
-      const s = chart.addSeries(LineSeries, { color: colors[n] || '#aaa', lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, priceFormat: pf })
+      const s = chart.addSeries(LineSeries, { color: colors[n] || tc('#aaa'), lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, priceFormat: pf })
       s.setData(data)
     })
 

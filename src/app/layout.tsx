@@ -33,9 +33,13 @@ import Footer from '../components/Footer'
 import SettingsRoot from '../components/SettingsRoot'
 import Analytics from '../components/Analytics'
 
+// Antes da pintura: aplica o tema salvo (html[data-qt]) e marca o modo embutido do Launchpad (html[data-embed]).
+const BOOT = `try{var s=JSON.parse(localStorage.getItem('qt.settings.v1')||'null')||{};var t=['green','contrast','light'].indexOf(s.theme)>=0?s.theme:'amber';var k=t+'.'+(s.ud==='cb'?'cb':'std');var d=document.documentElement;if(k!=='amber.std')d.setAttribute('data-qt',k);if(t==='light')d.style.colorScheme='light';if(window.self!==window.top&&/\\/lp\\/?$/.test(window.parent.location.pathname))d.setAttribute('data-embed','1')}catch(e){}`
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: BOOT }} /></head>
       <body className="min-h-screen lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden bg-[#0b0c10] font-sans antialiased flex flex-col" suppressHydrationWarning={true}>
         <SettingsRoot>
         <header className="shrink-0 max-lg:sticky max-lg:top-0 max-lg:z-40">

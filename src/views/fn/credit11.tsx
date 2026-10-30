@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /** YAS (calculadora de títulos públicos), DRSK (distância ao default de Merton), ECTR (comércio exterior Comex Stat). Strings em inglês por tela. */
 import React, { useEffect, useMemo, useState } from 'react'
 import { en } from '@/lib/enText'
@@ -73,7 +74,7 @@ export function YASView() {
       source={d.source} note={<>Pricing date {dUSfull(d.ref_date)}; DI1 curve {dUSfull(d.di_ref_date)}. {Object.entries(d.conventions || {}).map(([k, v]) => `${k}: ${v}`).join(' · ')}{d.note ? ` · ${d.note}` : ''}</>}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,0.95fr) minmax(0,1.05fr) minmax(0,1fr)' }}>
         <Panel title={S.bonds}>
-          <Grid maxH={600} rows={bonds.filter(x => typ === 'All' || x.bond === typ)} onRow={(x: any) => setId(x.id)} rowStyle={(x: any) => x.id === b.id ? { background: '#1f2a44' } : undefined} cols={[
+          <Grid maxH={600} rows={bonds.filter(x => typ === 'All' || x.bond === typ)} onRow={(x: any) => setId(x.id)} rowStyle={(x: any) => x.id === b.id ? { background: tc('#1f2a44') } : undefined} cols={[
             { k: 'bond', label: S.c.bond, color: () => C.amber }, { k: 'maturity', label: S.c.maturity, fmt: x => dUS(x) },
             { k: 'rate', label: S.c.rate, align: 'r', fmt: x => n(x, 4), color: () => C.white },
             { k: 'bid', label: S.c.bid, align: 'r', fmt: x => n(x, 4), color: () => C.muted }, { k: 'ask', label: S.c.ask, align: 'r', fmt: x => n(x, 4), color: () => C.muted },
@@ -126,7 +127,7 @@ function YasCurve({ di, bonds, sel }: { di: [number, number][]; bonds: Bond[]; s
   const x0 = 0, x1 = Math.max(...xs), y0 = Math.min(...ys) - 0.1, y1 = Math.max(...ys) + 0.1
   const X = (v: number) => m.l + (v - x0) / (x1 - x0) * (W - m.l - m.r), Y = (v: number) => m.t + (1 - (v - y0) / (y1 - y0)) * (H - m.t - m.b)
   return <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ fontFamily: MONO, maxHeight: H }}>
-    {Array.from({ length: 5 }, (_, i) => y0 + (y1 - y0) * i / 4).map((t, i) => <g key={i}><line x1={m.l} x2={W - m.r} y1={Y(t)} y2={Y(t)} stroke="#1c1c1c" /><text x={m.l - 3} y={Y(t) + 3} fontSize={9} fill={C.muted} textAnchor="end">{n(t, 2)}</text></g>)}
+    {Array.from({ length: 5 }, (_, i) => y0 + (y1 - y0) * i / 4).map((t, i) => <g key={i}><line x1={m.l} x2={W - m.r} y1={Y(t)} y2={Y(t)} stroke={tc(tc('#1c1c1c'))} /><text x={m.l - 3} y={Y(t) + 3} fontSize={9} fill={C.muted} textAnchor="end">{n(t, 2)}</text></g>)}
     {Array.from({ length: Math.floor(x1 / 252) + 1 }, (_, i) => i * 252).map(t => <text key={t} x={X(t)} y={H - 6} fontSize={9} fill={C.muted} textAnchor="middle">{t / 252}y</text>)}
     <polyline points={di.map(p => `${X(p[0])},${Y(p[1])}`).join(' ')} fill="none" stroke={C.cyan} strokeWidth={1.5} />
     {bonds.map(b => <circle key={b.id} cx={X(b.du)} cy={Y(b.rate)} r={b.id === sel.id ? 4.5 : 2.5} fill={b.bond === 'LTN' ? C.amber : C.white} stroke={b.id === sel.id ? C.down : 'none'}><title>{`${b.id}: ${n(b.rate, 4)}%`}</title></circle>)}
@@ -158,7 +159,7 @@ export function DRSKView() {
       source={d.source} note={<>{d.method} {S.skipped}: {(d.skipped || []).map((s: any) => `${s.cod} (${s.reason})`).join('; ')}. {S.banks}: {(d.banks_excluded || []).join(', ')}.</>}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)' }}>
         <Panel title={`${rows.length} · ${dUSfull(d.date)} · CDI ${n(d.r_cdi, 2)}%`}>
-          <Grid maxH={620} rows={rows} onRow={(x: any) => setCod(x.cod)} rowStyle={(x: any) => x.cod === r?.cod ? { background: '#1f2a44' } : undefined} cols={[
+          <Grid maxH={620} rows={rows} onRow={(x: any) => setCod(x.cod)} rowStyle={(x: any) => x.cod === r?.cod ? { background: tc('#1f2a44') } : undefined} cols={[
             { k: 'cod', label: S.c.cod, color: () => C.amber }, { k: 'name', label: S.c.name }, { k: 'sector', label: S.c.sector, color: () => C.muted },
             { k: 'dd', label: S.c.dd, align: 'r', fmt: x => n(x, 2), color: x => ddColor(x) },
             { k: 'pd', label: S.c.pd, align: 'r', fmt: x => n(x, x < 0.01 ? 4 : 2), color: x => ddColor(null) && (x > 5 ? C.down : x > 1 ? C.yellow : C.text) },

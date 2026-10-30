@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /** ECO (calendário econômico), GMM (movimentos macro globais), FXC (matriz de cruzamento), FXFC (projeções Focus de câmbio). Strings em inglês por tela. */
 import React, { useEffect, useMemo, useState } from 'react'
 import { fetchIbgeLive } from '@/lib/ibgeLive'
@@ -47,7 +48,7 @@ export function ECOView() {
       source={d.source} note={<>{d.note} {S.approx}.{noBR && live !== undefined ? <> {live?.length ? S.live : S.liveNo}</> : null}</>}>
       <Panel title={`${wk === 9 ? `${dUS(d.from)} – ${dUS(d.to)}` : `${dShort(v.a)} – ${dShort(v.b)}`} · ${v.ev.length} ${S.count}`}>
         {!v.ev.length ? <div className="p-4 text-[12px]" style={{ color: C.muted }}>{S.empty}</div> :
-          <Grid maxH={640} rows={v.ev} rowStyle={(e: any) => { const day = e.time.slice(0, 10); const st: any = day === today ? { background: '#1a1405' } : {}; if (day !== last) { last = day; st.borderTop = `1px solid ${C.amberDim}` } return st }} cols={[
+          <Grid maxH={640} rows={v.ev} rowStyle={(e: any) => { const day = e.time.slice(0, 10); const st: any = day === today ? { background: tc('#1a1405') } : {}; if (day !== last) { last = day; st.borderTop = `1px solid ${C.amberDim}` } return st }} cols={[
             { k: 'time', label: S.c.time, fmt: (x, e: any) => <span><span style={{ color: C.muted }}>{weekday(x)} </span>{dUS(x)} <span style={{ color: C.white }}>{x.slice(11, 16)}</span>{e.time_approx ? <span style={{ color: C.muted }}>≈</span> : ''}</span> },
             { k: 'country', label: S.c.country, align: 'c', color: x => x === 'BR' ? C.up : C.cyan },
             { k: 'event', label: S.c.event, fmt: (x, e: any) => <span style={{ color: e.key ? C.amber : C.text }}>{e.key ? '★ ' : ''}{x}</span> },
@@ -120,9 +121,9 @@ export function FXCView() {
           <table className="w-full text-[12px] border-collapse" style={{ fontVariantNumeric: 'tabular-nums' }}>
             <thead><tr><th className="sticky top-0 left-0 z-20 px-1 text-left" style={{ background: C.panel2, color: C.muted }}>↓/→</th>
               {ccys.map(c => <th key={c} className="sticky top-0 z-10 px-1 text-right" style={{ background: C.panel2, color: hi === c ? C.white : C.amber }}>{c}</th>)}</tr></thead>
-            <tbody>{ccys.map(r => <tr key={r} onMouseEnter={() => setHi(r)} style={{ background: hi === r ? '#1a1a1a' : undefined }}>
+            <tbody>{ccys.map(r => <tr key={r} onMouseEnter={() => setHi(r)} style={{ background: hi === r ? tc('#1a1a1a') : undefined }}>
               <td className="sticky left-0 px-1" style={{ background: C.panel2, color: C.amber }}>{r}</td>
-              {ccys.map(c => { const x = r === c ? null : val(r, c); return <td key={c} className="px-1 text-right whitespace-nowrap border-l" style={{ borderColor: '#1a1a1a', color: r === c ? C.muted : mode === 'last' ? C.text : cl(x) }}>{r === c ? '—' : mode === 'last' ? auto(x) : x == null ? '—' : sn(x, 2)}</td> })}
+              {ccys.map(c => { const x = r === c ? null : val(r, c); return <td key={c} className="px-1 text-right whitespace-nowrap border-l" style={{ borderColor: tc('#1a1a1a'), color: r === c ? C.muted : mode === 'last' ? C.text : cl(x) }}>{r === c ? '—' : mode === 'last' ? auto(x) : x == null ? '—' : sn(x, 2)}</td> })}
             </tr>)}</tbody>
           </table>
         </div>
@@ -176,7 +177,7 @@ export function FXFCView() {
           </Panel>
         </div>
         <Panel title={S.tabs[tab]}>
-          <Grid maxH={560} rows={list} onRow={(r: any) => setSel(r.ref)} rowStyle={(r: any) => r === cur ? { background: '#1f2a44' } : undefined} cols={[
+          <Grid maxH={560} rows={list} onRow={(r: any) => setSel(r.ref)} rowStyle={(r: any) => r === cur ? { background: tc('#1f2a44') } : undefined} cols={[
             { k: 'ref', label: S.c.ref, color: () => C.amber },
             { k: 'median', label: S.c.median, align: 'r', fmt: v => n(v, 4), color: () => C.white },
             { k: 'vsSpot', label: S.c.vsSpot, align: 'r', fmt: (_, r: any) => pc((r.median / d.spot - 1) * 100), color: (_, r: any) => cl(r.median - d.spot) },

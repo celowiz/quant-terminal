@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /** P2-H1 – funções novas: BEIR (inflação implícita), USMM (mercado monetário EUA), CBR (juros de bancos centrais), CRYP (cripto).
  *  Textos EN/PT por tela (L(en, pt)); dados só de fontes abertas, gerados por pipeline/build_fns1.py. */
 import React, { useMemo, useRef, useEffect, useState } from 'react'
@@ -35,7 +36,7 @@ function XYChart({ series, height = 240, xLabel, yFmt = (v: number) => n(v, 1) }
   return (
     <div ref={box} className="w-full" style={{ fontFamily: MONO }}>
       <svg width={W} height={H} className="block">
-        {yt.map((t, i) => <g key={i}><line x1={m.l} x2={W - m.r} y1={Y(t)} y2={Y(t)} stroke="#1c1c1c" /><text x={m.l - 4} y={Y(t) + 4} fontSize={10} fill={C.muted} textAnchor="end">{yFmt(t)}</text></g>)}
+        {yt.map((t, i) => <g key={i}><line x1={m.l} x2={W - m.r} y1={Y(t)} y2={Y(t)} stroke={tc(tc('#1c1c1c'))} /><text x={m.l - 4} y={Y(t) + 4} fontSize={10} fill={C.muted} textAnchor="end">{yFmt(t)}</text></g>)}
         {xt.map(t => <text key={t} x={X(t)} y={H - 16} fontSize={10} fill={C.muted} textAnchor="middle">{t}</text>)}
         <text x={(W + m.l) / 2} y={H - 3} fontSize={10} fill={C.muted} textAnchor="middle">{xLabel}</text>
         {series.map(s => <g key={s.name}>
@@ -145,7 +146,7 @@ export function USMMView() {
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.25fr)' }}>
         <div className="min-w-0">
           <Panel title={L(`Reference rates · ${dUS(sofr?.date || '')}`, `Taxas de referência · ${dUS(sofr?.date || '')}`)}>
-            <Grid rows={d.latest} onRow={(x: any) => setSel(x.rate)} rowStyle={(x: any) => x.rate === sel ? { background: '#1f2a44' } : undefined} cols={[
+            <Grid rows={d.latest} onRow={(x: any) => setSel(x.rate)} rowStyle={(x: any) => x.rate === sel ? { background: tc('#1f2a44') } : undefined} cols={[
               { k: 'rate', label: L('Rate', 'Taxa'), color: () => C.amber },
               { k: 'value', label: '%', align: 'r', fmt: x => n(x, 2), color: () => C.white },
               { k: 'd1_bp', label: '1D bp', align: 'r', fmt: x => bps(x, 0), color: x => cl(x) },
@@ -163,8 +164,8 @@ export function USMMView() {
         <Panel title={L('Overnight rates vs FOMC target range (%)', 'Taxas overnight vs banda-alvo do FOMC (%)')}>
           <FnChart height={470} panes={[
             { stretch: 3, series: [
-              { kind: 'line', data: pts(cut(d.band, from), 2), color: '#555', title: L('Top', 'Teto'), decimals: 2, dashed: true },
-              { kind: 'line', data: pts(cut(d.band, from), 1), color: '#555', title: L('Bottom', 'Piso'), decimals: 2, dashed: true },
+              { kind: 'line', data: pts(cut(d.band, from), 2), color: tc('#555'), title: L('Top', 'Teto'), decimals: 2, dashed: true },
+              { kind: 'line', data: pts(cut(d.band, from), 1), color: tc('#555'), title: L('Bottom', 'Piso'), decimals: 2, dashed: true },
               { kind: 'line', data: pts(cut(d.history.TGCR, from)), color: C.cyan, title: 'TGCR', decimals: 2 },
               { kind: 'line', data: pts(cut(d.history.EFFR, from)), color: C.white, title: 'EFFR', decimals: 2 },
               { kind: 'line', data: pts(cut(d.history.SOFR, from)), color: C.amber, title: 'SOFR', decimals: 2 },
@@ -189,11 +190,11 @@ const TILE: Record<string, [number, number]> = {
   CL: [2, 6], AR: [3, 6], ZA: [8, 6], AU: [15, 6], NZ: [17, 7],
 }
 const lvlColor = (v: number | null, max: number) => {
-  if (v == null) return '#1a1a1a'
+  if (v == null) return tc('#1a1a1a')
   const f = Math.max(0, Math.min(1, Math.sqrt(Math.max(0, v) / (max || 1))))
   return `rgba(255,160,40,${0.15 + 0.85 * f})`
 }
-const chgColor = (bp: number | null) => bp == null || bp === 0 ? '#2a2a2a' : bp > 0 ? `rgba(255,77,77,${Math.min(1, 0.35 + Math.abs(bp) / 300)})` : `rgba(79,195,247,${Math.min(1, 0.35 + Math.abs(bp) / 300)})`
+const chgColor = (bp: number | null) => bp == null || bp === 0 ? tc('#2a2a2a') : bp > 0 ? `rgba(255,77,77,${Math.min(1, 0.35 + Math.abs(bp) / 300)})` : `rgba(79,195,247,${Math.min(1, 0.35 + Math.abs(bp) / 300)})`
 export function CBRView() {
   const { data: d, err } = useJSON<any>('cbr.json')
   const [mode, setMode] = useState('lvl'), [sel, setSel] = useState('BR'), [cmp, setCmp] = useState('US'), [rng, setRng] = useState('10Y'), [reg, setReg] = useState('All')
@@ -232,7 +233,7 @@ export function CBRView() {
               {banks.filter(b => TILE[b.code]).map(b => {
                 const [x, y] = TILE[b.code], on = b.code === sel, dim = reg !== 'All' && b.region !== reg
                 return <button key={b.code} onClick={() => setSel(b.code)} title={`${nm(b)} · ${b.bank}: ${n(b.rate, 2)}%`}
-                  className="flex flex-col items-center justify-center leading-none" style={{ gridColumn: x + 1, gridRow: y + 1, aspectRatio: '1 / 0.9', background: col(b), opacity: dim ? 0.25 : 1, outline: on ? `2px solid ${C.white}` : 'none', color: '#000', fontFamily: MONO }}>
+                  className="flex flex-col items-center justify-center leading-none" style={{ gridColumn: x + 1, gridRow: y + 1, aspectRatio: '1 / 0.9', background: col(b), opacity: dim ? 0.25 : 1, outline: on ? `2px solid ${C.white}` : 'none', color: tc('#000'), fontFamily: MONO }}>
                   <span className="text-[10px] font-bold">{b.code === 'XM' ? 'EA' : b.code}</span>
                   <span className="text-[9px]">{mode === 'lvl' ? n(b.rate, b.rate >= 10 ? 1 : 2) : bps(val(b), 0)}</span>
                 </button>
@@ -240,7 +241,7 @@ export function CBRView() {
             </div></div>
           </Panel>
           <Panel title={L('Policy rates', 'Taxas básicas')} className="mt-2">
-            <Grid maxH={250} rows={rows} onRow={(x: any) => setSel(x.code)} rowStyle={(x: any) => x.code === sel ? { background: '#1f2a44' } : undefined} cols={[
+            <Grid maxH={250} rows={rows} onRow={(x: any) => setSel(x.code)} rowStyle={(x: any) => x.code === sel ? { background: tc('#1f2a44') } : undefined} cols={[
               { k: 'name', label: L('Country', 'País'), fmt: (_, b: any) => nm(b), color: () => C.amber, w: '130px' },
               { k: 'bank', label: L('Bank', 'Banco'), color: () => C.muted },
               { k: 'rate', label: '%', align: 'r', fmt: x => n(x, 2), color: () => C.white },
@@ -266,7 +267,7 @@ export function CBRView() {
 }
 
 // ======================= CRYP =======================
-const fngColor = (v: number) => v <= 25 ? C.down : v <= 45 ? '#FF8A65' : v <= 55 ? C.yellow : v <= 75 ? '#9CCC65' : C.up
+const fngColor = (v: number) => v <= 25 ? C.down : v <= 45 ? tc('#FF8A65') : v <= 55 ? C.yellow : v <= 75 ? tc('#9CCC65') : C.up
 const FNG_PT: Record<string, string> = { 'Extreme Fear': 'Medo extremo', Fear: 'Medo', Neutral: 'Neutro', Greed: 'Ganância', 'Extreme Greed': 'Ganância extrema' }
 export function CRYPView() {
   const { data: d, err } = useJSON<any>('cryp.json')

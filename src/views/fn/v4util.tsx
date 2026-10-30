@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /** Utilidades compartilhadas pelas funções da v4 (CSV, datas numéricas, mapa de calor, barras). */
 import React from 'react'
 import { C, nf } from '@/components/fn/kit'
@@ -32,7 +33,7 @@ export function HBars({ rows, fmt = v => nf(v, 2), hi, height = 18 }: { rows: { 
         <div key={r.label} className="flex items-center gap-2" style={{ height }}>
           <div className="w-28 max-lg:w-20 shrink-0 truncate text-right" style={{ color: r.label === hi ? C.amber : C.text }}>{en(r.label)}</div>
           <div className="relative flex-1 h-[70%]">
-            {neg && <div className="absolute top-0 bottom-0" style={{ left: '50%', width: 1, background: '#444' }} />}
+            {neg && <div className="absolute top-0 bottom-0" style={{ left: '50%', width: 1, background: tc('#444') }} />}
             {r.v != null && <div className="absolute top-0 bottom-0" style={{
               background: r.color || (r.label === hi ? C.amber : r.v >= 0 ? C.up : C.down),
               left: neg ? (r.v >= 0 ? '50%' : `${50 - Math.abs(r.v) / max * 50}%`) : 0,
@@ -72,8 +73,8 @@ export function VertexBars({ labels, groups, height = 150, fmt = v => nf(v, 0) }
         <span style={{ color: C.amber }}>Δ (bp) by vertex</span>
         {groups.map((g, i) => <span key={g.name} className="flex items-center gap-1"><i className="inline-block w-3 h-2" style={{ background: C.up, opacity: op[i] ?? 0.3 }} />{g.name}</span>)}
       </div>
-      <div className="relative flex items-stretch gap-[2px] border-b border-t" style={{ height: plotH, borderColor: '#1f1f1f' }}>
-        <div className="absolute left-0 right-0" style={{ top: `${zero * 100}%`, height: 1, background: '#555' }} />
+      <div className="relative flex items-stretch gap-[2px] border-b border-t" style={{ height: plotH, borderColor: tc('#1f1f1f') }}>
+        <div className="absolute left-0 right-0" style={{ top: `${zero * 100}%`, height: 1, background: tc('#555') }} />
         {labels.map((l, j) => (
           <div key={l + j} className="relative flex-1 flex items-stretch justify-center gap-[1px] min-w-0">
             {groups.map((g, i) => {

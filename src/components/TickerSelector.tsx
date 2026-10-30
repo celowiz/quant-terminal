@@ -1,4 +1,5 @@
 "use client"
+import { tc } from '../lib/themeRuntime'
 import React, { useRef, useState, useEffect } from 'react'
 import { t } from '../lib/i18n'
 import { useDesktop } from './fn/kit'
@@ -153,7 +154,7 @@ export default function TickerSelector({
 									className="px-2 py-1 cursor-pointer flex gap-2 items-baseline"
 									onMouseEnter={() => setHighlightedIndex(idx)}
 									onMouseDown={() => handleTickerSelect(r.ticker)}
-									style={idx === highlightedIndex ? { background: '#FFA028', color: '#000' } : { color: '#FFA028' }}
+									style={idx === highlightedIndex ? { background: tc('#FFA028'), color: tc('#000') } : { color: tc('#FFA028') }}
 								>
 									<span className="font-bold shrink-0">{r.ticker}</span>
 									{m?.name && <span className="truncate text-[11px] opacity-80">{m.name}</span>}

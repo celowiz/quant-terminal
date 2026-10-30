@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 import React, { useEffect, useMemo, useState } from 'react'
 import { FitBox, FnScreen, Panel, Grid, Btns, Field, KV, Loading, NA, C, nf, pf, big, dBR, dBRfull, clr, short, useJSON, corpPath, hasData, inputCls, inputStyle, isoMinus } from '../../components/fn/kit'
 import FnChart, { type PaneDef } from '../../components/fn/FnChart'
@@ -106,7 +107,7 @@ export function FUNDView({ ticker }: { ticker: string }) {
           <table className="w-full border-collapse text-[12px]">
             <thead><tr style={{ background: C.panel2 }}><th className="px-2 py-1 text-left font-normal" style={{ color: C.amber }}>{ccy(d)} mn</th>{src.map((r: any) => <th key={r.period} className="px-2 py-1 text-right font-normal" style={{ color: C.amber }}>{lbl(r.period)}</th>)}</tr></thead>
             <tbody>{rowsDef.map(([k, l, bold]) => (
-              <tr key={k} className="border-t" style={{ borderColor: '#1a1a1a' }}><td className="px-2 py-[3px]" style={{ fontWeight: bold ? 700 : 400 }}>{l}</td>
+              <tr key={k} className="border-t" style={{ borderColor: tc('#1a1a1a') }}><td className="px-2 py-[3px]" style={{ fontWeight: bold ? 700 : 400 }}>{l}</td>
                 {src.map((r: any) => <td key={r.period} className="px-2 py-[3px] text-right" style={{ color: r[k] == null ? C.muted : r[k] < 0 ? C.down : C.amber, fontWeight: bold ? 700 : 400 }}>{r[k] == null ? '—' : isRatio ? nf(r[k], k === 'lev' ? 2 : 1) : nf(r[k] / 1e6, 0)}</td>)}</tr>))}
             </tbody>
           </table>
@@ -175,7 +176,7 @@ export function VALView({ ticker }: { ticker: string }) {
           </Panel>
           <div>
             <div className="flex items-center gap-2 pb-1 text-[12px]"><span style={{ color: C.amber }}>3-year history</span><Btns opts={[{ v: 'pe', l: 'P/E' }, { v: 'pb', l: 'P/B' }, { v: 'dy', l: 'DY %' }] as any} value={metric} onChange={setMetric as any} /><span style={{ color: C.muted }}>average {nf(avg)}</span></div>
-            <FnChart height={330} panes={[{ series: [{ kind: 'line', data: ser, color: C.amber, title: metric.toUpperCase(), lines: [{ price: avg, color: '#888', title: 'Average' }] }] }]} />
+            <FnChart height={330} panes={[{ series: [{ kind: 'line', data: ser, color: C.amber, title: metric.toUpperCase(), lines: [{ price: avg, color: tc('#888'), title: 'Average' }] }] }]} />
           </div>
         </div>
         <div className="mt-2"><Panel title={`Peer comparison (same methodology)${peerData.sector ? ` — ${peerData.sector}` : ''}`}>
@@ -199,7 +200,7 @@ export function DYView({ ticker }: { ticker: string }) {
       <FnScreen code="DY" ticker={ticker} title="Dividend Yield" source={srcOf(d)} note={`12m DY = sum of distributions (${isUS(d) ? 'cash dividends' : 'gross dividends + JCP'}, by ex-date) over the previous 12 months ÷ that day's raw price. Distributions and price unadjusted.`}>
         <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 380px' }}>
           <div><div className="flex gap-4 text-[12px] pb-1"><span>Current 12m DY <b style={{ color: C.amber }}>{pf(cur, 2, false)}</b></span><span style={{ color: C.muted }}>10y average {pf(avg, 2, false)}</span></div>
-            <FnChart height={520} panes={[{ series: [{ kind: 'area', data: ser, color: C.amber, title: 'DY 12m', pct: true, lines: [{ price: avg, color: '#888', title: 'Average' }] }] }]} /></div>
+            <FnChart height={520} panes={[{ series: [{ kind: 'area', data: ser, color: C.amber, title: 'DY 12m', pct: true, lines: [{ price: avg, color: tc('#888'), title: 'Average' }] }] }]} /></div>
           <Panel title="By year"><Grid cols={[{ k: 'y', label: 'Year' }, { k: 'n', label: 'Nº', align: 'r' }, { k: 'tot', label: `${ccy(d)}/share`, align: 'r', fmt: v => nf(v, 4) }, { k: 'end', label: 'End price', align: 'r', fmt: (v: any) => nf(v) }, { k: 'dyEnd', label: 'End DY', align: 'r', fmt: v => pf(v, 2, false), color: () => C.amber }, { k: 'dyAvg', label: 'Avg DY', align: 'r', fmt: v => pf(v, 2, false) }]} rows={yr} /></Panel>
         </div>
       </FnScreen>)
@@ -261,7 +262,7 @@ export function CFView({ ticker }: { ticker: string }) {
       <FnScreen code="CF" ticker={ticker} title={isUS(d) ? 'Company Filings — SEC EDGAR' : 'Company Filings — CVM documents'} right={<Field label="Search"><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
         source={isUS(d) ? 'SEC EDGAR – submissions API (10-K, 10-Q, 8-K, proxy statements…), links to the original document on sec.gov.' : 'CVM Open Data – IPE (periodic and ad-hoc filings), links to RAD/ENET.'}
         note={isUS(d) ? `10-K = annual report, 10-Q = quarterly report, 8-K = current report (subject = official Form 8-K item titles), DEF 14A = proxy statement. Latest ${d.filings.length} filings${d.cad?.PREDECESSOR ? `, including the predecessor registrant ${d.cad.PREDECESSOR}` : ''}.` : 'Brazilian equivalent of 10-K/10-Q/8-K: DFP/ITR, Material Facts, Notices, Minutes. Latest 400 documents.'}>
-        <div className="flex flex-wrap gap-0 pb-2">{cats.map(c => <button key={c} onClick={() => setCat(c)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: cat === c ? C.amber : 'transparent', color: cat === c ? '#000' : C.amber }}>{c.length > 34 ? c.slice(0, 32) + '…' : c}</button>)}</div>
+        <div className="flex flex-wrap gap-0 pb-2">{cats.map(c => <button key={c} onClick={() => setCat(c)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: cat === c ? C.amber : 'transparent', color: cat === c ? tc('#000') : C.amber }}>{c.length > 34 ? c.slice(0, 32) + '…' : c}</button>)}</div>
         <Grid maxH={640} cols={[{ k: 'date', label: 'Date', fmt: dBRfull, w: '90px' }, { k: 'cat', label: 'Category', color: () => C.amber, w: '230px' }, { k: 'type', label: 'Type', color: () => C.muted, w: '220px' }, { k: 'subject', label: 'Subject / document', fmt: (v, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: C.text }}>{v || r.type || r.cat}</a> }, { k: 'version', label: 'V', align: 'r', w: '30px' }]} rows={rows} />
       </FnScreen>)
   })()}</Guard>
@@ -281,7 +282,7 @@ export function CNView({ ticker }: { ticker: string }) {
     return (
       <FnScreen code="CN" ticker={ticker} title="Company News" source={us ? 'SEC EDGAR – Form 8-K current reports + open-license RSS filtered by company name.' : 'CVM IPE (Material Facts, Market Notices, Notices) + open-license RSS (Agência Brasil, CC BY 4.0) filtered by company name.'}
         note={us ? 'No paid news-agency feed: the stream is the company\'s official regulatory news (Form 8-K, official item titles). Earnings releases (item 2.02) highlighted.' : 'No paid news-agency feed: the stream is the company\'s official regulatory news. Material Facts highlighted.'}>
-        <Grid maxH={700} rowStyle={(r: any) => r.hot ? { background: '#1a1205' } : undefined} cols={[{ k: 'date', label: 'Date', fmt: dBR, w: '70px' }, { k: 'src', label: 'Source', w: '90px', color: (_, r: any) => r.hot ? C.down : C.amber }, { k: 'title', label: 'Headline', fmt: (v, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: r.hot ? C.white : C.text, fontWeight: r.hot ? 700 : 400 }}>{v}</a> }]} rows={rows} />
+        <Grid maxH={700} rowStyle={(r: any) => r.hot ? { background: tc('#1a1205') } : undefined} cols={[{ k: 'date', label: 'Date', fmt: dBR, w: '70px' }, { k: 'src', label: 'Source', w: '90px', color: (_, r: any) => r.hot ? C.down : C.amber }, { k: 'title', label: 'Headline', fmt: (v, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: r.hot ? C.white : C.text, fontWeight: r.hot ? 700 : 400 }}>{v}</a> }]} rows={rows} />
       </FnScreen>)
   })()}</Guard>
 }
@@ -308,7 +309,7 @@ export function OMONView({ ticker }: { ticker: string }) {
         right={<><span>Spot <b style={{ color: C.amber }}>{nf(d.spot)}</b> <span style={{ color: clr(chg) }}>{pf(chg)}</span></span><span style={{ color: C.muted }}>{dBR(d.date)} · r {nf(d.r_cont * 100, 2)}%</span><Field label="Strikes ±"><Btns opts={[5, 10, 20]} value={range} onChange={setRange} /></Field></>}
         source={<>Daily B3 COTAHIST (public end-of-day file). Greeks/IV: {d.model}.</>}
         note="End-of-day snapshot (not real time). Bid/Ask = best quotes at the close (0 = no quote). Shaded rows = in the money. Amber center strike = closest to spot. Expiries with few series are weeklies.">
-        <div className="flex flex-wrap gap-0 pb-2">{exps.map((x, i) => <button key={x.date} onClick={() => setEi(i)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: i === idx ? C.amber : 'transparent', color: i === idx ? '#000' : C.amber }}>{dBR(x.date)} ({x.bdays}du) [{x.calls.length + x.puts.length}]</button>)}</div>
+        <div className="flex flex-wrap gap-0 pb-2">{exps.map((x, i) => <button key={x.date} onClick={() => setEi(i)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: i === idx ? C.amber : 'transparent', color: i === idx ? tc('#000') : C.amber }}>{dBR(x.date)} ({x.bdays}du) [{x.calls.length + x.puts.length}]</button>)}</div>
         <div className="flex gap-6 text-[12px] pb-1"><span>Expiry <b style={{ color: C.amber }}>{dBRfull(e.date)}</b></span><span>Calls volume R$ {big(cv)}</span><span>Puts volume R$ {big(pv)}</span><span>Put/Call (vol.) {nf(pv / (cv || 1), 2)}</span></div>
         <FitBox base={560} min={140} className="overflow-auto border" style={{ borderColor: C.line }}>
           <table className="w-full border-collapse text-[11.5px]">
@@ -317,12 +318,12 @@ export function OMONView({ ticker }: { ticker: string }) {
               <tr style={{ color: C.amber }}>{['Series', 'Bid', 'Ask', 'Last', 'Trades', 'Vol R$', 'IV', 'Delta', 'Gamma'].map(h => <th key={'c' + h} className="px-1 py-[2px] text-right font-normal">{h}</th>)}<th></th>{['Bid', 'Ask', 'Last', 'Trades', 'Vol R$', 'IV', 'Delta', 'Gamma', 'Series'].map(h => <th key={'p' + h} className="px-1 py-[2px] text-right font-normal">{h}</th>)}</tr>
             </thead>
             <tbody>{sel.map(k => { const c = byK(e.calls, k), p = byK(e.puts, k), itmC = k < d.spot, itmP = k > d.spot
-              return <tr key={k} className="border-t" style={{ borderColor: '#1a1a1a' }}>
-                <td className="px-1 text-right" style={{ background: itmC ? '#14202a' : undefined, color: C.muted }}>{c?.code || ''}</td>
+              return <tr key={k} className="border-t" style={{ borderColor: tc('#1a1a1a') }}>
+                <td className="px-1 text-right" style={{ background: itmC ? tc('#14202a') : undefined, color: C.muted }}>{c?.code || ''}</td>
                 {[c?.bid, c?.ask, c?.last].map((v, i) => <React.Fragment key={i}>{cell(v, 2, i === 2 ? C.white : undefined)}</React.Fragment>)}{cell(c?.trades, 0)}{cell(c?.vol ? c.vol / 1e3 : null, 0)}{cell(c?.iv, 1, C.cyan)}{cell(c?.delta, 3)}{cell(c?.gamma, 4)}
-                <td className="px-2 text-center font-bold" style={{ background: k === atm ? C.amber : '#111', color: k === atm ? '#000' : C.amber }}>{nf(k)}</td>
+                <td className="px-2 text-center font-bold" style={{ background: k === atm ? C.amber : tc('#111'), color: k === atm ? tc('#000') : C.amber }}>{nf(k)}</td>
                 {[p?.bid, p?.ask, p?.last].map((v, i) => <React.Fragment key={i}>{cell(v, 2, i === 2 ? C.white : undefined)}</React.Fragment>)}{cell(p?.trades, 0)}{cell(p?.vol ? p.vol / 1e3 : null, 0)}{cell(p?.iv, 1, C.cyan)}{cell(p?.delta, 3)}{cell(p?.gamma, 4)}
-                <td className="px-1 text-right" style={{ background: itmP ? '#2a1414' : undefined, color: C.muted }}>{p?.code || ''}</td>
+                <td className="px-1 text-right" style={{ background: itmP ? tc('#2a1414') : undefined, color: C.muted }}>{p?.code || ''}</td>
               </tr> })}</tbody>
           </table>
         </FitBox>

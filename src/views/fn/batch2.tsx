@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /** P2-H2 – funções novas: MEMB (carteira teórica do Ibovespa), OVME (calculadora Black-Scholes), EVTS (eventos sobre o gráfico).
  *  MEMB usa universe.json (B3 GetPortfolioDay + fechamentos); OVME roda no navegador com options/<t>.json; EVTS junta corp/<t>.json e calendar.json. */
 import React, { useMemo, useState } from 'react'
@@ -125,7 +126,7 @@ export function MEMBView() {
 // ======================= OVME =======================
 function ResList({ rows }: { rows: { k: string; v: string; c?: string }[] }) {
   return <div className="px-2 py-1 text-[12px]" style={{ fontFamily: MONO }}>{rows.map((r, i) => (
-    <div key={i} className="flex items-baseline justify-between gap-3 border-b py-[3px]" style={{ borderColor: '#1a1a1a' }}>
+    <div key={i} className="flex items-baseline justify-between gap-3 border-b py-[3px]" style={{ borderColor: tc('#1a1a1a') }}>
       <span className="min-w-0" style={{ color: C.muted }}>{r.k}</span><span className="shrink-0 text-right tabular-nums" style={{ color: r.c || C.text }}>{r.v}</span>
     </div>))}</div>
 }
@@ -227,11 +228,11 @@ export function OVMEView({ ticker }: { ticker: string }) {
 // ======================= EVTS =======================
 type Ev = { date: string; kind: 'D' | 'S' | 'F' | 'R' | 'N'; text: string; link?: string; value?: number }
 const KIND: Record<Ev['kind'], { en: string; pt: string; color: string; shape: 'arrowDown' | 'arrowUp' | 'circle' | 'square'; pos: 'aboveBar' | 'belowBar' }> = {
-  R: { en: 'Results', pt: 'Resultados', color: '#2f7bff', shape: 'square', pos: 'aboveBar' },
-  F: { en: 'Material facts / 8-K', pt: 'Fatos relevantes / 8-K', color: '#FFA028', shape: 'arrowDown', pos: 'aboveBar' },
-  D: { en: 'Dividends', pt: 'Proventos', color: '#3ddc84', shape: 'circle', pos: 'belowBar' },
-  S: { en: 'Splits', pt: 'Desdobramentos', color: '#c77dff', shape: 'arrowUp', pos: 'belowBar' },
-  N: { en: 'Next results (CAL)', pt: 'Próximo resultado (CAL)', color: '#ffffff', shape: 'square', pos: 'aboveBar' },
+  R: { en: 'Results', pt: 'Resultados', color: tc('#2f7bff'), shape: 'square', pos: 'aboveBar' },
+  F: { en: 'Material facts / 8-K', pt: 'Fatos relevantes / 8-K', color: tc('#FFA028'), shape: 'arrowDown', pos: 'aboveBar' },
+  D: { en: 'Dividends', pt: 'Proventos', color: tc('#3ddc84'), shape: 'circle', pos: 'belowBar' },
+  S: { en: 'Splits', pt: 'Desdobramentos', color: tc('#c77dff'), shape: 'arrowUp', pos: 'belowBar' },
+  N: { en: 'Next results (CAL)', pt: 'Próximo resultado (CAL)', color: tc('#ffffff'), shape: 'square', pos: 'aboveBar' },
 }
 /** eventos a partir do corp/<t>.json (IPE da CVM ou EDGAR) e do calendar.json */
 export function buildEvents(d: any, cal: any, ticker: string): Ev[] {
@@ -281,13 +282,13 @@ export function EVTSView({ ticker }: { ticker: string }) {
       source={d.country === 'US' ? 'SEC EDGAR (submissions) · Yahoo Finance (distributions, adjusted prices)' : 'CVM open data (IPE) · company IR calendar (CAL) · Yahoo Finance (distributions, adjusted prices)'}
       right={<><Field label={L('Range', 'Período')}><Btns opts={['1Y', '2Y', '5Y', 'MAX']} value={rng} onChange={setRng} /></Field></>}>
       <div className="flex flex-wrap gap-1 pb-2 text-[11px]">{(Object.keys(KIND) as Ev['kind'][]).filter(k => k !== 'N' || next).map(k => (
-        <button key={k} onClick={() => setOn(o => ({ ...o, [k]: !o[k] }))} className="border px-2 py-[1px]" style={{ borderColor: KIND[k].color, color: on[k] ? '#000' : KIND[k].color, background: on[k] ? KIND[k].color : 'transparent' }}>
+        <button key={k} onClick={() => setOn(o => ({ ...o, [k]: !o[k] }))} className="border px-2 py-[1px]" style={{ borderColor: KIND[k].color, color: on[k] ? tc('#000') : KIND[k].color, background: on[k] ? KIND[k].color : 'transparent' }}>
           {k} · {L(KIND[k].en, KIND[k].pt)}{k !== 'N' ? ` (${counts(k)})` : ''}</button>))}
         {next && <span className="px-2" style={{ color: C.muted }}>{L('Next results', 'Próximo resultado')}: <b style={{ color: C.white }}>{dUS(next.date)}</b> {next.text}</span>}
       </div>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.6fr) minmax(0,1fr)' }}>
         <Panel title={L(`${short(ticker)} · adjusted close with events`, `${short(ticker)} · fechamento ajustado com eventos`)}>
-          <FnChart height={560} panes={[{ series: [{ kind: 'line', data: pxs.map(p => ({ time: p.time, value: p.close })), color: C.white, title: short(ticker), markers }] }, { stretch: 0.25, series: [{ kind: 'hist', data: pxs.map(p => ({ time: p.time, value: p.volume })), color: '#3a3a3a', title: 'Vol', decimals: 0 }] }]} />
+          <FnChart height={560} panes={[{ series: [{ kind: 'line', data: pxs.map(p => ({ time: p.time, value: p.close })), color: C.white, title: short(ticker), markers }] }, { stretch: 0.25, series: [{ kind: 'hist', data: pxs.map(p => ({ time: p.time, value: p.volume })), color: tc('#3a3a3a'), title: 'Vol', decimals: 0 }] }]} />
         </Panel>
         <Panel title={L(`Events (${shown.length})`, `Eventos (${shown.length})`)}>
           <Grid maxH={590} rows={shown.map(e => ({ ...e, r: e.kind === 'N' ? null : react(e) }))} cols={[

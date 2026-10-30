@@ -1,4 +1,5 @@
 "use client"
+import { tc } from '../lib/themeRuntime'
 import { useState, useRef, useEffect } from 'react'
 import { FUNCTION_LIST, fnName } from '../constants/functions'
 import { t } from '../lib/i18n'
@@ -159,15 +160,15 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
                   className={`function-autocomplete-item px-2 py-1 flex items-center${idx === highlightedIndex ? ' highlighted' : ''}`}
                   onMouseDown={() => handleFunctionSelect(f.code)}
                   onMouseEnter={() => setHighlightedIndex(idx)}
-                  style={idx === highlightedIndex ? { background: '#FFA028', color: '#000' } : {}}
+                  style={idx === highlightedIndex ? { background: tc('#FFA028'), color: tc('#000') } : {}}
                 >
                   <span
                     className="inline-block min-w-[72px] mr-3"
-                    style={idx === highlightedIndex ? { color: '#000' } : { color: '#FFA028' }}
+                    style={idx === highlightedIndex ? { color: tc('#000') } : { color: tc('#FFA028') }}
                   >
                     <b>{f.code || 'HOME'}</b>
                   </span>
-                  <span style={idx === highlightedIndex ? { color: '#000' } : { color: '#FFA028' }}>{fnName(f)}</span>
+                  <span style={idx === highlightedIndex ? { color: tc('#000') } : { color: tc('#FFA028') }}>{fnName(f)}</span>
                 </div>
               ))}
             </div>
