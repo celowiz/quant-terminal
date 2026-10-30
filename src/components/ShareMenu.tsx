@@ -35,13 +35,16 @@ async function captureScreen(): Promise<Blob> {
   const st = document.createElement('style')
   st.textContent = '*{scrollbar-width:none!important}*::-webkit-scrollbar{display:none!important}'
   document.head.appendChild(st)
+  // telas podem ter um layout próprio de captura (ex.: CAL recolhe o painel e tira os selos de status)
+  root.classList.add('qt-capturing')
+  await new Promise<void>(r => window.setTimeout(r, 300))
   const blob = await domToBlob(root, {
     scale: 2,
     backgroundColor: '#0b0c10',
     width: root.clientWidth,
     height: Math.max(document.body.scrollHeight, window.innerHeight),
     filter: (n: Node) => !(n instanceof Element && n.hasAttribute('data-capture-hide')),
-  }).finally(() => st.remove())
+  }).finally(() => { st.remove(); root.classList.remove('qt-capturing') })
   if (!blob) throw new Error('empty capture')
   return blob
 }
