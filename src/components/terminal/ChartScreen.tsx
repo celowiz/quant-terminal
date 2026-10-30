@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 import { numLocale, lang } from '../../lib/settings'
 import { fmtDate, fmtDateFull } from '../../lib/dates'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -122,15 +123,15 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
   const legend: { c: string; l: string; v: string }[] = stats && obs ? [
     { c: mode === 'candle' ? T.up : T.line, l: hover ? `Close ${df(obs.time)}` : 'Last Price', v: nf(obs.close, dec) },
     { c: T.high, l: `High on ${df(stats.hi.time)}`, v: nf(stats.hiV, dec) },
-    { c: '#9e9e9e', l: 'Average', v: nf(stats.avg, dec) },
+    { c: tc('#9e9e9e'), l: 'Average', v: nf(stats.avg, dec) },
     { c: T.low, l: `Low on ${df(stats.lo.time)}`, v: nf(stats.loV, dec) },
     ...smaOn.map(n => ({ c: n === 50 ? T.sma50 : T.sma200, l: `SMAVG (${n}) on Close`, v: nf(smaVal(n) ?? NaN, dec) })),
   ] : []
 
   return (
-    <div className="flex flex-col w-full -mt-4 sm:-mt-6" style={{ fontFamily: MONO, background: '#000' }}>
+    <div className="flex flex-col w-full -mt-4 sm:-mt-6" style={{ fontFamily: MONO, background: tc('#000') }}>
       {/* Barra do ativo */}
-      <div className="flex items-center gap-x-5 gap-y-1 flex-wrap px-3 py-1 border-b border-[#3a3a3a] text-[13px]" style={{ background: '#000' }}>
+      <div className="flex items-center gap-x-5 gap-y-1 flex-wrap px-3 py-1 border-b border-[#3a3a3a] text-[13px]" style={{ background: tc('#000') }}>
         {/* ticker + nome ficam só na barra do topo (evita a linha duplicada logo abaixo) */}
         {meta?.unit && <span className="text-[#8a8a8a]">{meta.unit}</span>}
         <span className="font-bold text-white text-[15px]">{nf(obs?.close, dec)}</span>
@@ -175,21 +176,21 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
           <PriceChart rows={rows} history={history} mode={mode} showVolume={showVol} smas={smaOn} onHover={setHover} highLow={highLow} />
         )}
         {legend.length > 0 && (
-          <button type="button" className="lg:hidden absolute top-1 left-1 z-20 text-[11px] px-2 py-[1px]" style={{ background: 'rgba(0,0,0,0.72)', border: '1px solid #2a2a2a', color: '#FFA028' }} onClick={() => setLegOpen(o => !o)}>{lang() === 'pt' ? 'Legenda' : 'Legend'} {legOpen ? '▾' : '▸'}</button>
+          <button type="button" className="lg:hidden absolute top-1 left-1 z-20 text-[11px] px-2 py-[1px]" style={{ background: tc('rgba(0,0,0,0.72)'), border: '1px solid #2a2a2a', color: tc('#FFA028') }} onClick={() => setLegOpen(o => !o)}>{lang() === 'pt' ? 'Legenda' : 'Legend'} {legOpen ? '▾' : '▸'}</button>
         )}
         {legend.length > 0 && (
-          <div className={`absolute top-2 left-2 z-10 pointer-events-none text-[12px] leading-[17px] px-2 py-1 max-lg:top-7 max-lg:left-1 max-lg:text-[11px] max-lg:leading-[15px] ${legOpen ? '' : 'max-lg:hidden'}`} style={{ background: 'rgba(0,0,0,0.72)', border: '1px solid #2a2a2a' }}>
+          <div className={`absolute top-2 left-2 z-10 pointer-events-none text-[12px] leading-[17px] px-2 py-1 max-lg:top-7 max-lg:left-1 max-lg:text-[11px] max-lg:leading-[15px] ${legOpen ? '' : 'max-lg:hidden'}`} style={{ background: tc('rgba(0,0,0,0.72)'), border: '1px solid #2a2a2a' }}>
             {legend.map(r => (
               <div key={r.l} className="flex items-center gap-2">
                 <span className="inline-block w-[9px] h-[9px]" style={{ background: r.c, border: r.c === T.up && mode === 'candle' ? '1px solid #fff' : undefined }} />
                 <span className="text-[#d9d9d9] min-w-[170px] max-lg:min-w-[104px]">{r.l}</span>
-                <span className="font-bold" style={{ color: r.c === '#9e9e9e' ? '#d9d9d9' : r.c }}>{r.v}</span>
+                <span className="font-bold" style={{ color: r.c === tc('#9e9e9e') ? tc('#d9d9d9') : r.c }}>{r.v}</span>
               </div>
             ))}
           </div>
         )}
         {showVol && rows.length > 0 && (
-          <div className="absolute left-2 z-10 pointer-events-none text-[11px] px-1" style={{ top: 'calc(78% + 4px)', color: '#d9d9d9', background: 'rgba(0,0,0,0.6)' }}>
+          <div className="absolute left-2 z-10 pointer-events-none text-[11px] px-1" style={{ top: 'calc(78% + 4px)', color: tc('#d9d9d9'), background: tc('rgba(0,0,0,0.6)') }}>
             Volume <b>{obs?.volume ? vf(obs.volume) : '—'}</b>
           </div>
         )}

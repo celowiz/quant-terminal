@@ -248,3 +248,7 @@ input[type="date"]::-webkit-calendar-picker {
 /* CAL: layout de captura (Copiar como imagem) — painel recolhido, cards sem indicação de status */
 .qt-capturing [data-cal-panel] { display: none !important; }
 .qt-capturing [data-cal-card] { border-style: solid !important; border-color: #2a2a2a !important; }
+
+/* Launchpad (LP): página dentro de um painel — sem rodapé e com respiro mínimo no topo */
+html[data-embed] body > footer { display: none !important; }
+@media (min-width: 1024px) { html[data-embed] main { padding-top: 6px !important; } }

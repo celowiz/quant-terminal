@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /** Gráfico XY numérico em SVG (sazonalidade, cone de vol, curvas de juros, dispersão). */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { C, MONO, useFit, useFitH } from './kit'
@@ -71,21 +72,21 @@ export default function XYChart({ series, height = 360, xTicks, xFmt = v => Stri
     return { s, p: best as [number, number | null] | null }
   })
   return (
-    <div ref={box} className="max-lg:overflow-hidden" style={{ fontFamily: MONO, background: '#101010', position: 'relative' }}>
+    <div ref={box} className="max-lg:overflow-hidden" style={{ fontFamily: MONO, background: tc('#101010'), position: 'relative' }}>
       {legend && !active && series.filter(s => s.name).length > 3 && !hv && <button className="px-2 pt-1 text-[11px]" style={{ color: C.amber }} onClick={() => setLegOpen(!legOpen)}>{lang() === 'pt' ? 'Legenda' : 'Legend'} {legOpen ? '▾' : '▸'}</button>}
       {legend && (active || series.filter(s => s.name).length <= 3 || legOpen || hv) && <div className="flex flex-wrap gap-3 px-2 pt-1 text-[11px]">{series.filter(s => s.name).map(s => <span key={s.name} style={{ color: s.color }}>■ <span style={{ color: C.text }}>{s.name}</span>{hv && (() => { const h = hv.find(x => x.s === s); return h?.p && h.p[1] != null ? <span style={{ color: s.color }}> {yFmt(h.p[1])}</span> : null })()}</span>)}</div>}
       <svg ref={svgRef} className="max-lg:block" viewBox={`0 0 ${W} ${H}`} width={W} height={H} onMouseMove={onMove} onMouseLeave={() => setHx(null)}>
-        {yt.map((y, i) => <g key={i}><line x1={m.l} x2={W - m.r} y1={sy(y)} y2={sy(y)} stroke="#262626" strokeDasharray="2,3" /><text x={W - m.r + 4} y={sy(y) + 4} fill="#8a8a8a" fontSize={11}>{yFmt(y)}</text></g>)}
-        {xtv.map((t, i) => <g key={i}><line x1={sx(t.v)} x2={sx(t.v)} y1={m.t} y2={H - m.b} stroke="#262626" strokeDasharray="2,3" /><text x={sx(t.v)} y={H - 8} fill="#8a8a8a" fontSize={11} textAnchor="middle">{t.l}</text></g>)}
-        {zeroLine && <line x1={m.l} x2={W - m.r} y1={sy(0)} y2={sy(0)} stroke="#666" />}
+        {yt.map((y, i) => <g key={i}><line x1={m.l} x2={W - m.r} y1={sy(y)} y2={sy(y)} stroke={tc(tc('#262626'))} strokeDasharray="2,3" /><text x={W - m.r + 4} y={sy(y) + 4} fill={tc(tc('#8a8a8a'))} fontSize={11}>{yFmt(y)}</text></g>)}
+        {xtv.map((t, i) => <g key={i}><line x1={sx(t.v)} x2={sx(t.v)} y1={m.t} y2={H - m.b} stroke={tc(tc('#262626'))} strokeDasharray="2,3" /><text x={sx(t.v)} y={H - 8} fill={tc(tc('#8a8a8a'))} fontSize={11} textAnchor="middle">{t.l}</text></g>)}
+        {zeroLine && <line x1={m.l} x2={W - m.r} y1={sy(0)} y2={sy(0)} stroke={tc(tc('#666'))} />}
         {series.map(s => s.band && <path key={s.name + 'b'} d={s.band.map(([x, , hi], i) => `${i ? 'L' : 'M'}${sx(x)},${sy(hi)}`).join('') + s.band.slice().reverse().map(([x, lo]) => `L${sx(x)},${sy(lo)}`).join('') + 'Z'} fill={s.color} opacity={0.15} />)}
         {series.map(s => s.scatter
           ? <g key={s.name}>{s.points.map(([x, y], i) => y == null ? null : <circle key={i} cx={sx(x)} cy={sy(y)} r={2.2} fill={s.color} opacity={s.opacity ?? 0.7} />)}</g>
           : <path key={s.name} d={path(s.points)} fill="none" stroke={s.color} strokeWidth={s.width || 1.4} strokeDasharray={s.dash} opacity={s.opacity ?? 1} vectorEffect="non-scaling-stroke" />)}
-        {hx != null && hx >= x0 && hx <= x1 && <line x1={sx(hx)} x2={sx(hx)} y1={m.t} y2={H - m.b} stroke="#777" strokeDasharray="4,3" />}
-        {hx != null && hx >= x0 && hx <= x1 && <g><rect x={sx(hx) - 34} y={H - m.b + 2} width={68} height={16} fill={C.amber} /><text x={sx(hx)} y={H - m.b + 14} fontSize={11} textAnchor="middle" fill="#000">{xFmt(hx)}</text></g>}
-        {xLabel && <text x={(W - m.r) / 2} y={H - 1} fill="#666" fontSize={10} textAnchor="middle">{xLabel}</text>}
-        {yLabel && <text x={W - 4} y={m.t + 8} fill="#666" fontSize={10} textAnchor="end">{yLabel}</text>}
+        {hx != null && hx >= x0 && hx <= x1 && <line x1={sx(hx)} x2={sx(hx)} y1={m.t} y2={H - m.b} stroke={tc(tc('#777'))} strokeDasharray="4,3" />}
+        {hx != null && hx >= x0 && hx <= x1 && <g><rect x={sx(hx) - 34} y={H - m.b + 2} width={68} height={16} fill={C.amber} /><text x={sx(hx)} y={H - m.b + 14} fontSize={11} textAnchor="middle" fill={tc(tc('#000'))}>{xFmt(hx)}</text></g>}
+        {xLabel && <text x={(W - m.r) / 2} y={H - 1} fill={tc(tc('#666'))} fontSize={10} textAnchor="middle">{xLabel}</text>}
+        {yLabel && <text x={W - 4} y={m.t + 8} fill={tc(tc('#666'))} fontSize={10} textAnchor="end">{yLabel}</text>}
       </svg>
     </div>
   )

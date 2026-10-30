@@ -45,6 +45,7 @@ export const FUNCTION_LIST: FunctionItem[] = [
   { code: 'MRR', desc: 'Member Returns / Monthly', pt: 'Retornos mensais', cat: 'equity' },
   { code: 'PORT', desc: 'Portfolio Simulator', pt: 'Simulador de carteira', cat: 'tools' },
   { code: 'ALERT', desc: 'Price Alerts', pt: 'Alertas de preço', cat: 'tools' },
+  { code: 'LP', desc: 'Launchpad (multiple panels)', pt: 'Launchpad (vários painéis)', cat: 'tools' },
   { code: 'WEI', desc: 'World Equity Indexes', pt: 'Índices de ações mundiais', cat: 'monitors' },
   { code: 'HEAT', desc: 'Sector Heatmap', pt: 'Mapa de calor setorial', cat: 'monitors' },
   { code: 'TOP', desc: 'Top Winners/Losers', pt: 'Maiores altas e baixas', cat: 'monitors' },

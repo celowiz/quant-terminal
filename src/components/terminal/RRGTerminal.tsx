@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 import { lang } from '@/lib/settings'
 /**
  * RRG estilo terminal: trilhas com pontos semanais (opacidade decrescente com a idade),
@@ -13,12 +14,12 @@ import { MONO } from './PriceChart'
 import { fmtDate } from '../../lib/dates'
 
 const Q: Record<string, { c: string; n: string; d: string }> = {
-  Leading:   { c: '#3DDC84', n: 'LEADING',   d: 'Relative strength and momentum above 100' },
-  Weakening: { c: '#FFD23F', n: 'WEAKENING', d: 'Strength above 100, momentum fading' },
-  Lagging:   { c: '#FF4D4D', n: 'LAGGING',   d: 'Relative strength and momentum below 100' },
-  Improving: { c: '#4FA3FF', n: 'IMPROVING', d: 'Strength below 100, momentum improving' },
+  Leading:   { c: tc('#3DDC84'), n: 'LEADING',   d: 'Relative strength and momentum above 100' },
+  Weakening: { c: tc('#FFD23F'), n: 'WEAKENING', d: 'Strength above 100, momentum fading' },
+  Lagging:   { c: tc('#FF4D4D'), n: 'LAGGING',   d: 'Relative strength and momentum below 100' },
+  Improving: { c: tc('#4FA3FF'), n: 'IMPROVING', d: 'Strength below 100, momentum improving' },
 }
-const PALETTE = ['#FFA028', '#FFFFFF', '#4FC3F7', '#FF5BD6', '#7CFC00', '#FFD400', '#FF7F50', '#B388FF', '#00E5C0', '#C0C0C0', '#F06292']
+const PALETTE = ['#FFA028', tc('#FFFFFF'), tc('#4FC3F7'), tc('#FF5BD6'), tc('#7CFC00'), tc('#FFD400'), tc('#FF7F50'), tc('#B388FF'), tc('#00E5C0'), tc('#C0C0C0'), tc('#F06292')]
 const MAX_HIST = 104 // semanas calculadas; a cauda exibida é só um recorte (não altera o cálculo)
 const label = (k: string) => k.replace(/^IDX_/, '^').replace(/_X$/, '=X')
 const quad = (x: number, y: number) => (x >= 100 ? (y >= 100 ? 'Leading' : 'Weakening') : y >= 100 ? 'Improving' : 'Lagging')
@@ -156,18 +157,18 @@ export default function RRGTerminal() {
         <div ref={boxRef} className="relative flex-1 min-w-0 overflow-hidden max-lg:flex-none lg:h-[var(--rrg-h)] max-lg:h-[clamp(340px,105vw,560px)]" style={{ ['--rrg-h' as any]: `${size.h}px` }}>
           {err && <div className="absolute inset-0 flex items-center justify-center text-[#FF4D4D]">{err}</div>}
           <svg width={W} height={H} className="block select-none" onMouseLeave={() => setHover(null)}>
-            <rect x={0} y={0} width={W} height={H} fill="#000" onClick={() => setHover(null)} />
+            <rect x={0} y={0} width={W} height={H} fill={tc(tc('#000'))} onClick={() => setHover(null)} />
             {([['Improving', m.l, m.t, cx - m.l, cy - m.t], ['Leading', cx, m.t, W - m.r - cx, cy - m.t], ['Lagging', m.l, cy, cx - m.l, H - m.b - cy], ['Weakening', cx, cy, W - m.r - cx, H - m.b - cy]] as [string, number, number, number, number][])
               .map(([k, x, y, w, h]) => <rect key={k} x={x} y={y} width={Math.max(0, w)} height={Math.max(0, h)} fill={Q[k].c} opacity={0.075} />)}
-            {ticks(ex, stx).map(v => <g key={`x${v}`}><line x1={sx(v)} x2={sx(v)} y1={m.t} y2={H - m.b} stroke="#1f1f1f" strokeDasharray="1 3" /><text x={sx(v)} y={H - m.b + 15} textAnchor="middle" fontSize={10} fill="#8a8a8a">{v.toFixed(dp(stx))}</text></g>)}
-            {ticks(ey, sty).map(v => <g key={`y${v}`}><line y1={sy(v)} y2={sy(v)} x1={m.l} x2={W - m.r} stroke="#1f1f1f" strokeDasharray="1 3" /><text x={m.l - 6} y={sy(v) + 3} textAnchor="end" fontSize={10} fill="#8a8a8a">{v.toFixed(dp(sty))}</text></g>)}
-            <line x1={cx} x2={cx} y1={m.t} y2={H - m.b} stroke="#FFA028" strokeOpacity={0.55} />
-            <line y1={cy} y2={cy} x1={m.l} x2={W - m.r} stroke="#FFA028" strokeOpacity={0.55} />
-            <rect x={m.l} y={m.t} width={W - m.l - m.r} height={H - m.t - m.b} fill="none" stroke="#3a3a3a" />
+            {ticks(ex, stx).map(v => <g key={`x${v}`}><line x1={sx(v)} x2={sx(v)} y1={m.t} y2={H - m.b} stroke={tc(tc('#1f1f1f'))} strokeDasharray="1 3" /><text x={sx(v)} y={H - m.b + 15} textAnchor="middle" fontSize={10} fill={tc(tc('#8a8a8a'))}>{v.toFixed(dp(stx))}</text></g>)}
+            {ticks(ey, sty).map(v => <g key={`y${v}`}><line y1={sy(v)} y2={sy(v)} x1={m.l} x2={W - m.r} stroke={tc(tc('#1f1f1f'))} strokeDasharray="1 3" /><text x={m.l - 6} y={sy(v) + 3} textAnchor="end" fontSize={10} fill={tc(tc('#8a8a8a'))}>{v.toFixed(dp(sty))}</text></g>)}
+            <line x1={cx} x2={cx} y1={m.t} y2={H - m.b} stroke={tc(tc('#FFA028'))} strokeOpacity={0.55} />
+            <line y1={cy} y2={cy} x1={m.l} x2={W - m.r} stroke={tc(tc('#FFA028'))} strokeOpacity={0.55} />
+            <rect x={m.l} y={m.t} width={W - m.l - m.r} height={H - m.t - m.b} fill="none" stroke={tc(tc('#3a3a3a'))} />
             {[['Improving', m.l + 10, m.t + 20, 'start'], ['Leading', W - m.r - 10, m.t + 20, 'end'], ['Lagging', m.l + 10, H - m.b - 10, 'start'], ['Weakening', W - m.r - 10, H - m.b - 10, 'end']].map(([k, x, y, a]) =>
               <text key={k as string} x={x as number} y={y as number} textAnchor={a as any} fill={Q[k as string].c} fontSize={13} fontWeight={700} letterSpacing={2} opacity={0.9}>{Q[k as string].n}</text>)}
-            <text x={(W + m.l) / 2} y={H - 8} textAnchor="middle" fontSize={11} fill="#FFA028" letterSpacing={1}>JdK RS-RATIO →</text>
-            <text transform={`translate(14 ${(H - m.b) / 2}) rotate(-90)`} textAnchor="middle" fontSize={11} fill="#FFA028" letterSpacing={1}>JdK RS-MOMENTUM →</text>
+            <text x={(W + m.l) / 2} y={H - 8} textAnchor="middle" fontSize={11} fill={tc(tc('#FFA028'))} letterSpacing={1}>JdK RS-RATIO →</text>
+            <text transform={`translate(14 ${(H - m.b) / 2}) rotate(-90)`} textAnchor="middle" fontSize={11} fill={tc(tc('#FFA028'))} letterSpacing={1}>JdK RS-MOMENTUM →</text>
 
             {visible.map(v => {
               const c = colorOf[v.t], n = v.pts.length, dim = focus && focus !== v.t ? 0.18 : 1
@@ -186,15 +187,15 @@ export default function RRGTerminal() {
                       onMouseEnter={() => setHover({ x: q[0], y: q[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum })} onClick={() => setHover({ x: q[0], y: q[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum })} onMouseLeave={() => setHover(null)} />
                   })}
                   {n > 1 && <polygon fill={c} points={[[head[0] + Math.cos(an) * 12, head[1] + Math.sin(an) * 12], [head[0] + Math.cos(an) * 5 + Math.cos(an + 1.57) * 5, head[1] + Math.sin(an) * 5 + Math.sin(an + 1.57) * 5], [head[0] + Math.cos(an) * 5 - Math.cos(an + 1.57) * 5, head[1] + Math.sin(an) * 5 - Math.sin(an + 1.57) * 5]].map(p => p.join(',')).join(' ')} />}
-                  <circle cx={head[0]} cy={head[1]} r={6.5} fill={c} stroke="#000" strokeWidth={2}
+                  <circle cx={head[0]} cy={head[1]} r={6.5} fill={c} stroke={tc(tc('#000'))} strokeWidth={2}
                     onMouseEnter={() => { const p = v.pts[n - 1]; setHover({ x: head[0], y: head[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum }) }} onClick={() => { const p = v.pts[n - 1]; setHover({ x: head[0], y: head[1], t: v.t, date: p.date, r: p.rs_ratio, m: p.rs_momentum }) }} onMouseLeave={() => setHover(null)} />
-                  <text x={head[0] + (Math.cos(an) >= 0 ? 11 : -11)} y={head[1] - 9} textAnchor={Math.cos(an) >= 0 ? 'start' : 'end'} fontSize={12} fontWeight={700} fill={c} stroke="#000" strokeWidth={3} paintOrder="stroke">{label(v.t)}</text>
+                  <text x={head[0] + (Math.cos(an) >= 0 ? 11 : -11)} y={head[1] - 9} textAnchor={Math.cos(an) >= 0 ? 'start' : 'end'} fontSize={12} fontWeight={700} fill={c} stroke={tc(tc('#000'))} strokeWidth={3} paintOrder="stroke">{label(v.t)}</text>
                 </g>
               )
             })}
           </svg>
           {hover && (
-            <div className="absolute z-20 pointer-events-none text-[12px] leading-[17px] px-2 py-1 border" style={{ left: Math.min(hover.x + 14, W - 210), top: Math.max(4, hover.y - 70), background: '#0a0a0a', borderColor: colorOf[hover.t], color: '#d9d9d9' }}>
+            <div className="absolute z-20 pointer-events-none text-[12px] leading-[17px] px-2 py-1 border" style={{ left: Math.min(hover.x + 14, W - 210), top: Math.max(4, hover.y - 70), background: tc('#0a0a0a'), borderColor: colorOf[hover.t], color: tc('#d9d9d9') }}>
               <div className="font-bold" style={{ color: colorOf[hover.t] }}>{label(hover.t)} <span className="text-[#8a8a8a] font-normal">vs {label(bench)}</span></div>
               <div>Week <b className="text-white">{fmtD(hover.date)}</b></div>
               <div>RS-Ratio <b className="text-white">{hover.r.toFixed(2)}</b></div>

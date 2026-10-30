@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /** CAL v2 — calendário de resultados do Ibovespa (sites de RI checados todo dia; reserva CVM). Só dados reais: "—" quando falta. */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Download, PanelRightClose, PanelRightOpen, X } from 'lucide-react'
@@ -47,7 +48,7 @@ export function Logo({ r, size = 20 }: { r: CalRow; size?: number }) {
   const box: React.CSSProperties = { width: size, height: size, minWidth: size, borderRadius: Math.round(size * 0.18) }
   if (!r.logo || bad)
     return <span aria-hidden className="inline-flex items-center justify-center font-bold"
-      style={{ ...box, background: `hsl(${hue(r.ticker)} 45% 28%)`, color: '#fff', fontSize: Math.max(8, Math.round(size * 0.3)) }}>{r.ticker.slice(0, 4)}</span>
+      style={{ ...box, background: `hsl(${hue(r.ticker)} 45% 28%)`, color: tc('#fff'), fontSize: Math.max(8, Math.round(size * 0.3)) }}>{r.ticker.slice(0, 4)}</span>
   return <span className="inline-flex items-center justify-center overflow-hidden" style={box}>
     <img src={href('/' + r.logo)} alt="" width={size} height={size} onError={() => setBad(true)} style={{ width: size, height: size, objectFit: 'contain' }} />
   </span>
@@ -70,7 +71,7 @@ function Card({ r, size, sel, onPick }: { r: CalRow; size: number; sel?: boolean
   return (
     <button type="button" onClick={() => onPick && onPick(r)} title={`${r.ticker} · ${r.name} · ${r.status ? t(`cal.st.${r.status}` as any) : '—'}`}
       className="flex flex-col items-center justify-center gap-[3px] border hover:bg-[#1a1205]"
-      style={{ width: w, height: h, borderColor: sel ? C.white : st, borderStyle: r.status === 'expected' ? 'dashed' : 'solid', background: sel ? '#1a1205' : '#080808' }}>
+      style={{ width: w, height: h, borderColor: sel ? C.white : st, borderStyle: r.status === 'expected' ? 'dashed' : 'solid', background: sel ? tc('#1a1205') : tc('#080808') }}>
       <Logo r={r} size={size} />
       <span className="font-bold leading-none" style={{ fontSize: Math.max(10, Math.round(size * 0.24)), color: r.status === 'released' ? C.up : C.white }}>{r.ticker}</span>
     </button>
@@ -127,7 +128,7 @@ function DayCard({ r, w, h, sel, onPick, plain }: { r: CalRow; w: number; h: num
   return (
     <button type="button" data-cal-card="" onClick={() => onPick && onPick(r)} title={`${r.ticker} · ${r.name}${plain ? '' : ' · ' + (r.status ? t(`cal.st.${r.status}` as any) : '—')}`}
       className={`flex ${horiz ? 'flex-row justify-start px-2 gap-2' : 'flex-col justify-center gap-[3px]'} items-center border hover:bg-[#1a1205] min-w-0 overflow-hidden`}
-      style={{ width: '100%', height: h, borderColor: sel ? C.white : st, borderStyle: !plain && r.status === 'expected' ? 'dashed' : 'solid', background: sel ? '#1a1205' : '#080808' }}>
+      style={{ width: '100%', height: h, borderColor: sel ? C.white : st, borderStyle: !plain && r.status === 'expected' ? 'dashed' : 'solid', background: sel ? tc('#1a1205') : tc('#080808') }}>
       <Logo r={r} size={logo} />
       <span className={`min-w-0 flex flex-col ${horiz ? 'items-start' : 'items-center'} leading-tight`}>
         <span className="font-bold" style={{ fontSize: fs, color: !plain && r.status === 'released' ? C.up : C.white }}>{r.ticker}</span>
@@ -158,7 +159,7 @@ function DayCards({ rows, sel, onPick, plain, minH = 54, fixedH }: { rows: CalRo
 
 function Detail({ r }: { r: CalRow | null }) {
   if (!r) return <div className="text-[12px] p-2" style={{ color: C.muted }}>{t('cal.pick')}</div>
-  const kv = (k: string, v: React.ReactNode) => <div className="flex justify-between gap-2 py-[2px] border-b" style={{ borderColor: '#1c1c1c' }}><span style={{ color: C.muted }}>{k}</span><span className="text-right">{v}</span></div>
+  const kv = (k: string, v: React.ReactNode) => <div className="flex justify-between gap-2 py-[2px] border-b" style={{ borderColor: tc('#1c1c1c') }}><span style={{ color: C.muted }}>{k}</span><span className="text-right">{v}</span></div>
   return (
     <div className="text-[12px] p-2 flex flex-col gap-1">
       <div className="flex items-center gap-3 mb-1"><Logo r={r} size={72} /><div className="min-w-0"><div className="text-[18px] font-bold" style={{ color: C.amber }}>{r.ticker}</div><div className="truncate">{r.name}</div></div></div>
@@ -183,7 +184,7 @@ function WeekBoard({ mon, byDate, sel, onPick, exporting }: { mon: string; byDat
   const today = iso(new Date())
   const list = (d: string) => (byDate.get(d) || []).slice().sort(byTicker)
   const head = (d: string) => (
-    <div className="px-2 py-1 font-bold flex justify-between items-baseline" style={{ background: d === today && !exporting ? C.amber : C.panel2, color: d === today && !exporting ? '#000' : C.amber, fontSize: exporting ? 16 : 12 }}>
+    <div className="px-2 py-1 font-bold flex justify-between items-baseline" style={{ background: d === today && !exporting ? C.amber : C.panel2, color: d === today && !exporting ? tc('#000') : C.amber, fontSize: exporting ? 16 : 12 }}>
       <span>{dayName(d).toUpperCase()} {fmtDayMonth(d)}</span><span style={{ opacity: 0.75 }}>{list(d).length || '—'}</span>
     </div>
   )
@@ -275,7 +276,7 @@ export function CALView() {
     try {
       await new Promise<void>(r => window.setTimeout(r, 350))
       const { domToBlob } = await import('modern-screenshot')
-      const blob = await domToBlob(board.current, { scale: 2, backgroundColor: '#000000' })
+      const blob = await domToBlob(board.current, { scale: 2, backgroundColor: tc('#000000') })
       if (!blob) throw new Error('empty')
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob); a.download = `quant-terminal_CAL_week_${curMon}.png`
@@ -327,7 +328,7 @@ export function CALView() {
         {legend}
         {tab === 0 && (
           <div className="flex gap-2 max-lg:flex-col">
-            <div ref={board} className="relative flex-1 min-w-0" style={exporting ? { width: 1600, minWidth: 1600, background: '#000', padding: 20 } : undefined}>
+            <div ref={board} className="relative flex-1 min-w-0" style={exporting ? { width: 1600, minWidth: 1600, background: tc('#000'), padding: 20 } : undefined}>
               {exporting && <div className="flex items-baseline justify-between mb-3"><span className="text-[24px] font-bold" style={{ color: C.amber }}>{t('cal.title')} · {data.quarter}</span><span className="text-[18px] font-bold" style={{ color: C.white }}>{weekLabel(curMon)}</span></div>}
               <WeekBoard mon={curMon} byDate={byDate} sel={sel?.ticker ?? null} onPick={pick} exporting={exporting} />
               {!nWeek && <div className="text-[12px] mt-1" style={{ color: C.muted }}>{t('cal.noEvents')}</div>}

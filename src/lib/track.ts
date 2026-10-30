@@ -12,7 +12,7 @@ export const navFunction = (source: FunctionSource, functionCode: string) => rem
 export const navTicker = (ticker: string) => rememberNavIntent({ kind: 'ticker', ticker })
 
 const SETTING_NAME: Record<string, SettingName> = { lang: 'language', num: 'number_format', tz: 'timezone' }
-export const trackSetting = (key: 'lang' | 'num' | 'tz' | 'reset', value?: string) =>
+export const trackSetting = (key: 'lang' | 'num' | 'tz' | 'theme' | 'ud' | 'reset', value?: string) =>
   trackEvent('settings_change', buildSettingsChangeParams(key === 'reset' ? 'reset' : SETTING_NAME[key], value))
 
 /** códigos internos (1A, 1S) → rótulo exibido (1Y, 1W) */

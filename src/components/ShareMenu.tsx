@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../lib/themeRuntime'
 import { useEffect, useRef } from 'react'
 import { Image as ImageIcon, Link2 } from 'lucide-react'
 import { t } from '../lib/i18n'
@@ -18,7 +19,7 @@ export function toast(msg: string, ms = 2200) {
   window.setTimeout(() => el.remove(), ms)
 }
 
-const deepLink = () => `${window.location.origin}${window.location.pathname}`
+const deepLink = () => `${window.location.origin}${window.location.pathname}${window.location.search}`
 
 const fileName = () => {
   const r = currentRoute()
@@ -40,7 +41,7 @@ async function captureScreen(): Promise<Blob> {
   await new Promise<void>(r => window.setTimeout(r, 300))
   const blob = await domToBlob(root, {
     scale: 2,
-    backgroundColor: '#0b0c10',
+    backgroundColor: tc('#0b0c10'),
     width: root.clientWidth,
     height: Math.max(document.body.scrollHeight, window.innerHeight),
     filter: (n: Node) => !(n instanceof Element && n.hasAttribute('data-capture-hide')),

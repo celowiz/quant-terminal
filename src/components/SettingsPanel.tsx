@@ -17,8 +17,13 @@ function Row<K extends keyof Settings>({ k, label, opts }: { k: K; label: string
           const on = cur === o.v
           return (
             <button key={String(o.v)} type="button" role="radio" aria-checked={on}
-              onClick={() => { if (!on) { setSettings({ [k]: o.v } as Partial<Settings>); trackSetting(k, String(o.v)) } }}
-              className={`flex-1 px-2 py-1 text-[12px] border border-[#3a3a3a] -ml-px first:ml-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA028] ${on ? 'bg-[#FFA028] text-black font-bold' : 'text-[#FFA028] hover:bg-[#1a1205]'}`}>
+              onClick={() => {
+                if (on) return
+                setSettings({ [k]: o.v } as Partial<Settings>); trackSetting(k, String(o.v))
+                // cores vêm do tema na importação dos módulos: recarrega para aplicar em gráficos e estilos inline
+                if (k === 'theme' || k === 'ud') window.location.reload()
+              }}
+              className={`flex-1 min-w-0 px-1 py-1 text-[12px] truncate border border-[#3a3a3a] -ml-px first:ml-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA028] ${on ? 'bg-[#FFA028] text-black font-bold' : 'text-[#FFA028] hover:bg-[#1a1205]'}`}>
               {o.l}
             </button>
           )
@@ -50,7 +55,9 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
         <Row k="lang" label={t('set.language')} opts={[{ v: 'en', l: 'English' }, { v: 'pt', l: 'Português' }]} />
         <Row k="num" label={t('set.number')} opts={[{ v: 'en', l: '1,234.56' }, { v: 'pt', l: '1.234,56' }]} />
         <Row k="tz" label={t('set.tz')} opts={[{ v: 'brt', l: t('set.tzBrt') }, { v: 'local', l: t('set.tzLocal') }]} />
-        <button type="button" onClick={() => { resetSettings(); trackSetting('reset') }}
+        <Row k="theme" label={t('set.theme')} opts={[{ v: 'amber', l: t('set.thAmber') }, { v: 'green', l: t('set.thGreen') }, { v: 'contrast', l: t('set.thContrast') }, { v: 'light', l: t('set.thLight') }]} />
+        <Row k="ud" label={t('set.ud')} opts={[{ v: 'std', l: t('set.udStd') }, { v: 'cb', l: t('set.udCb') }]} />
+        <button type="button" onClick={() => { const th = getSettings(); resetSettings(); trackSetting('reset'); if (th.theme !== 'amber' || th.ud !== 'std') window.location.reload() }}
           className="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1 text-[12px] border border-[#3a3a3a] text-slate-200 hover:text-[#FFA028] hover:border-[#FFA028]">
           <RotateCcw className="w-3.5 h-3.5" aria-hidden /> {t('set.reset')}
         </button>

@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /** Kit de UI das funções do terminal (estilo terminal financeiro: fundo preto, âmbar, tabelas densas, monoespaçada).
  *  Referências de design por função: /REFERENCIAS.md */
 import React, { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -16,12 +17,12 @@ import '../../lib/coverage'
 import { covers, FUNCTION_UNIVERSE } from '../../lib/activeTicker.mjs'
 
 export const C = {
-  bg: '#000000', panel: '#0d0d0d', panel2: '#151515', line: '#2a2a2a', text: '#e6e6e6', muted: '#8a8a8a',
-  amber: '#FFA028', amberDim: '#b36b10', up: '#3DDC84', down: '#FF4D4D', blue: '#2F7BFF', cyan: '#4FC3F7',
-  white: '#FFFFFF', purple: '#C77DFF', yellow: '#FFE14D',
+  bg: tc('#000000'), panel: tc('#0d0d0d'), panel2: tc('#151515'), line: tc('#2a2a2a'), text: tc('#e6e6e6'), muted: tc('#8a8a8a'),
+  amber: tc('#FFA028'), amberDim: tc('#b36b10'), up: tc('#3DDC84'), down: tc('#FF4D4D'), blue: tc('#2F7BFF'), cyan: tc('#4FC3F7'),
+  white: tc('#FFFFFF'), purple: tc('#C77DFF'), yellow: tc('#FFE14D'),
 }
 export const MONO = "'IBM Plex Mono','Roboto Mono','SFMono-Regular',Menlo,Consolas,ui-monospace,monospace"
-export const PALETTE = ['#FFFFFF', '#FFA028', '#2F7BFF', '#3DDC84', '#FF4D4D', '#C77DFF', '#4FC3F7', '#FFE14D', '#FF7AB6', '#9CCC65', '#B0BEC5', '#FF8A65']
+export const PALETTE = ['#FFFFFF', tc('#FFA028'), tc('#2F7BFF'), tc('#3DDC84'), tc('#FF4D4D'), tc('#C77DFF'), tc('#4FC3F7'), tc('#FFE14D'), tc('#FF7AB6'), tc('#9CCC65'), tc('#B0BEC5'), tc('#FF8A65')]
 
 // ---------- formatação de números (Settings → Number format: 1,234.56 ou 1.234,56) ----------
 export const nf = (v: any, d = 2) => v == null || v === '' || Number.isNaN(+v) || !isFinite(+v) ? '—' : (+v).toLocaleString(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: d })
@@ -130,11 +131,13 @@ export function FitArea({ children, className = '' }: { children: React.ReactNod
 }
 
 // ---------- layout ----------
-export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, children, source, note, asOf }: {
+export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, children, source, note, asOf, fill }: {
   code: string; ticker?: string; title?: string; tabs?: string[]; tab?: number; setTab?: (i: number) => void
   right?: React.ReactNode; children: React.ReactNode; source?: React.ReactNode; note?: React.ReactNode
   /** data de referência da tela quando não é a do último arquivo carregado (ex.: trimestre do balanço) */
   asOf?: string | null
+  /** conteúdo ocupa a altura livre sem a escala do FitArea (ex.: painéis do Launchpad) */
+  fill?: boolean
 }) {
   const fi = FUNCTION_LIST.find(f => f.code === code)
   const desc = lang() === 'pt' && fi ? fi.pt : tx(title) || fi?.desc || code
@@ -146,23 +149,23 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
     <div className="w-full px-2 pb-3 lg:pb-1 -mt-4 sm:-mt-6 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col" style={{ fontFamily: MONO, color: C.text }}>
       {/* mobile (<1024px): 2 linhas — código+título / controles numa faixa com rolagem horizontal */}
       <div className="flex items-center gap-0 border-b shrink-0 max-lg:flex-wrap" style={{ borderColor: C.line, background: C.panel }}>
-        {ticker && <span className="px-2 py-1 text-[13px] font-bold max-lg:shrink-0" style={{ background: C.amber, color: '#000' }}>{short(ticker)}</span>}
+        {ticker && <span className="px-2 py-1 text-[13px] font-bold max-lg:shrink-0" style={{ background: C.amber, color: tc('#000') }}>{short(ticker)}</span>}
         <span className="px-2 py-1 text-[13px] font-bold max-lg:shrink-0" style={{ color: C.amber }}>{code}</span>
         <span className="px-2 py-1 text-[13px] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate" style={{ color: C.text }} title={desc}>{desc}</span>
         <AsOfChip asOf={asOf} />
         <div className={`ml-auto flex items-center gap-2 pr-2 text-[12px] fn-strip max-lg:ml-0 max-lg:w-full max-lg:pl-2 max-lg:py-1 max-lg:border-t max-lg:border-[#2a2a2a] max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0 ${right ? '' : 'max-lg:hidden'}`}>{right}</div>
       </div>
       {tabs && tabs.length > 0 && (
-        <div className="flex flex-wrap gap-0 border-b shrink-0 fn-strip max-lg:flex-nowrap max-lg:overflow-x-auto" style={{ borderColor: C.line, background: '#050505' }}>
+        <div className="flex flex-wrap gap-0 border-b shrink-0 fn-strip max-lg:flex-nowrap max-lg:overflow-x-auto" style={{ borderColor: C.line, background: tc('#050505') }}>
           {tabs.map((t, i) => (
             <button key={t} data-fn-tab onClick={() => setTab && setTab(i)} className="px-3 py-1 text-[12px] border-r max-lg:shrink-0 max-lg:whitespace-nowrap"
-              style={{ borderColor: C.line, color: tab === i ? '#000' : C.amber, background: tab === i ? C.amber : 'transparent' }}>
-              <span style={{ color: tab === i ? '#000' : C.white }}>{i + 1})</span> {tx(t)}
+              style={{ borderColor: C.line, color: tab === i ? tc('#000') : C.amber, background: tab === i ? C.amber : 'transparent' }}>
+              <span style={{ color: tab === i ? tc('#000') : C.white }}>{i + 1})</span> {tx(t)}
             </button>
           ))}
         </div>
       )}
-      <FitArea className="pt-2">{children}</FitArea>
+      {fill ? <div className="pt-2 lg:flex-1 lg:min-h-0 flex flex-col">{children}</div> : <FitArea className="pt-2">{children}</FitArea>}
     </div>
   )
 }
@@ -206,10 +209,10 @@ export function Grid<R = any>({ cols, rows, dense = true, onRow, maxH, rowStyle 
         </thead>
         <tbody>
           {rows.map((r: any, i) => (
-            <tr key={i} onClick={() => onRow && onRow(r)} className={onRow ? 'cursor-pointer hover:bg-[#1d1d1d]' : ''} style={{ background: i % 2 ? '#0a0a0a' : 'transparent', ...(rowStyle ? rowStyle(r, i) : {}) }}>
+            <tr key={i} onClick={() => onRow && onRow(r)} className={onRow ? 'cursor-pointer hover:bg-[#1d1d1d]' : ''} style={{ background: i % 2 ? tc('#0a0a0a') : 'transparent', ...(rowStyle ? rowStyle(r, i) : {}) }}>
               {cols.map(c => (
                 <td key={c.k} className={`${dense ? 'px-2 py-[2px]' : 'px-3 py-1'} whitespace-nowrap border-b ${c.align === 'r' ? 'text-right' : c.align === 'c' ? 'text-center' : 'text-left'}`}
-                  style={{ borderColor: '#1a1a1a', color: c.color ? c.color(r[c.k], r) : C.text, ['--rb' as any]: (rowStyle && (rowStyle(r, i)?.background as string)) || (i % 2 ? '#0a0a0a' : C.panel) }}>
+                  style={{ borderColor: tc('#1a1a1a'), color: c.color ? c.color(r[c.k], r) : C.text, ['--rb' as any]: (rowStyle && (rowStyle(r, i)?.background as string)) || (i % 2 ? tc('#0a0a0a') : C.panel) }}>
                   {c.w && c.align !== 'r' ? <div style={{ maxWidth: c.w, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.fmt ? tx(c.fmt(r[c.k], r)) : tx(r[c.k]) ?? '—'}</div> : c.fmt ? tx(c.fmt(r[c.k], r)) : tx(r[c.k]) ?? '—'}
                 </td>
               ))}
@@ -221,7 +224,7 @@ export function Grid<R = any>({ cols, rows, dense = true, onRow, maxH, rowStyle 
   )
   if (desk) return body
   // mobile: sombra na borda direita indica colunas escondidas (some ao chegar no fim da rolagem)
-  return <div className="relative">{body}{more && <div className="pointer-events-none absolute top-0 right-0 bottom-0 w-8" style={{ zIndex: 5, background: 'linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.9))' }} />}</div>
+  return <div className="relative">{body}{more && <div className="pointer-events-none absolute top-0 right-0 bottom-0 w-8" style={{ zIndex: 5, background: tc('linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.9))') }} />}</div>
 }
 
 /** rótulo de período: códigos internos em PT (1S, 1A, 5A) exibidos como 1W, 1Y, 5Y */
@@ -232,7 +235,7 @@ export function Btns({ opts, value, onChange }: { opts: { v: any; l: string }[] 
     <div className="flex gap-0 border" style={{ borderColor: C.line }}>
       {list.map(o => (
         <button key={String(o.v)} onClick={() => { if (value !== o.v) trackPeriod(o.v); onChange(o.v) }} className="px-2 py-[1px] text-[12px] border-r last:border-r-0"
-          style={{ borderColor: C.line, background: value === o.v ? C.amber : 'transparent', color: value === o.v ? '#000' : C.amber }}>{perLabel(o.l)}</button>
+          style={{ borderColor: C.line, background: value === o.v ? C.amber : 'transparent', color: value === o.v ? tc('#000') : C.amber }}>{perLabel(o.l)}</button>
       ))}
     </div>
   )
@@ -248,7 +251,7 @@ export function KV({ rows, cols = 1 }: { rows: [string, React.ReactNode, string?
   return (
     <div className="grid text-[12px]" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
       {rows.map(([k, v, c], i) => (
-        <div key={i} className="flex justify-between gap-2 px-2 py-[2px] border-b" style={{ borderColor: '#1a1a1a' }}>
+        <div key={i} className="flex justify-between gap-2 px-2 py-[2px] border-b" style={{ borderColor: tc('#1a1a1a') }}>
           <span style={{ color: C.muted }}>{k}</span><span className="text-right" style={{ color: c || C.text }}>{tx(v)}</span>
         </div>
       ))}

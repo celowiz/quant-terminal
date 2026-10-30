@@ -1,4 +1,5 @@
 'use client'
+import { tc } from '../../lib/themeRuntime'
 /** WIRP (probabilidades de juros), FOMC (calendário Fed/Copom), TAYL (regra de Taylor), WB (títulos soberanos). Strings em inglês por tela. */
 import React, { useEffect, useMemo, useState } from 'react'
 import FnChart from '@/components/fn/FnChart'
@@ -33,7 +34,7 @@ export function WIRPView() {
       {!r?.meetings?.length ? <Unavailable what={rg === 'br' ? S.br : S.us} /> : <>
         <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,0.42fr) minmax(0,1.58fr)' }}>
           <Panel title={S.model}>
-            <Grid rows={models} onRow={(x: any) => setRg(x.k)} rowStyle={(x: any) => x.k === rg ? { background: '#1f2a44' } : undefined} cols={[
+            <Grid rows={models} onRow={(x: any) => setRg(x.k)} rowStyle={(x: any) => x.k === rg ? { background: tc('#1f2a44') } : undefined} cols={[
               { k: 'name', label: S.model, color: () => C.amber },
               { k: 'm', label: S.next, fmt: x => dUS(x?.decision) },
               { k: 'p', label: S.cols.pct_move, align: 'r', fmt: (_, x: any) => <span style={{ color: cl(x.m?.pct_move) }}>{sn(x.m?.pct_move, 1)}% {x.m?.pct_move > 0 ? '▲' : x.m?.pct_move < 0 ? '▼' : ''}</span> },
@@ -114,7 +115,7 @@ export function FOMCView() {
     return { fed: flt(fed), cop: flt(cop), nf, nc, selicPts }
   }, [d, w.data, show])
   if (!d || !v) return <FnScreen code="FOMC" title={S.title}><Loading2 err={err} /></FnScreen>
-  const rowSt = (m: any) => m.decision >= today ? (m === v.nf || m === v.nc ? { background: '#2a1d05' } : undefined) : { opacity: 0.85 }
+  const rowSt = (m: any) => m.decision >= today ? (m === v.nf || m === v.nc ? { background: tc('#2a1d05') } : undefined) : { opacity: 0.85 }
   const chg = { k: 'change_bp', label: S.c.change, align: 'r' as const, fmt: (x: any, m: any) => m.decided ? bps(x, 0) : '—', color: (x: any) => cl(x) }
   const imp = { k: 'implied', label: S.c.implied, align: 'r' as const, fmt: (x: any) => x == null ? '' : bps(x), color: () => C.cyan }
   return (
@@ -249,7 +250,7 @@ const S_WB = {
 /** selo de frequência: D = série diária (BC/Tesouro), M = média mensal da OCDE */
 const FreqBadge = ({ f }: { f: string }) => (
   <span title={f === 'M' ? 'Monthly average (OECD)' : 'Daily'} className="inline-block px-[3px] text-[9px] leading-[12px] border rounded-sm"
-    style={{ color: f === 'M' ? C.yellow : C.muted, borderColor: f === 'M' ? C.yellow : '#444' }}>{f === 'M' ? 'M' : 'D'}</span>)
+    style={{ color: f === 'M' ? C.yellow : C.muted, borderColor: f === 'M' ? C.yellow : tc('#444') }}>{f === 'M' ? 'M' : 'D'}</span>)
 export function WBView() {
   const { data: d, err } = useJSON<any>('wb.json')
   const [ten, setTen] = useState('10Y'), [reg, setReg] = useState('All'), [sel, setSel] = useState('US')
@@ -260,14 +261,14 @@ export function WBView() {
   if (!d) return <FnScreen code="WB" title={S.title}><Loading2 err={err} /></FnScreen>
   const s = (d.countries as any[]).find(c => c.cc === sel)
   const regions = ['All', ...Array.from(new Set((d.countries as any[]).map(c => c.region)))]
-  const rngBar = (x: any) => { if (x.lo3m == null || x.hi3m == null || x.yld == null) return '—'; const f = Math.max(0, Math.min(1, (x.yld - x.lo3m) / ((x.hi3m - x.lo3m) || 1))); return <span className="inline-flex items-center gap-1"><span style={{ color: C.muted }}>{n(x.lo3m, 2)}</span><span className="relative inline-block w-12 h-[6px]" style={{ background: '#333' }}><span className="absolute top-[-2px] w-[3px] h-[10px]" style={{ left: `calc(${f * 100}% - 1px)`, background: C.amber }} /></span><span style={{ color: C.muted }}>{n(x.hi3m, 2)}</span></span> }
+  const rngBar = (x: any) => { if (x.lo3m == null || x.hi3m == null || x.yld == null) return '—'; const f = Math.max(0, Math.min(1, (x.yld - x.lo3m) / ((x.hi3m - x.lo3m) || 1))); return <span className="inline-flex items-center gap-1"><span style={{ color: C.muted }}>{n(x.lo3m, 2)}</span><span className="relative inline-block w-12 h-[6px]" style={{ background: tc('#333') }}><span className="absolute top-[-2px] w-[3px] h-[10px]" style={{ left: `calc(${f * 100}% - 1px)`, background: C.amber }} /></span><span style={{ color: C.muted }}>{n(x.hi3m, 2)}</span></span> }
   return (
     <FnScreen code="WB" title={S.title}
       right={<><Field label={S.tenor}><Btns opts={d.tenors} value={ten} onChange={setTen} /></Field><Field label={S.region}><Btns opts={regions.map(r => ({ v: r, l: r === 'All' ? S.all : r }))} value={reg} onChange={setReg} /></Field></>}
       source={d.source} note={d.note}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.55fr) minmax(0,1fr)' }}>
         <Panel title={`${ten} · ${S.chg}`}>
-          <Grid maxH={600} rows={rows} onRow={(x: any) => setSel(x.cc)} rowStyle={(x: any) => x.cc === sel ? { background: '#1f2a44' } : undefined} cols={[
+          <Grid maxH={600} rows={rows} onRow={(x: any) => setSel(x.cc)} rowStyle={(x: any) => x.cc === sel ? { background: tc('#1f2a44') } : undefined} cols={[
             { k: 'region', label: S.region, color: () => C.muted },
             { k: 'name', label: S.c.name, color: () => C.amber, fmt: (x: any, r: any) => <span className="inline-flex items-center gap-1">{x}<FreqBadge f={r.freq} /></span> },
             { k: 'yld', label: S.c.yld, align: 'r', fmt: x => n(x, 3), color: () => C.white },
