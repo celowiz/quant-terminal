@@ -142,7 +142,7 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
   const fi = FUNCTION_LIST.find(f => f.code === code)
   const desc = lang() === 'pt' && fi ? fi.pt : tx(title) || fi?.desc || code
   // metodologia/fonte vão para o modal "?" (TopBar); a tela fica livre para gráficos e tabelas
-  useEffect(() => { setHelp({ code, note, source }) }, [code, note, source])
+  useEffect(() => { setHelp({ code, note }) }, [code, note])
   useEffect(() => () => setHelp(null), [])
   refScope(`${code}|${ticker || ''}`)
   return (
