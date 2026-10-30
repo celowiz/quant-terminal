@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { computeRRG, getJSON, type TickersFile } from '../../lib/static'
 import type { RRGResponse } from '../../types/rrg'
 import { MONO } from './PriceChart'
+import { fmtDate } from '../../lib/dates'
 
 const Q: Record<string, { c: string; n: string; d: string }> = {
   Leading:   { c: '#3DDC84', n: 'LEADING',   d: 'Relative strength and momentum above 100' },
@@ -21,7 +22,7 @@ const PALETTE = ['#FFA028', '#FFFFFF', '#4FC3F7', '#FF5BD6', '#7CFC00', '#FFD400
 const MAX_HIST = 104 // semanas calculadas; a cauda exibida é só um recorte (não altera o cálculo)
 const label = (k: string) => k.replace(/^IDX_/, '^').replace(/_X$/, '=X')
 const quad = (x: number, y: number) => (x >= 100 ? (y >= 100 ? 'Leading' : 'Weakening') : y >= 100 ? 'Improving' : 'Lagging')
-const fmtD = (s: string) => { const [y, m, d] = s.slice(0, 10).split('-'); return `${d}/${m}/${y.slice(2)}` }
+const fmtD = (s: string) => fmtDate(s.slice(0, 10)) // PT 29/10/26 · EN 29 Oct 26
 const niceStep = (span: number) => { const r = span / 4, p = Math.pow(10, Math.floor(Math.log10(r))), f = r / p; return (f > 5 ? 10 : f > 2 ? 5 : f > 1 ? 2 : 1) * p }
 
 type Hover = { x: number; y: number; t: string; date: string; r: number; m: number } | null
@@ -41,6 +42,7 @@ export default function RRGTerminal() {
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const [focus, setFocus] = useState<string | null>(null)
   const [hover, setHover] = useState<Hover>(null)
+  const [q, setQ] = useState('')
   const boxRef = useRef<HTMLDivElement | null>(null)
   const [size, setSize] = useState({ w: 900, h: 600 })
 
@@ -105,6 +107,9 @@ export default function RRGTerminal() {
   const ticks = (e: number, st: number) => { const o: number[] = []; for (let k = Math.ceil(-e / st); k * st <= e + 1e-9; k++) o.push(100 + k * st); return o }
   const dp = (st: number) => (st < 0.1 ? 2 : st < 1 ? 1 : 0)
 
+  const pt = lang() === 'pt'
+  const qq = q.trim().toUpperCase()
+  const matches = qq ? available.filter(k => k !== bench && !sel.includes(k) && label(k).toUpperCase().includes(qq)).sort((a, b) => +!label(a).toUpperCase().startsWith(qq) - +!label(b).toUpperCase().startsWith(qq) || a.localeCompare(b)).slice(0, 16) : []
   const box = 'bg-black text-[#FFA028] border border-[#5a3d12] px-1 py-[1px] outline-none focus:border-[#FFA028]'
   const btn = (a: boolean) => `px-2 py-[2px] border text-[12px] ${a ? 'bg-[#FFA028] text-black border-[#FFA028] font-bold' : 'bg-black text-[#FFA028] border-[#5a3d12] hover:border-[#FFA028]'}`
 
@@ -147,7 +152,8 @@ export default function RRGTerminal() {
 
       <div className="flex w-full max-lg:flex-col">
         {/* gráfico */}
-        <div ref={boxRef} className="relative flex-1 min-w-0" style={{ height: size.h }}>
+        {/* altura reservada por CSS já no HTML estático (mobile: ≈ largura × 1,05, igual ao fit) para não deslocar o painel ao hidratar */}
+        <div ref={boxRef} className="relative flex-1 min-w-0 overflow-hidden max-lg:flex-none lg:h-[var(--rrg-h)] max-lg:h-[clamp(340px,105vw,560px)]" style={{ ['--rrg-h' as any]: `${size.h}px` }}>
           {err && <div className="absolute inset-0 flex items-center justify-center text-[#FF4D4D]">{err}</div>}
           <svg width={W} height={H} className="block select-none" onMouseLeave={() => setHover(null)}>
             <rect x={0} y={0} width={W} height={H} fill="#000" onClick={() => setHover(null)} />
@@ -200,10 +206,12 @@ export default function RRGTerminal() {
 
         {/* painel lateral */}
         <div className="w-[300px] shrink-0 border-l border-[#3a3a3a] bg-[#050505] text-[12px] overflow-y-auto max-lg:w-full max-lg:!h-auto max-lg:border-l-0 max-lg:border-t" style={{ height: size.h }}>
-          <div className="px-2 py-1 text-black bg-[#FFA028] font-bold">ASSETS</div>
+          <div className="px-2 py-1 text-black bg-[#FFA028] font-bold">{pt ? 'ATIVOS' : 'ASSETS'}</div>
           <table className="w-full">
             <thead><tr className="text-[#8a8a8a] text-left"><th className="px-2 py-1 font-normal"> </th><th className="font-normal">Ticker</th><th className="font-normal text-right">Ratio</th><th className="font-normal text-right">Mom</th><th className="font-normal text-right pr-2">Quad.</th></tr></thead>
             <tbody>
+              {/* enquanto calcula: uma linha por ativo selecionado (mesma altura) para o painel não "pular" */}
+              {!data && sel.filter(k => k !== bench).map(k => <tr key={k} className="border-t border-[#1a1a1a]"><td className="px-2"><span className="inline-block w-[10px] h-[10px]" /></td><td className="font-bold text-[#8a8a8a]">{label(k)}</td><td className="text-right text-[#555]">—</td><td className="text-right text-[#555]">—</td><td className="text-right pr-2 text-[#555]">—</td></tr>)}
               {view.map(v => {
                 const p = v.pts[v.pts.length - 1], q = quad(p.rs_ratio, p.rs_momentum), off = hidden.has(v.t)
                 return (
@@ -220,13 +228,22 @@ export default function RRGTerminal() {
               })}
             </tbody>
           </table>
-          <div className="px-2 pt-3 pb-1 text-[#FFA028] font-bold border-b border-[#3a3a3a]">ADD / REMOVE</div>
-          <div className="flex flex-wrap gap-1 p-2">
-            {available.filter(k => k !== bench).map(k => (
-              <button key={k} className={btn(sel.includes(k))} onClick={() => setSel(s => s.includes(k) ? s.filter(x => x !== k) : [...s, k])}>{label(k)}</button>
-            ))}
+          <div className="px-2 pt-3 pb-1 text-[#FFA028] font-bold border-b border-[#3a3a3a]">{pt ? 'ADICIONAR / REMOVER' : 'ADD / REMOVE'}</div>
+          {/* seletor com busca (antes: 200+ botões, que empurravam o layout no mobile ao carregar a lista) */}
+          <div className="p-2 space-y-2">
+            <div className="flex flex-wrap gap-1">
+              {sel.filter(k => k !== bench).map(k => (
+                <button key={k} className={btn(true)} title={pt ? 'Remover' : 'Remove'} onClick={() => setSel(s => s.filter(x => x !== k))}>{label(k)} ×</button>
+              ))}
+            </div>
+            <input className={`${box} w-full py-[3px]`} value={q} onChange={e => setQ(e.target.value)} placeholder={pt ? `Buscar ativo para adicionar (${available.length})` : `Search an asset to add (${available.length})`}
+              aria-label={pt ? 'Buscar ativo' : 'Search asset'} onKeyDown={e => { if (e.key === 'Enter' && matches[0]) { setSel(s => [...s, matches[0]]); setQ('') } }} />
+            {q && <div className="flex flex-wrap gap-1">
+              {matches.map(k => <button key={k} className={btn(false)} onClick={() => { setSel(s => [...s, k]); setQ('') }}>+ {label(k)}</button>)}
+              {!matches.length && <span className="text-[#8a8a8a]">{pt ? 'Nenhum ativo encontrado' : 'No asset found'}</span>}
+            </div>}
           </div>
-          <div className="px-2 pt-3 pb-1 text-[#FFA028] font-bold border-b border-[#3a3a3a]">QUADRANTES</div>
+          <div className="px-2 pt-3 pb-1 text-[#FFA028] font-bold border-b border-[#3a3a3a]">{pt ? 'QUADRANTES' : 'QUADRANTS'}</div>
           <div className="p-2 space-y-1 text-[#bdbdbd]">
             {['Leading', 'Weakening', 'Lagging', 'Improving'].map(k => <div key={k}><b style={{ color: Q[k].c }}>{Q[k].n}</b> — {Q[k].d}</div>)}
             <div className="pt-2 text-[#8a8a8a]">Typical clockwise rotation: Improving → Leading → Weakening → Lagging. Each point = 1 week; the larger point with an arrow is the current week. Tail length is visual only and does not change the calculation.</div>

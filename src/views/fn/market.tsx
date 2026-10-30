@@ -6,6 +6,8 @@ import FnChart from '../../components/fn/FnChart'
 import XYChart from '../../components/fn/XYChart'
 import { href } from '../../lib/static'
 import { en } from '../../lib/enText'
+import { lang } from '../../lib/settings'
+import { fmtDayMonth, fmtMonth, brToIso } from '../../lib/dates'
 import { mean, std, maxDrawdown, regress } from '../../lib/quant'
 
 const lastIdx = (a: (number | null)[]) => { let i = a.length - 1; while (i >= 0 && a[i] == null) i--; return i }
@@ -77,7 +79,7 @@ export function ECONView() {
   if (!d) return <FnScreen code="ECON"><Loading err={err} /></FnScreen>
   const rows = (cty: string) => d.series.filter((s: any) => s.country === cty).map((s: any) => { const p = s.points, n = p.length; return { ...s, last: p[n - 1]?.[1], prev: p[n - 2]?.[1], date: p[n - 1]?.[0], chg: n > 1 ? p[n - 1][1] - p[n - 2][1] : null, spark: p.slice(-24).map((x: any) => x[1]) } })
   const s = d.series.find((x: any) => x.id === sel)
-  const cols = [{ k: 'name', label: 'Indicator', color: () => C.amber }, { k: 'date', label: 'Ref.', align: 'r' as const, fmt: (v: string, r: any) => r.freq === 'D' ? dBR(v) : v?.slice(0, 7) }, { k: 'last', label: 'Last', align: 'r' as const, fmt: (v: number) => nf(v, Math.abs(v) > 1000 ? 0 : 2) }, { k: 'prev', label: 'Previous', align: 'r' as const, fmt: (v: number) => nf(v, Math.abs(v) > 1000 ? 0 : 2) }, { k: 'chg', label: 'Var', align: 'r' as const, fmt: (v: number) => nf(v, 2), color: clr }, { k: 'unit', label: 'Unit', color: () => C.muted }, { k: 'spark', label: 'Trend', align: 'c' as const, fmt: (v: any) => <Spark data={v} w={70} h={14} /> }]
+  const cols = [{ k: 'name', label: 'Indicator', color: () => C.amber }, { k: 'date', label: 'Ref.', align: 'r' as const, fmt: (v: string, r: any) => r.freq === 'D' ? dBR(v) : v ? fmtMonth(v.slice(0, 7) + '-01') : v }, { k: 'last', label: 'Last', align: 'r' as const, fmt: (v: number) => nf(v, Math.abs(v) > 1000 ? 0 : 2) }, { k: 'prev', label: 'Previous', align: 'r' as const, fmt: (v: number) => nf(v, Math.abs(v) > 1000 ? 0 : 2) }, { k: 'chg', label: 'Var', align: 'r' as const, fmt: (v: number) => nf(v, 2), color: clr }, { k: 'unit', label: 'Unit', color: () => C.muted }, { k: 'spark', label: 'Trend', align: 'c' as const, fmt: (v: any) => <Spark data={v} w={70} h={14} /> }]
   const focus = d.focus as any[]
   const fInd = Array.from(new Set(focus.map(f => f.indicator))), fYears = Array.from(new Set(focus.map(f => f.year))).sort()
   return (
@@ -238,7 +240,7 @@ export function NEWSView() {
     <FnScreen code="NEWS" title="Top News — headlines" right={<Field label="Search"><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
       source={<>Open-license RSS feeds: {Array.from(new Set(d.items.map((n: any) => `${n.source.split('–')[0].trim()} (${n.license})`))).join(', ')}. Headline + link only (no text reproduced).</>} note="No paid news agency. Time = feed publication time, converted to Brasília time.">
       <div className="flex flex-wrap gap-0 pb-2">{srcs.map(s => <button key={s} onClick={() => setSrc(s)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: src === s ? C.amber : 'transparent', color: src === s ? '#000' : C.amber }}>{s}</button>)}</div>
-      <Grid maxH={700} cols={[{ k: 'date', label: 'Time', w: '110px', fmt: (v: string) => `${v.slice(8, 10)}/${v.slice(5, 7)} ${v.slice(11, 16)}` }, { k: 'source', label: 'Source', w: '220px', color: () => C.amber, fmt: (v: string) => v.length > 30 ? v.slice(0, 29) + '…' : v }, { k: 'title', label: 'Headline', fmt: (v: string, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: C.text }}>{v}</a> }]} rows={rows} />
+      <Grid maxH={700} cols={[{ k: 'date', label: 'Time', w: '110px', fmt: (v: string) => `${fmtDayMonth(v)} ${v.slice(11, 16)}` }, { k: 'source', label: 'Source', w: '220px', color: () => C.amber, fmt: (v: string) => v.length > 30 ? v.slice(0, 29) + '…' : v }, { k: 'title', label: 'Headline', fmt: (v: string, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: C.text }}>{v}</a> }]} rows={rows} />
     </FnScreen>
   )
 }
@@ -253,9 +255,9 @@ export function ANBView() {
   const colors: Record<string, string> = { 'Renda Fixa': C.blue, 'Ações': C.amber, 'Multimercados': C.purple, 'Cambial': C.cyan, 'FIDC': C.up, 'FMP-FGTS': '#B0BEC5', 'Participações (FIP)': '#FF7AB6', 'Não classificado': '#555' }
   const total = d.rows.find((r: any) => /total/i.test(r.class_name))
   return (
-    <FnScreen code="ANB" title="Fund flows by class (net flows)" right={<><span style={{ color: C.muted }}>Ref. date {d.data_ref} · {en(d.unit)}</span><Btns opts={[{ v: 'd', l: 'Daily' }, { v: 'm', l: 'Monthly' }] as any} value={view} onChange={setView as any} /></>}
+    <FnScreen code="ANB" title="Fund flows by class (net flows)" right={<><span style={{ color: C.muted }}>Ref. date {dBRfull(brToIso(d.data_ref))} · {en(d.unit)}</span><Btns opts={[{ v: 'd', l: 'Daily' }, { v: 'm', l: 'Monthly' }] as any} value={view} onChange={setView as any} /></>}
       source={<>{d.source}</>} note="Net flows = subscriptions − redemptions from the CVM daily fund report, aggregated by CVM registry class (RCVM 175). Own methodology, not the ANBIMA bulletin (whose terms forbid automation). Funds of funds are included alongside target funds, so AUM is double-counted.">
-      <Grid rowStyle={(r: any) => /total/i.test(r.class_name) ? { background: '#151515', fontWeight: 700 } : undefined} cols={[{ k: 'class_name', label: 'Class', color: () => C.amber }, ...(['day', 'month', 'year', 'twelve_months'] as const).map(k => ({ k, label: { day: 'Day', month: 'Month', year: 'Year', twelve_months: '12 months' }[k], align: 'r' as const, fmt: (v: number) => nf(v, 0), color: clr })), { k: 'pl_bi', label: 'AUM (R$ bn)', align: 'r' as const, fmt: (v: number) => nf(v, 1) }]} rows={d.rows} />
+      <Grid rowStyle={(r: any) => /total/i.test(r.class_name) ? { background: '#151515', fontWeight: 700 } : undefined} cols={[{ k: 'class_name', label: 'Class', fmt: (v: string) => en(v), color: () => C.amber }, ...(['day', 'month', 'year', 'twelve_months'] as const).map(k => ({ k, label: { day: 'Day', month: 'Month', year: 'Year', twelve_months: '12 months' }[k], align: 'r' as const, fmt: (v: number) => nf(v, 0), color: clr })), { k: 'pl_bi', label: 'AUM (R$ bn)', align: 'r' as const, fmt: (v: number) => nf(v, 1) }]} rows={d.rows} />
       <div className="mt-2"><Panel title={`${view === 'd' ? 'Daily' : 'Monthly'} net flows by class (R$ mn)`}>
         <FnChart height={360} panes={[{ series: classes.filter(c => c !== 'Não classificado').map(c => ({ kind: (view === 'm' ? 'line' : 'line') as 'line', data: xs.map((t: string, i: number) => ({ time: view === 'm' ? t + '-28' : t, value: ser.series[c][i] })).filter((p: any) => p.value != null), color: colors[c] || C.white, title: c, decimals: 0 })) }]} />
       </Panel></div>
@@ -336,7 +338,7 @@ export function ALERTView() {
     <FnScreen code="ALERT" title="Price alerts" source={d.source} note="Repository rules (alerts.yaml) are evaluated at the close by GitHub Actions; when they trigger, the workflow opens an issue (GitHub email notification). Local alerts live only in your browser and are checked when you open this page. There is no real-time push.">
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <Panel title={`Pipeline rules (alerts.yaml) — ${dBRfull(d.generated_at?.slice(0, 10))}`}>
-          <Grid rowStyle={(r: any) => r.triggered ? { background: '#2a1010' } : undefined} cols={[{ k: 'triggered', label: '', fmt: (v: boolean) => v ? '🔔' : '·', w: '24px' }, { k: 'ticker', label: 'Asset', color: () => C.amber }, { k: 'op', label: 'Condition', fmt: (v: string, r: any) => opL(v, r.value) }, { k: 'last', label: 'Last', align: 'r', fmt: (v: number) => nf(v) }, { k: 'change_pct', label: 'Var%', align: 'r', fmt: (v: number) => pf(v), color: clr }, { k: 'note', label: 'Description', color: () => C.muted }, { k: 'triggered', label: 'Status', fmt: (v: boolean) => v ? 'TRIGGERED' : 'aguardando', color: (v: boolean) => v ? C.down : C.muted }]} rows={d.rules} />
+          <Grid rowStyle={(r: any) => r.triggered ? { background: '#2a1010' } : undefined} cols={[{ k: 'triggered', label: '', fmt: (v: boolean) => v ? '🔔' : '·', w: '24px' }, { k: 'ticker', label: 'Asset', color: () => C.amber }, { k: 'op', label: 'Condition', fmt: (v: string, r: any) => opL(v, r.value) }, { k: 'last', label: 'Last', align: 'r', fmt: (v: number) => nf(v) }, { k: 'change_pct', label: 'Var%', align: 'r', fmt: (v: number) => pf(v), color: clr }, { k: 'note', label: 'Description', fmt: (v: string, r: any) => lang() === 'pt' ? v : (r.note_en || en(v)), color: () => C.muted }, { k: 'triggered', label: 'Status', fmt: (v: boolean) => lang() === 'pt' ? (v ? 'DISPAROU' : 'aguardando') : (v ? 'TRIGGERED' : 'waiting'), color: (v: boolean) => v ? C.down : C.muted }]} rows={d.rules} />
         </Panel>
         <Panel title="Local alerts (browser)">
           <div className="flex flex-wrap items-center gap-2 p-2 text-[12px]">
@@ -345,7 +347,7 @@ export function ALERTView() {
             <input className={inputCls + ' w-20'} style={inputStyle} type="number" value={f.value} onChange={e => setF({ ...f, value: +e.target.value })} />
             <button className="px-2 border" style={{ borderColor: C.amber, color: C.amber }} onClick={() => setLoc([...loc, { ...f, id: String(Date.now()) }])}>+ create</button>
           </div>
-          <Grid rowStyle={(r: any) => r.hit ? { background: '#2a1010' } : undefined} cols={[{ k: 'ticker', label: 'Asset', color: () => C.amber }, { k: 'op', label: 'Condition', fmt: (v: string, r: any) => opL(v, r.value) }, { k: 'last', label: 'Last', align: 'r', fmt: (v: number) => nf(v) }, { k: 'hit', label: 'Status', fmt: (v: boolean) => v ? 'TRIGGERED' : 'aguardando', color: (v: boolean) => v ? C.down : C.muted }, { k: 'id', label: '', fmt: (v: string) => <button style={{ color: C.down }} onClick={() => setLoc(loc.filter(a => a.id !== v))}>×</button> }]}
+          <Grid rowStyle={(r: any) => r.hit ? { background: '#2a1010' } : undefined} cols={[{ k: 'ticker', label: 'Asset', color: () => C.amber }, { k: 'op', label: 'Condition', fmt: (v: string, r: any) => opL(v, r.value) }, { k: 'last', label: 'Last', align: 'r', fmt: (v: number) => nf(v) }, { k: 'hit', label: 'Status', fmt: (v: boolean) => lang() === 'pt' ? (v ? 'DISPAROU' : 'aguardando') : (v ? 'TRIGGERED' : 'waiting'), color: (v: boolean) => v ? C.down : C.muted }, { k: 'id', label: '', fmt: (v: string) => <button style={{ color: C.down }} onClick={() => setLoc(loc.filter(a => a.id !== v))}>×</button> }]}
             rows={loc.map(a => { const l = px[a.ticker]?.last; return { ...a, last: l, hit: l != null && (a.op === 'above' ? l >= a.value : l <= a.value) } })} />
           {!loc.length && <div className="p-2 text-[12px]" style={{ color: C.muted }}>No local alerts. Create one above.</div>}
         </Panel>

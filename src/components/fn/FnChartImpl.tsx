@@ -1,6 +1,6 @@
 'use client'
 /** Gráfico genérico multi-painel (lightweight-charts v5) no estilo do terminal. */
-import { numLocale } from '../../lib/settings'
+import { numLocale, lang } from '../../lib/settings'
 import { useEffect, useRef, useState } from 'react'
 import { TrackingModeExitMode, createChart, LineSeries, HistogramSeries, AreaSeries, CandlestickSeries, BaselineSeries, LineStyle, CrosshairMode, createSeriesMarkers } from 'lightweight-charts'
 import { C, MONO, useFit, useFitH } from './kit'
@@ -70,7 +70,7 @@ export default function FnChartImpl({ panes, height = 420, log = false, intraday
   const leg = panes.flatMap(p => p.series).filter(s => s.title).map(s => ({ t: s.title as string, c: s.color || (s.kind === 'hist' ? C.blue : s.kind === 'baseline' ? C.up : C.white) }))
   return (
     <div>
-      {leg.length > 3 && <button className="px-1 pb-[2px] text-[11px]" style={{ color: C.amber }} onClick={() => setLegOpen(!legOpen)}>Legenda {legOpen ? '▾' : '▸'}</button>}
+      {leg.length > 3 && <button className="px-1 pb-[2px] text-[11px]" style={{ color: C.amber }} onClick={() => setLegOpen(!legOpen)}>{lang() === 'pt' ? 'Legenda' : 'Legend'} {legOpen ? '▾' : '▸'}</button>}
       {leg.length > 0 && (leg.length <= 3 || legOpen) && <div className="flex flex-wrap gap-x-3 px-1 pb-[2px] text-[11px]">{leg.map(l => <span key={l.t} style={{ color: l.c }}>■ <span style={{ color: C.text }}>{l.t}</span></span>)}</div>}
       <div ref={ref} style={{ height: h, position: 'relative' }} />
     </div>

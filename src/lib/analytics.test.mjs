@@ -145,3 +145,18 @@ test('buildHelpOpenParams: help_open carries the function code', () => {
   assert.deepEqual(A.buildHelpOpenParams({ functionCode: 'cdie' }), { function: 'CDIE', function_code: 'CDIE' })
   assert.deepEqual(A.buildHelpOpenParams({ functionCode: '' }), { function: 'HOME', function_code: 'HOME' })
 })
+
+test('gtag.js waits for the first interaction (or idle), then loads once', () => {
+  const w = fakeWin()
+  const ls = {}, timers = []
+  w.addEventListener = (e, fn) => { (ls[e] ||= []).push(fn) }
+  w.removeEventListener = () => {}
+  w.setTimeout = (fn, ms) => timers.push([fn, ms])
+  A.scheduleGtagScriptLoad(w)
+  assert.equal(w.appended.length, 0) // nada no carregamento
+  assert.equal(timers[0][1], A.GTAG_IDLE_DELAY_MS)
+  ls.pointerdown[0]()
+  assert.equal(w.appended.length, 1)
+  ls.keydown[0](); timers[0][0]() // idle depois da interação não injeta de novo
+  assert.equal(w.appended.length, 1)
+})

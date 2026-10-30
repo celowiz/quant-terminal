@@ -5,11 +5,15 @@ import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
 import { C, PALETTE, nf, pf, big, dBR, dBRfull, clr, useJSON, FnScreen, Panel, Grid, Btns, perLabel, Field, inputCls, inputStyle, KV, Loading, Spark } from '@/components/fn/kit'
 import { corr } from '@/lib/quant'
-import { en, monLabel } from '@/lib/enText'
+import { en, toEN } from '@/lib/enText'
+import { lang } from '@/lib/settings'
+import { fmtMonth, fmtQuarter, monthAbbr } from '@/lib/dates'
 import { downloadCSV, CsvBtn, dayNum, fromDay, heat, HBars, VertexBars } from './v4util'
 
 const bp = (v: any, d = 1) => v == null || !isFinite(+v) ? '—' : `${+v > 0 ? '+' : ''}${nf(v, d)}`
-const mLabel = monLabel
+const mLabel = (iso: string) => fmtMonth(iso)  // 'Sep 26' (EN) / 'set 26' (PT), igual ao resto do site
+/** setor (chave EN canônica) → nome PT para o filtro em PT */
+const PT_SECTOR: Record<string, string> = { 'Industrials': 'Bens industriais', 'Consumer Staples': 'Consumo não cíclico', 'Consumer Discretionary': 'Consumo cíclico', 'Miscellaneous': 'Diversos', 'Financials & Other': 'Financeiro e outros', 'Basic Materials': 'Materiais básicos', 'Oil, Gas & Biofuels': 'Petróleo, gás e biocombustíveis', 'Health Care': 'Saúde', 'Information Technology': 'Tecnologia da informação', 'Telecommunications': 'Telecomunicações', 'Utilities': 'Utilidade pública' }
 
 // ======================= CDIE =======================
 export function CDIEView() {
@@ -177,13 +181,13 @@ export function EQSView() {
   const rows = useMemo(() => {
     if (!s) return []
     const r = (s.rows as any[]).filter(x =>
-      (!f.sector || x.sector === f.sector) && (!f.q || (x.cod + ' ' + x.name).toUpperCase().includes(f.q.toUpperCase())) &&
+      (!f.sector || toEN(x.sector || '') === f.sector) && (!f.q || (x.cod + ' ' + x.name).toUpperCase().includes(f.q.toUpperCase())) &&
       (!f.mcap || (x.mcap ?? 0) >= f.mcap * 1e9) && (!f.pe || (x.pe != null && x.pe > 0 && x.pe <= f.pe)) && (!f.pb || (x.pb != null && x.pb <= f.pb)) &&
       (!f.dy || (x.dy ?? 0) >= f.dy) && (!f.roe || (x.roe ?? -1e9) >= f.roe) && (!f.nd || (x.nd_ebitda != null && x.nd_ebitda <= f.nd)) && (!f.liq || (x.vol_fin_avg30 ?? 0) >= f.liq * 1e6))
     return r.sort((a, b) => { const x = a[sort.k], y = b[sort.k]; if (x == null) return 1; if (y == null) return -1; return (typeof x === 'string' ? x.localeCompare(y) : x - y) * (sort.asc ? 1 : -1) })
   }, [s, f, sort])
   if (!s) return <FnScreen code="EQS"><Loading err={err} /></FnScreen>
-  const sectors = Array.from(new Set((s.rows as any[]).map(x => x.sector).filter(Boolean))).sort() as string[]
+  const sectors = Array.from(new Set((s.rows as any[]).map(x => toEN(x.sector || '')).filter(Boolean))).sort() as string[]  // agrupa grafias B3 diferentes do mesmo setor
   const num = (k: keyof Flt, label: string, w = 'w-16', step = 1) => <Field label={label}><input className={inputCls + ' ' + w} style={inputStyle} type="number" step={step} value={(f[k] as number) || ''} placeholder="—" onChange={e => setF({ ...f, [k]: +e.target.value || 0 })} /></Field>
   const exp = () => downloadCSV(`eqs_${s.generated_at?.slice(0, 10)}.csv`, EQ_COLS.map(c => c.label), rows.map(r => EQ_COLS.map(c => r[c.k] ?? null)))
   return (
@@ -191,13 +195,13 @@ export function EQSView() {
       source={s.source} note={<>{s.note} Fundamentals: last 12 months (sum of 4 quarters) from each company's latest ITR/DFP; equity and debt from the latest balance sheet. Click a header to sort.</>}>
       <div className="mb-2 flex items-center gap-2 lg:hidden">
         <button className="px-3 py-1 text-[12px] border font-bold" style={{ borderColor: drawer ? C.amber : C.line, color: drawer ? '#000' : C.amber, background: drawer ? C.amber : C.panel }} onClick={() => setDrawer(!drawer)}>
-          Filtros{(() => { const n = Object.values(f).filter(v => v !== '' && v !== 0).length; return n ? ` (${n})` : '' })()} {drawer ? '▾' : '▸'}
+          {lang() === 'pt' ? 'Filtros' : 'Filters'}{(() => { const n = Object.values(f).filter(v => v !== '' && v !== 0).length; return n ? ` (${n})` : '' })()} {drawer ? '▾' : '▸'}
         </button>
         <span className="ml-auto text-[12px]" style={{ color: C.amber }}>{rows.length} of {s.rows.length} stocks</span>
       </div>
       <div className={`mb-2 flex flex-wrap items-end gap-3 border p-2 ${drawer ? '' : 'max-lg:hidden'}`} style={{ borderColor: C.line, background: C.panel }}>
         <Field label="Search"><input className={inputCls + ' w-28'} style={inputStyle} value={f.q} onChange={e => setF({ ...f, q: e.target.value })} /></Field>
-        <Field label="Sector"><select className={inputCls} style={inputStyle} value={f.sector} onChange={e => setF({ ...f, sector: e.target.value })}><option value="">All</option>{sectors.map(x => <option key={x} value={x}>{en(x)}</option>)}</select></Field>
+        <Field label="Sector"><select className={inputCls} style={inputStyle} value={f.sector} onChange={e => setF({ ...f, sector: e.target.value })}><option value="">All</option>{sectors.map(x => <option key={x} value={x}>{lang() === 'pt' ? PT_SECTOR[x] || x : x}</option>)}</select></Field>
         {num('mcap', 'Mkt cap ≥ (R$ bn)')}{num('liq', 'Liq. 30d ≥ (R$ mn)')}{num('pe', 'P/E ≤')}{num('pb', 'P/B ≤', 'w-16', 0.1)}{num('dy', 'DY ≥ %', 'w-16', 0.5)}{num('roe', 'ROE ≥ %')}{num('nd', 'ND/EBITDA ≤', 'w-16', 0.5)}
         <button className="px-2 py-[1px] text-[12px] border" style={{ borderColor: C.line, color: C.muted }} onClick={() => setF({ sector: '', mcap: 0, pe: 0, pb: 0, dy: 0, roe: 0, nd: 0, liq: 0, q: '' })}>Clear</button>
         <span className="ml-auto text-[12px] max-lg:hidden" style={{ color: C.amber }}>{rows.length} of {s.rows.length} stocks</span>
@@ -304,7 +308,15 @@ export function ECFCView() {
 
 // ======================= ECST =======================
 type Row = { label: string; group: string; unit: string; pts: [string, number][]; period: (iso: string) => string; src: string; dec?: number }
-const qLabel = (iso: string) => `Q${Math.ceil(+iso.slice(5, 7) / 3)}'${iso.slice(2, 4)}`
+const qLabel = (iso: string) => fmtQuarter(Math.ceil(+iso.slice(5, 7) / 3), iso.slice(0, 4))
+/** Período do SIDRA no mesmo formato das demais linhas: mês 'Aug 26', trimestre 'Q2 26', trimestre móvel 'Jun–Aug 26'. */
+const sidraPeriod = (l: string | undefined, iso: string) => {
+  if (!l) return mLabel(iso)
+  const q = l.match(/^(\d)º trimestre (\d{4})$/); if (q) return fmtQuarter(+q[1], q[2])
+  if (/^[A-Za-zÀ-ÿ]{3}-[A-Za-zÀ-ÿ]{3}-[A-Za-zÀ-ÿ]{3} \d{4}$/.test(l)) { const m = +iso.slice(5, 7), a = ((m + 9) % 12) + 1; return `${monthAbbr(a)}–${mLabel(iso)}` }
+  if (/^[A-Za-zÀ-ÿ]+ \d{4}$/.test(l)) return mLabel(iso)
+  return en(l)
+}
 function sidraDate(id: string, code: string) { const y = code.slice(0, 4), n = +code.slice(4); return id.startsWith('pib') ? `${y}-${String(n * 3).padStart(2, '0')}-01` : `${y}-${String(n).padStart(2, '0')}-01` }
 export function ECSTView() {
   const { data: e, err } = useJSON<any>('econ.json')
@@ -319,7 +331,7 @@ export function ECSTView() {
     const X = (id: string) => { const q = s.data?.sidra?.find((x: any) => x.id === id); return q ? { pts: q.points.map((p: any) => [sidraDate(id, p[0]), p[2]] as [string, number]), lbl: Object.fromEntries(q.points.map((p: any) => [sidraDate(id, p[0]), p[1]])) as Record<string, string> } : null }
     const out: Row[] = []
     const add = (group: string, label: string, unit: string, pts: [string, number][] | undefined | null, period: (iso: string) => string, src: string, dec = 2) => { if (pts && pts.length) out.push({ group, label, unit, pts, period, src, dec }) }
-    const sx = (id: string, label: string, unit: string, dec = 1) => { const q = X(id); if (q) add('Brazil', label, unit, q.pts, iso => q.lbl[iso] ?? mLabel(iso), 'IBGE SIDRA', dec) }
+    const sx = (id: string, label: string, unit: string, dec = 1) => { const q = X(id); if (q) add('Brazil', label, unit, q.pts, iso => sidraPeriod(q.lbl[iso], iso), 'IBGE SIDRA', dec) }
     add('Brazil', 'Selic target', '% p.a.', monthly(S('SGS432')), mLabel, 'BCB SGS 432')
     sx('pib_qq', 'GDP – q/q (SA)', '% t/t'); sx('pib_aa', 'GDP – y/y', '% y/y')
     add('Brazil', 'IPCA monthly', '% m/m', S('SGS433'), mLabel, 'BCB SGS 433')

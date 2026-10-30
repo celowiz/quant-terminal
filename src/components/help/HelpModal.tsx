@@ -1,6 +1,7 @@
 'use client'
 /** Modal de metodologia da função atual (botão "?" da TopBar). KaTeX renderiza as fórmulas em HTML estático. */
 import React, { useEffect, useRef, useSyncExternalStore } from 'react'
+import { fmtDateFull } from '../../lib/dates'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import { X } from 'lucide-react'
@@ -59,7 +60,7 @@ export default function HelpModal({ code, onClose }: { code: string; onClose: ()
           {source && <div><div className="text-[12px] font-bold text-[#FFA028]">{t('fn.source')}</div><div className="text-[12px] text-[#bdbdbd]">{tr(source)}</div></div>}
           {refs.length > 0 && <div data-help-refs><div className="text-[12px] font-bold text-[#FFA028]">{t('ref.title')}</div>
             <ul className="text-[12px] text-[#bdbdbd]">{refs.map(r => <li key={r.path}>
-              <span className="text-[#8a8a8a]">{r.path.replace(/\.json$/, '')}</span>: {r.kind === 'generated' ? `${t('ref.generated')} ` : ''}<span className="text-white">{`${r.date.slice(8, 10)}/${r.date.slice(5, 7)}/${r.date.slice(0, 4)}`}</span>{r.official ? <span className="text-[#3DDC84]"> — {t('ref.official')}</span> : null}
+              <span className="text-[#8a8a8a]">{r.path.replace(/\.json$/, '')}</span>: {r.kind === 'generated' ? `${t('ref.generated')} ` : ''}<span className="text-white">{fmtDateFull(r.date)}</span>{r.official ? <span className="text-[#3DDC84]"> — {t('ref.official')}</span> : null}
             </li>)}</ul></div>}
           <div className="border-t border-[#222] pt-2 text-[11px] text-[#777]">{t('fn.edu')}</div>
         </div>

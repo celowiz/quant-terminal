@@ -1,5 +1,6 @@
 'use client'
-import { numLocale } from '../../lib/settings'
+import { numLocale, lang } from '../../lib/settings'
+import { fmtDate, fmtDateFull } from '../../lib/dates'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { format, subMonths, subYears, startOfYear, parseISO } from 'date-fns'
@@ -24,7 +25,7 @@ const TFS = [{ v: 'd', l: 'Daily' }, { v: 'w', l: 'Weekly' }, { v: 'm', l: 'Mont
 
 const nf = (v: number | undefined | null, d = 2) => v == null || isNaN(v) ? '—' : v.toLocaleString(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: d })
 const vf = (v: number) => v >= 1e9 ? `${nf(v / 1e9)}B` : v >= 1e6 ? `${nf(v / 1e6)}M` : v >= 1e3 ? `${nf(v / 1e3)}K` : String(v)
-const df = (s?: string) => s ? format(parseISO(s), 'dd/MM/yy') : '—'
+const df = (s?: string) => s ? fmtDate(s) : '—'
 
 export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'line' | 'candle' }) {
   const [meta, setMeta] = useState<any>(null)
@@ -135,7 +136,7 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
         <span className="font-bold text-white text-[15px]">{nf(obs?.close, dec)}</span>
         <span style={{ color: chgColor }}>{chg == null ? '' : `${chg > 0 ? '+' : ''}${nf(chg, dec)}`}</span>
         <span style={{ color: chgColor }}>{chgPct == null ? '' : `${chgPct > 0 ? '+' : ''}${nf(chgPct)}%`}</span>
-        <span className="text-[#8a8a8a]">{obs ? format(parseISO(obs.time), 'dd/MM/yyyy') : ''}</span>
+        <span className="text-[#8a8a8a]">{obs ? fmtDateFull(obs.time) : ''}</span>
         <span className="text-[#8a8a8a]">O <b className="text-[#d9d9d9] font-normal">{nf(obs?.open, dec)}</b></span>
         <span className="text-[#8a8a8a]">H <b className="text-[#d9d9d9] font-normal">{nf(obs?.high, dec)}</b></span>
         <span className="text-[#8a8a8a]">L <b className="text-[#d9d9d9] font-normal">{nf(obs?.low, dec)}</b></span>
@@ -162,7 +163,7 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
           {[50, 200].map(n => <button key={n} className={btn(smaOn.includes(n))} onClick={() => setSmaOn(s => s.includes(n) ? s.filter(x => x !== n) : [...s, n].sort((a, b) => a - b))}>SMAVG {n}</button>)}
         </div>
         <div className="flex gap-[2px] ml-auto">
-          <button className={btn(mode === 'line')} onClick={() => mode !== 'line' && go(`/gp/${encodeURIComponent(ticker)}/`)}>Linha (GP)</button>
+          <button className={btn(mode === 'line')} onClick={() => mode !== 'line' && go(`/gp/${encodeURIComponent(ticker)}/`)}>{lang() === 'pt' ? 'Linha' : 'Line'} (GP)</button>
           <button className={btn(mode === 'candle')} onClick={() => mode !== 'candle' && go(`/gpc/${encodeURIComponent(ticker)}/`)}>Candle (GPC)</button>
         </div>
       </div>
@@ -174,7 +175,7 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
           <PriceChart rows={rows} history={history} mode={mode} showVolume={showVol} smas={smaOn} onHover={setHover} highLow={highLow} />
         )}
         {legend.length > 0 && (
-          <button type="button" className="lg:hidden absolute top-1 left-1 z-20 text-[11px] px-2 py-[1px]" style={{ background: 'rgba(0,0,0,0.72)', border: '1px solid #2a2a2a', color: '#FFA028' }} onClick={() => setLegOpen(o => !o)}>Legenda {legOpen ? '▾' : '▸'}</button>
+          <button type="button" className="lg:hidden absolute top-1 left-1 z-20 text-[11px] px-2 py-[1px]" style={{ background: 'rgba(0,0,0,0.72)', border: '1px solid #2a2a2a', color: '#FFA028' }} onClick={() => setLegOpen(o => !o)}>{lang() === 'pt' ? 'Legenda' : 'Legend'} {legOpen ? '▾' : '▸'}</button>
         )}
         {legend.length > 0 && (
           <div className={`absolute top-2 left-2 z-10 pointer-events-none text-[12px] leading-[17px] px-2 py-1 max-lg:top-7 max-lg:left-1 max-lg:text-[11px] max-lg:leading-[15px] ${legOpen ? '' : 'max-lg:hidden'}`} style={{ background: 'rgba(0,0,0,0.72)', border: '1px solid #2a2a2a' }}>

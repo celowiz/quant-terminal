@@ -2,6 +2,7 @@
 /** Gráfico XY numérico em SVG (sazonalidade, cone de vol, curvas de juros, dispersão). */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { C, MONO, useFit, useFitH } from './kit'
+import { lang } from '../../lib/settings'
 
 export type XYSeries = { name: string; points: [number, number | null][]; color: string; width?: number; dash?: string; scatter?: boolean; band?: [number, number, number][]; opacity?: number }
 
@@ -71,7 +72,7 @@ export default function XYChart({ series, height = 360, xTicks, xFmt = v => Stri
   })
   return (
     <div ref={box} className="max-lg:overflow-hidden" style={{ fontFamily: MONO, background: '#101010', position: 'relative' }}>
-      {legend && !active && series.filter(s => s.name).length > 3 && !hv && <button className="px-2 pt-1 text-[11px]" style={{ color: C.amber }} onClick={() => setLegOpen(!legOpen)}>Legenda {legOpen ? '▾' : '▸'}</button>}
+      {legend && !active && series.filter(s => s.name).length > 3 && !hv && <button className="px-2 pt-1 text-[11px]" style={{ color: C.amber }} onClick={() => setLegOpen(!legOpen)}>{lang() === 'pt' ? 'Legenda' : 'Legend'} {legOpen ? '▾' : '▸'}</button>}
       {legend && (active || series.filter(s => s.name).length <= 3 || legOpen || hv) && <div className="flex flex-wrap gap-3 px-2 pt-1 text-[11px]">{series.filter(s => s.name).map(s => <span key={s.name} style={{ color: s.color }}>■ <span style={{ color: C.text }}>{s.name}</span>{hv && (() => { const h = hv.find(x => x.s === s); return h?.p && h.p[1] != null ? <span style={{ color: s.color }}> {yFmt(h.p[1])}</span> : null })()}</span>)}</div>}
       <svg ref={svgRef} className="max-lg:block" viewBox={`0 0 ${W} ${H}`} width={W} height={H} onMouseMove={onMove} onMouseLeave={() => setHx(null)}>
         {yt.map((y, i) => <g key={i}><line x1={m.l} x2={W - m.r} y1={sy(y)} y2={sy(y)} stroke="#262626" strokeDasharray="2,3" /><text x={W - m.r + 4} y={sy(y) + 4} fill="#8a8a8a" fontSize={11}>{yFmt(y)}</text></g>)}

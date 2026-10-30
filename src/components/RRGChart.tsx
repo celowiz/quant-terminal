@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ResponsiveContainer, ReferenceLine, Cell, Tooltip } from 'recharts'
 import { RRGResponse } from '@/types/rrg'
+import { fmtDateFull } from '@/lib/dates'
 
 interface RRGChartProps {
   data: RRGResponse
@@ -111,7 +112,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p className="text-gray-300">Quadrante: {data.quadrant}</p>
         {data.date && (
           <p className="text-gray-400 text-sm">
-            {new Date(data.date).toLocaleDateString('pt-BR')}
+            {fmtDateFull(data.date)}
           </p>
         )}
       </div>
@@ -171,9 +172,9 @@ export function RRGChart({ data }: RRGChartProps) {
           RRG vs {data.benchmark} — {data.config.tail} trail weeks
         </h3>
         <p className="text-gray-400">
-          Period: {data.date_range.start ? new Date(data.date_range.start).toLocaleDateString('pt-BR') : ''} 
+          Period: {data.date_range.start ? fmtDateFull(data.date_range.start) : ''} 
           {' to '}
-          {data.date_range.end ? new Date(data.date_range.end).toLocaleDateString('pt-BR') : ''}
+          {data.date_range.end ? fmtDateFull(data.date_range.end) : ''}
         </p>
       </div>
 

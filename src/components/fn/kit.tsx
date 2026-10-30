@@ -6,6 +6,7 @@ import { flushSync } from 'react-dom'
 import { getJSON, href, tickerKey } from '../../lib/static'
 import { FUNCTION_LIST } from '../../constants/functions'
 import { lang, numLocale } from '../../lib/settings'
+import { fmtDate, fmtDateFull } from '../../lib/dates'
 import { t } from '../../lib/i18n'
 import { trackPeriod } from '../../lib/track'
 import { setHelp } from '../../lib/help'
@@ -34,8 +35,9 @@ export const big = (v: any, d = 2) => {
   if (a >= 1e3) return `${s}${nf(a / 1e3, d)}K`
   return `${s}${nf(a, d)}`
 }
-export const dBR = (s?: string | null) => !s ? '—' : `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(2, 4)}`
-export const dBRfull = (s?: string | null) => !s ? '—' : `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}`
+/** datas no idioma da interface (PT 29/10/26 · EN 29 Oct 26), ver lib/dates */
+export const dBR = fmtDate
+export const dBRfull = fmtDateFull
 export const clr = (v: any) => v == null || Number.isNaN(+v) || +v === 0 ? C.text : +v > 0 ? C.up : C.down
 export const short = (t: string) => t.replace(/\.SA$/, '')
 
@@ -171,7 +173,7 @@ function AsOfChip({ asOf }: { asOf?: string | null }) {
   const r = asOf ? { date: asOf, official: false } : latestRef(refs)
   if (!r) return null
   return (
-    <span data-asof className="px-2 py-1 text-[11px] whitespace-nowrap max-lg:order-1 lg:order-none" style={{ color: C.muted }} title={t('ref.tip')}>
+    <span data-asof className="px-2 py-1 text-[11px] whitespace-nowrap max-lg:shrink-0 max-lg:pl-1" style={{ color: C.muted }} title={t('ref.tip')}>
       {t('ref.asof')} <span style={{ color: C.white }}>{dBR(r.date)}</span>{r.official ? <span style={{ color: C.up }} title={t('ref.official')}> ●</span> : null}
     </span>
   )
@@ -254,8 +256,9 @@ export function KV({ rows, cols = 1 }: { rows: [string, React.ReactNode, string?
   )
 }
 
-export function Loading({ err }: { err?: string | null }) {
-  return <div className="p-4 text-[12px]" style={{ fontFamily: MONO, color: err ? C.down : C.muted }}>{err ? `${t('fn.error')}: ${err}` : t('fn.loading')}</div>
+/** `reserve`: no mobile/tablet ocupa a altura da tela enquanto carrega, para o conteúdo não empurrar o rodapé (CLS). */
+export function Loading({ err, reserve }: { err?: string | null; reserve?: boolean }) {
+  return <div className={`p-4 text-[12px] ${reserve ? 'max-lg:min-h-[calc(100svh-140px)]' : ''}`} style={{ fontFamily: MONO, color: err ? C.down : C.muted }}>{err ? `${t('fn.error')}: ${err}` : t('fn.loading')}</div>
 }
 function naList(code: string) {
   const all = FUNCTION_UNIVERSE[code.toUpperCase()] || EQUITIES
