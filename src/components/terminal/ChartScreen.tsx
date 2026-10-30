@@ -3,6 +3,7 @@ import { numLocale } from '../../lib/settings'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { format, subMonths, subYears, startOfYear, parseISO } from 'date-fns'
+import { t } from '../../lib/i18n'
 import { getPrices, tickerMeta, go, type Price } from '../../lib/static'
 import { trackPeriod } from '../../lib/track'
 import { T, MONO } from './PriceChart'
@@ -129,6 +130,7 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
       <div className="flex items-center gap-x-5 gap-y-1 flex-wrap px-3 py-1 border-b border-[#3a3a3a] text-[13px]" style={{ background: '#000' }}>
         <span className="font-bold text-black bg-[#FFA028] px-2">{ticker}</span>
         <span className="text-[#d9d9d9] truncate max-w-[320px] max-lg:max-w-[52vw]">{meta?.name || ''}</span>
+        {meta?.unit && <span className="text-[#8a8a8a]">{meta.unit}</span>}
         <span className="font-bold text-white text-[15px]">{nf(obs?.close, dec)}</span>
         <span style={{ color: chgColor }}>{chg == null ? '' : `${chg > 0 ? '+' : ''}${nf(chg, dec)}`}</span>
         <span style={{ color: chgColor }}>{chgPct == null ? '' : `${chgPct > 0 ? '+' : ''}${nf(chgPct)}%`}</span>
@@ -138,6 +140,9 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
         <span className="text-[#8a8a8a]">L <b className="text-[#d9d9d9] font-normal">{nf(obs?.low, dec)}</b></span>
         <span className="text-[#8a8a8a]">C <b className="text-[#d9d9d9] font-normal">{nf(obs?.close, dec)}</b></span>
         <span className="text-[#8a8a8a]">Vol <b className="text-[#d9d9d9] font-normal">{obs?.volume ? vf(obs.volume) : '—'}</b></span>
+        {meta?.close_only && <span className="text-[#8a8a8a] italic" data-close-only="">{t('asset.closeOnly')}</span>}
+        {meta?.link && <a className="text-[#8a8a8a] underline hover:text-[#FFA028]" href={meta.link} target="_blank" rel="noopener noreferrer">{t('asset.official')}</a>}
+        {meta?.ref && <a className="text-[#8a8a8a] underline hover:text-[#FFA028]" href={meta.ref} target="_blank" rel="noopener noreferrer">{t('asset.reference')}</a>}
         <span className="ml-auto text-[#FFA028] text-[12px]">{mode === 'candle' ? 'GPC · Candle Chart' : 'GP · Line Chart'}</span>
       </div>
       {/* Barra de ferramentas */}

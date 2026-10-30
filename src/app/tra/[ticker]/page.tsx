@@ -1,10 +1,10 @@
 import View from './View'
-import tickers from '../../../../public/data/tickers.json'
+import { staticParams } from '../../../lib/universe'
 
-// Export estático: uma página pré-gerada por ticker de data/tickers.json
+// Export estático: uma página pré-gerada por ticker do universo da função
 export const dynamicParams = false
 export function generateStaticParams() {
-  return (tickers as { tickers: { ticker: string }[] }).tickers.map(t => ({ ticker: t.ticker }))
+  return staticParams('tra')
 }
 
 export default function Page({ params }: { params: { ticker: string } }) {

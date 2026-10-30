@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, existsSync, readFileSync } from 'node:fs'
-import { TICKER_FUNCTIONS, acceptsTicker, inUniverse, functionPath, readStoredTicker, writeStoredTicker, STORAGE_KEY } from './activeTicker.mjs'
+import { TICKER_FUNCTIONS, FUNCTION_UNIVERSE, acceptsTicker, inUniverse, functionPath, readStoredTicker, writeStoredTicker, STORAGE_KEY } from './activeTicker.mjs'
 
 const UNIVERSE = JSON.parse(readFileSync(new URL('../../public/data/tickers.json', import.meta.url))).tickers.map(t => t.ticker)
 const APP = new URL('../app/', import.meta.url)
@@ -36,4 +36,20 @@ test('localStorage', () => {
   writeStoredTicker(s, 'petr4.sa'); assert.equal(m.get(STORAGE_KEY), 'PETR4.SA'); assert.equal(readStoredTicker(s), 'PETR4.SA')
   assert.equal(readStoredTicker({ getItem: () => { throw new Error('x') } }), '')
   assert.equal(readStoredTicker(null), '')
+})
+
+test('universo ampliado: tickers.json com mínimo de ativos e classes; funções corporativas só nas ações com dados', async () => {
+  const { readFileSync } = await import('node:fs')
+  const d = JSON.parse(readFileSync(new URL('../../public/data/tickers.json', import.meta.url), 'utf8'))
+  const all = d.tickers.map(t => t.ticker)
+  assert.ok(all.length >= 200, `só ${all.length} tickers`)
+  assert.deepEqual(new Set(d.tickers.map(t => t.class)), new Set(['br_equity', 'us_equity', 'index', 'etf', 'commodity', 'crypto', 'fx']))
+  for (const tk of ['GOOGL', 'TIO=F', 'I0.DCE', 'BTC-USD', '^GSPC']) {
+    assert.ok(inUniverse('GPC', tk, all), tk)
+    assert.ok(!inUniverse('DES', tk, all), tk)
+  }
+  const corp = d.tickers.filter(t => t.corp).map(t => t.ticker).sort()
+  assert.deepEqual([...FUNCTION_UNIVERSE.DES].sort(), corp)
+  assert.equal(functionPath('GPC', 'I0.DCE', all), '/gpc/I0.DCE/')
+  assert.equal(functionPath('DES', 'GOOGL', all), '/des/')
 })
