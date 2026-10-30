@@ -85,3 +85,22 @@ def test_sec_profile():
 def test_scrub_tira_nome_do_terminal():
     from build_des import scrub
     assert scrub({'name': 'TREND ETF BLOOMBERG US 3000 TECHNOLOGY', 'x': ['Bloomberg  China'], 'n': 1}) == {'name': 'TREND ETF US 3000 TECHNOLOGY', 'x': ['China'], 'n': 1}
+
+
+def test_b3_json_repete_apos_travada_e_cai_no_cache(tmp_path, monkeypatch):
+    import build_des, requests
+    monkeypatch.setattr(build_des, 'CACHE', str(tmp_path)); monkeypatch.setattr(build_des.time, 'sleep', lambda s: None)
+    calls = []
+    class R:
+        status_code = 200
+        def json(self): return {'ok': 1}
+    def fake(url, headers=None, timeout=None):
+        calls.append(timeout)
+        if len(calls) < 3: raise requests.exceptions.ReadTimeout('preso')
+        return R()
+    monkeypatch.setattr(build_des.requests, 'get', fake)
+    assert build_des.b3_json('u', 'x.json') == {'ok': 1}
+    assert len(calls) == 3 and max(calls) <= 10      # timeout curto por tentativa
+    def dead(url, headers=None, timeout=None): raise requests.exceptions.ReadTimeout('preso')
+    monkeypatch.setattr(build_des.requests, 'get', dead)
+    assert build_des.b3_json('u', 'x.json', tries=2) == {'ok': 1}   # sem resposta → cache anterior

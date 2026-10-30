@@ -38,7 +38,7 @@ run fns2     build_fns2.py      # COT (CFTC Commitments of Traders), 13F (SEC ED
 run news     build_news.py       # RSS de licença aberta (Agência Brasil, BCB, CVM, SEC, Fed, RFB)
 run anb      build_anb.py        # CVM Informe Diário de fundos → captação líquida por classe
 run fns3     build_fns3.py      # FIIM (CVM informe mensal de FII + COTAHIST), FNDS (CVM informe diário), BKS (BCB IF.data)
-STEP_TIMEOUT=900 run des build_des.py  # DES de FIIs (CVM informe mensal + registro), ETFs B3 (B3 + CVM), BDRs (B3 + SEC), ETFs EUA (SEC)
+STEP_TIMEOUT=1500 run des build_des.py  # DES de FIIs (CVM informe mensal + registro), ETFs B3 (B3 + CVM), BDRs (B3 + SEC), ETFs EUA (SEC)
 run coverage build_coverage.py   # tickers.json: quais ativos têm DES/FUND/HDS/FA/OMON/GIP (arquivos por ticker gerados acima)
 run alerts   build_alerts.py     # avalia alerts.yaml → alerts.json + $QT_ALERTS_MD se disparar (por último: usa os preços novos)
 

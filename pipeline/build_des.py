@@ -7,15 +7,15 @@ Só cadastros oficiais e gratuitos; campo que a fonte não traz fica fora do JSO
   ETF US  SEC company_tickers_mf (ticker → CIK/série/classe) + submissions (registrante, endereço, exercício, filings)
 Grava des/{T}.json. Cada classe é uma etapa independente com teto de tempo; se a fonte cair, o JSON anterior fica."""
 import base64, io, json, os, re, sys, time, zipfile
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd, requests
-from common import save, cached, get, get_json, now_iso, step, with_timeout, OUT, CACHE, file_key as key
+from common import UA, save, cached, get, get_json, now_iso, step, with_timeout, OUT, CACHE, file_key as key
 
 CVM = 'https://dados.cvm.gov.br/dados'
 B3F = 'https://sistemaswebb3-listados.b3.com.br/fundsListedProxy/Search/'
 B3C = 'https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/'
 SEC_UA = {'User-Agent': 'quant-terminal celowiz marcelo_wz@hotmail.com', 'Accept-Encoding': 'gzip, deflate'}
-STEP_SECS = 300          # teto por classe (o run_all.sh ainda limita o script inteiro)
+STEP_SECS = 360          # teto por classe (o run_all.sh ainda limita o script inteiro)
 
 def b64(o): return base64.b64encode(json.dumps(o, ensure_ascii=False).encode()).decode()
 
@@ -192,16 +192,40 @@ def build_fii(reg):
     if len(recs) < len(T) // 2: raise RuntimeError(f'FII: só {len(recs)} de {len(T)}')
 
 # ------------------------------------------- ETF BR -------------------------------------------
+def b3_json(url, name, max_age_h=0, tries=6, timeout=10):
+    """JSON do proxy de fundos da B3 com timeout curto e várias tentativas: o proxy às vezes segura a
+    conexão sem responder (em 30/10/2026 isso estourou o teto de 300s dos passos FII e ETF B3 no Actions,
+    com o get() de 60s por tentativa). Guarda em cache (detalhes: 7 dias); sem resposta, usa o cache antigo."""
+    p = os.path.join(CACHE, 'b3f_' + name)
+    if max_age_h and os.path.exists(p) and time.time() - os.path.getmtime(p) < max_age_h * 3600:
+        try:
+            with open(p, encoding='utf-8') as fh: return json.load(fh)
+        except Exception: pass
+    last = None
+    for i in range(tries):
+        try:
+            r = requests.get(url, headers=UA, timeout=timeout)
+            if r.status_code == 200:
+                d = r.json()
+                with open(p, 'w', encoding='utf-8') as fh: json.dump(d, fh)
+                return d
+            last = f'HTTP {r.status_code}'
+        except Exception as e: last = repr(e)
+        time.sleep(1 + i)
+    if os.path.exists(p):
+        with open(p, encoding='utf-8') as fh: return json.load(fh)
+    raise RuntimeError(f'{url}: {last}')
+
 def b3_fund_list(typ):
     out, page, pages = [], 1, 1
     while page <= pages:
-        d = get_json(B3F + 'GetListFunds/' + b64({'language': 'pt-br', 'typeFund': typ, 'pageNumber': page, 'pageSize': 120, 'keyword': ''}))
+        d = b3_json(B3F + 'GetListFunds/' + b64({'language': 'pt-br', 'typeFund': typ, 'pageNumber': page, 'pageSize': 120, 'keyword': ''}), f'list_{typ}_{page}.json')
         pages = (d.get('page') or {}).get('totalPages') or 0
         out += d.get('results') or []; page += 1
     return out
 
 def b3_fund_detail(idf, typ):
-    d = get_json(B3F + 'GetDetailFund/' + b64({'language': 'pt-br', 'idFNET': str(idf), 'idCEM': '0', 'typeFund': typ}), tries=3)
+    d = b3_json(B3F + 'GetDetailFund/' + b64({'language': 'pt-br', 'idFNET': str(idf), 'idCEM': '0', 'typeFund': typ}), f'det_{typ}_{idf}.json', 24 * 7)
     return (d.get('detailFund') or d) if isinstance(d, dict) else None
 
 def etf_record(det, rg):
@@ -229,7 +253,8 @@ def build_etf_br(reg):
         except Exception as e: print('  B3 detalhe', a, e); return a, None
     n = 0
     with ThreadPoolExecutor(8) as ex:
-        for a, det in ex.map(one, sorted(L)):
+        for fut in as_completed([ex.submit(one, a) for a in sorted(L)]):
+            a, det = fut.result()
             if not det or not digits(det.get('cnpj')).strip('0'): continue
             t = T[a]
             put(t, etf_record(det, reg.get(digits(det['cnpj']).zfill(14), {}))); n += 1
