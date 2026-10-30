@@ -3,6 +3,7 @@ import React, { useRef, useState, useEffect } from 'react'
 import { t } from '../lib/i18n'
 import { useDesktop } from './fn/kit'
 import { TICKERS } from '../lib/universe'
+import { displayTicker } from '../lib/activeTicker.mjs'
 
 const META = new Map(TICKERS.map(m => [m.ticker.toUpperCase(), m]))
 export const CLASS_ORDER = ['br_equity', 'us_equity', 'index', 'etf', 'commodity', 'crypto', 'fx'] as const
@@ -106,7 +107,7 @@ export default function TickerSelector({
 	const handleTickerSelect = (ticker: string) => {
 		if (disabled) return
 		setSelectedTicker(ticker)
-		setTickerSearch(ticker)
+		setTickerSearch(displayTicker(ticker))
 		setFilteredTickers([])
 		setHighlightedIndex(-1)
 		setSearching(false)
@@ -166,7 +167,7 @@ export default function TickerSelector({
 				<div className="absolute left-0 top-full mt-1 z-50 w-[240px] px-2 py-1 bg-black border border-[#3a3a3a] text-[12px] text-[#8a8a8a]">{t('hdr.noMatch')}</div>
 			)}
 			{selectedTicker && tickerName && (
-				<div className="ticker-name-label absolute left-full ml-2 whitespace-nowrap pointer-events-none font-bold flex items-center gap-2 max-lg:max-w-[calc(100vw-120px-96px-84px)] md:max-lg:max-w-[calc(100vw-220px-96px-84px)] max-lg:overflow-hidden max-lg:text-[12px]">
+				<div className="ticker-name-label absolute left-full ml-2 whitespace-nowrap pointer-events-none font-bold text-white flex items-center gap-2 max-lg:max-w-[calc(100vw-120px-96px-84px)] md:max-lg:max-w-[calc(100vw-220px-96px-84px)] max-lg:overflow-hidden max-lg:text-[12px]">
 					<span className="max-lg:truncate max-lg:min-w-0">{tickerName}</span>
 					{tickerLogo && (
 						<img 

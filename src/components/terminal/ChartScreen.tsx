@@ -128,8 +128,7 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
     <div className="flex flex-col w-full -mt-4 sm:-mt-6" style={{ fontFamily: MONO, background: '#000' }}>
       {/* Barra do ativo */}
       <div className="flex items-center gap-x-5 gap-y-1 flex-wrap px-3 py-1 border-b border-[#3a3a3a] text-[13px]" style={{ background: '#000' }}>
-        <span className="font-bold text-black bg-[#FFA028] px-2">{ticker}</span>
-        <span className="text-[#d9d9d9] truncate max-w-[320px] max-lg:max-w-[52vw]">{meta?.name || ''}</span>
+        {/* ticker + nome ficam só na barra do topo (evita a linha duplicada logo abaixo) */}
         {meta?.unit && <span className="text-[#8a8a8a]">{meta.unit}</span>}
         <span className="font-bold text-white text-[15px]">{nf(obs?.close, dec)}</span>
         <span style={{ color: chgColor }}>{chg == null ? '' : `${chg > 0 ? '+' : ''}${nf(chg, dec)}`}</span>
