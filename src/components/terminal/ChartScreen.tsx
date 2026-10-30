@@ -54,7 +54,8 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
       const fh = (document.querySelector('footer') as HTMLElement | null)?.offsetHeight || 0
       // celular: preenche até o rodapé (antes ficava fixo em 410px e sobrava um vão vazio acima do rodapé),
       // com mínimo de ~300px preço + ~110px volume; tablet e desktop: preenchem a viewport com o rodapé visível
-      const min = desk ? 240 : tab || showVol ? 410 : 300
+      const emb = document.documentElement.hasAttribute('data-embed')   // painel do Launchpad: iframe baixo
+      const min = desk ? (emb ? 140 : 240) : tab || showVol ? 410 : 300
       setH(Math.max(min, window.innerHeight - top - fh - 6))
     }
     fit()

@@ -251,4 +251,8 @@ input[type="date"]::-webkit-calendar-picker {
 
 /* Launchpad (LP): página dentro de um painel — sem rodapé e com respiro mínimo no topo */
 html[data-embed] body > footer { display: none !important; }
-@media (min-width: 1024px) { html[data-embed] main { padding-top: 6px !important; } }
+@media (min-width: 1024px) {
+  html[data-embed] main { padding-top: 6px !important; }
+  /* telas que anulam o pt-6 do <main> com -mt-6 (GP/GPC) não podem subir para baixo do cabeçalho */
+  html[data-embed] main > [class*="sm:-mt-6"] { margin-top: -6px !important; }
+}

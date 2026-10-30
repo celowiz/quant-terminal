@@ -75,6 +75,8 @@ export const FUNCTION_LIST: FunctionItem[] = [
   { code: 'MEMB', desc: 'Index Members (Ibovespa)', pt: 'Composição do Ibovespa', cat: 'equity' },
   { code: 'EVTS', desc: 'Events on Chart', pt: 'Eventos no gráfico', cat: 'company' },
   { code: 'OVME', desc: 'Option Valuation (Black-Scholes)', pt: 'Calculadora de opções', cat: 'tools' },
+  { code: 'COT', desc: 'Commitments of Traders (CFTC)', pt: 'Posições em futuros (CFTC COT)', cat: 'fxcmd' },
+  { code: '13F', desc: '13F Manager Holdings (SEC)', pt: 'Carteiras de gestores dos EUA (13F)', cat: 'equity' },
 ]
 
 /** nome da função no idioma atual */
