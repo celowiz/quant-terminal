@@ -53,3 +53,11 @@ test('universo ampliado: tickers.json com mínimo de ativos e classes; funções
   assert.equal(functionPath('GPC', 'I0.DCE', all), '/gpc/I0.DCE/')
   assert.equal(functionPath('DES', 'GOOGL', all), '/des/')
 })
+
+test('displayTicker strips the .SA suffix only', async () => {
+  const { displayTicker } = await import('./activeTicker.mjs')
+  assert.equal(displayTicker('petr4.sa'), 'PETR4')
+  assert.equal(displayTicker('AAPL'), 'AAPL')
+  assert.equal(displayTicker('^BVSP'), '^BVSP')
+  assert.equal(displayTicker(''), '')
+})

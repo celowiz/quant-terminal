@@ -6,3 +6,4 @@ export function inUniverse(code: string, ticker: string, universe: string[]): bo
 export function functionPath(code: string, ticker: string, universe: string[]): string
 export function readStoredTicker(storage?: Pick<Storage, 'getItem'> | null): string
 export function writeStoredTicker(storage: Pick<Storage, 'setItem'> | null | undefined, ticker: string): void
+export function displayTicker(ticker: string): string

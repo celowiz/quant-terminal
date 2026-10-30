@@ -9,7 +9,7 @@ import { t } from '../lib/i18n'
 import Header from './Header'
 import TickerSelector from './TickerSelector'
 import { listTickers, tickerMeta, go, href, pathParts } from '../lib/static'
-import { acceptsTicker, functionPath, inUniverse } from '../lib/activeTicker.mjs'
+import { acceptsTicker, displayTicker, functionPath, inUniverse } from '../lib/activeTicker.mjs'
 import { getActiveTicker, setActiveTicker, UNIVERSE } from '../lib/nav'
 import { navTicker, trackHelp } from '../lib/track'
 import { getHelp } from '../lib/help'
@@ -78,7 +78,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
     }
     if (currentTickerFromPath) {
       setSelectedTicker(currentTickerFromPath)
-      setTickerSearch(currentTickerFromPath)
+      setTickerSearch(displayTicker(currentTickerFromPath))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCodeFromPath, currentTickerFromPath])
@@ -136,7 +136,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
 
   const handleTickerSelect = (ticker: string) => {
     setSelectedTicker(ticker)
-    setTickerSearch(ticker)
+    setTickerSearch(displayTicker(ticker))
     setFilteredTickers([])
     setActiveTicker(ticker)
     if (onTickerChange) onTickerChange(ticker)

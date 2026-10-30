@@ -48,3 +48,6 @@ export function readStoredTicker(storage) {
 export function writeStoredTicker(storage, ticker) {
   try { if (ticker) storage?.setItem(STORAGE_KEY, String(ticker).toUpperCase()) } catch { /* modo privado */ }
 }
+
+/** Rótulo limpo do ativo no campo de ticker: PETR4.SA → PETR4 (o valor real continua o ticker completo). */
+export const displayTicker = (ticker) => String(ticker || '').toUpperCase().replace(/\.SA$/, '')
