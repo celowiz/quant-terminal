@@ -43,7 +43,7 @@ test('universo ampliado: tickers.json com mínimo de ativos e classes; funções
   const d = JSON.parse(readFileSync(new URL('../../public/data/tickers.json', import.meta.url), 'utf8'))
   const all = d.tickers.map(t => t.ticker)
   assert.ok(all.length >= 200, `só ${all.length} tickers`)
-  assert.deepEqual(new Set(d.tickers.map(t => t.class)), new Set(['br_equity', 'us_equity', 'index', 'etf', 'commodity', 'crypto', 'fx']))
+  assert.deepEqual(new Set(d.tickers.map(t => t.class)), new Set(['br_equity', 'fii', 'bdr', 'us_equity', 'index', 'etf', 'commodity', 'crypto', 'fx']))
   for (const tk of ['GOOGL', 'TIO=F', 'I0.DCE', 'BTC-USD', '^GSPC']) {
     assert.ok(inUniverse('GPC', tk, all), tk)
     assert.ok(!inUniverse('DES', tk, all), tk)

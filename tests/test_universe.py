@@ -4,7 +4,8 @@ import pandas as pd
 import build_prices as bp
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-CLASSES = {'br_equity', 'us_equity', 'index', 'etf', 'commodity', 'crypto', 'fx'}
+CLASSES = {'br_equity', 'fii', 'bdr', 'us_equity', 'index', 'etf', 'commodity', 'crypto', 'fx'}
+CORE = CLASSES - {'fii', 'bdr'}
 
 
 def test_build_universe_classes_e_indices():
@@ -12,7 +13,7 @@ def test_build_universe_classes_e_indices():
     assert U['WEGE3.SA']['index'] == ['IBOV', 'SMLL'] and U['LWSA3.SA']['index'] == ['SMLL']
     assert 'ITUB4.SA' in U and not U['ITUB4.SA'].get('index')   # núcleo EQUITIES fica mesmo fora do índice
     assert 'corp' not in U['PETR4.SA']                         # cobertura vem dos arquivos (mark_coverage), não de lista fixa
-    assert {m['class'] for m in U.values()} == CLASSES
+    assert {m['class'] for m in U.values()} == CORE and not any(m.get('ext') for m in U.values())
     assert U['TIO=F']['close_only'] and U['TIO=F']['unit'] == 'USD/t' and 'ref' in U['TIO=F']
     assert U['I0.DCE']['unit'] == 'CNY/t' and U['I0.DCE']['currency'] == 'CNY'
     assert 'GOOGL' in U and 'BTC-USD' in U and '^GSPC' in U and 'BOVA11.SA' in U
@@ -41,6 +42,12 @@ def test_tickers_json_minimo():
     assert sum('IBOV' in t.get('index', []) for t in T) >= 60
     assert sum('SMLL' in t.get('index', []) for t in T) >= 80
     assert sum(t['class'] == 'us_equity' for t in T) >= 30
+    # cobertura ampliada (P2-G): S&P 500, FIIs (IFIX), BDRs (BDRX), ETFs da B3, criptos
+    ext = [t for t in T if t.get('ext')]
+    assert sum(t['class'] == 'us_equity' for t in ext) >= 400 and sum('S&P 500' in t.get('index', []) for t in T) >= 450
+    assert sum(t['class'] == 'fii' for t in T) >= 50 and sum(t['class'] == 'bdr' for t in T) >= 50
+    assert sum(t['class'] == 'etf' and t['ticker'].endswith('.SA') for t in T) >= 50 and sum(t['class'] == 'crypto' for t in T) >= 10
+    assert not any('bloomberg' in t['name'].lower() for t in T)
     corp = {t['ticker'] for t in T if t.get('corp')}
     # corp: ações BR (CVM) e, desde o P1-B, ações dos EUA (SEC companyfacts)
     assert set(bp.EQUITIES) <= corp and all(t['class'] in ('br_equity', 'us_equity') for t in T if t.get('corp'))
@@ -78,3 +85,40 @@ def test_parse_portfolio_b3_qtd_teorica_e_redutor():
     assert comp[0] == {'cod': 'WEGE3', 'name': 'WEG', 'type': 'ON NM', 'sector': 'Bens Indls', 'subsector': 'Bens Indls / Máqs e Equips', 'weight': 3.039, 'qty': 1460506056.0}
     assert comp[1]['qty'] is None and comp[1]['weight'] == 8.1
     assert head == {'date': '30/10/26', 'reductor': pytest.approx(13999429.6667493), 'theoretical_qty': 93803750400.0}
+
+
+def test_build_universe_cobertura_ampliada():
+    ext = {'sp500': [('AAPL', 'Apple Inc.'), ('MMM', '3M'), ('BRK-B', 'Berkshire')],
+           'ifix': [('HGLG11', 'FII CSHG LOG')], 'bdrx': [('AAPL34', 'APPLE')],
+           'etf_br': [('BOVA11', 'ISHARES BOVA'), ('ACWI11', 'TREND ETF BLOOMBERG ALL COUNTRIES')], 'crypto': [('XRP-USD', 'XRP')]}
+    U = bp.build_universe([('PETR4', 'PETROBRAS PN')], [], ext)
+    assert {m['class'] for m in U.values()} == CLASSES
+    assert not U['AAPL'].get('ext') and U['AAPL']['index'] == ['S&P 500'] and U['AAPL']['name'] == 'Apple'   # núcleo vence
+    assert U['MMM'] == {'name': '3M', 'class': 'us_equity', 'currency': 'USD', 'index': ['S&P 500'], 'ext': True}
+    assert U['HGLG11.SA']['class'] == 'fii' and U['HGLG11.SA']['index'] == ['IFIX'] and U['HGLG11.SA']['ext']
+    assert U['AAPL34.SA']['class'] == 'bdr' and U['AAPL34.SA']['index'] == ['BDRX']
+    assert not U['BOVA11.SA'].get('ext') and U['ACWI11.SA']['name'] == 'TREND ETF ALL COUNTRIES' and 'index' not in U['ACWI11.SA']
+    assert U['XRP-USD']['class'] == 'crypto' and U['XRP-USD']['ext']
+    assert len({bp.key(t) for t in U}) == len(U)
+
+
+def test_fontes_cobertura_ampliada():
+    csv = 'Symbol,Security,GICS Sector\nBRK.B,Berkshire Hathaway,Financials\nMMM,3M,Industrials\n'
+    assert bp.parse_sp500(csv) == [('BRK-B', 'Berkshire Hathaway'), ('MMM', '3M')]
+    assert bp.etf_name({'fundName': 'BB ETF IBOVESPA FUNDO DE ÍNDICE RESPONSABILIDADE LIMITADA'}) == 'BB ETF IBOVESPA'
+    assert bp.etf_name({'fundName': 'INVESTO MSCI US REAL ESTATE ETF CLASSE DE ÍNDICE - IE - RESPONSABILIDADE LIMITADA'}) == 'INVESTO MSCI US REAL ESTATE ETF'
+    cg = [{'id': 'bitcoin', 'symbol': 'btc', 'name': 'Bitcoin', 'current_price': 77000}, {'id': 'tether', 'symbol': 'usdt', 'name': 'Tether', 'current_price': 1.0},
+          {'id': 'ripple', 'symbol': 'xrp', 'name': 'XRP', 'current_price': 1.25}, {'id': 'wrapped-bitcoin', 'symbol': 'wbtc', 'name': 'Wrapped Bitcoin', 'current_price': 77000},
+          {'id': 'figure-heloc', 'symbol': 'figr_heloc', 'name': 'Figure Heloc', 'current_price': 1.03}, {'id': 'hashnote-usyc', 'symbol': 'usyc', 'name': 'Circle USYC', 'current_price': 1.14},
+          {'id': 'ethena', 'symbol': 'ena', 'name': 'Ethena', 'current_price': 0.19}]
+    assert bp.parse_coingecko(cg, skip={'BTC-USD'}) == [('XRP-USD', 'XRP', 1.25), ('ENA-USD', 'Ethena', 0.19)]
+    assert bp.coherent([{'close': 1.3}], 1.25) and not bp.coherent([{'close': 0.01}], 1.25) and not bp.coherent([], 1.0)
+
+
+def test_precos_colunares_ida_e_volta():
+    import common
+    rows = [{'time': '2026-10-28', 'open': 1.0, 'high': 2.0, 'low': 0.5, 'close': 1.5, 'volume': 10},
+            {'time': '2026-10-29', 'open': 1.5, 'high': 1.6, 'low': 1.4, 'close': 1.55, 'volume': 0}]
+    p = common.pack_prices(rows)
+    assert p == {'t': ['2026-10-28', '2026-10-29'], 'o': [1.0, 1.5], 'h': [2.0, 1.6], 'l': [0.5, 1.4], 'c': [1.5, 1.55], 'v': [10, 0]}
+    assert common.unpack_prices(p) == rows and common.unpack_prices(rows) == rows   # formato antigo (artefato anterior) continua lido

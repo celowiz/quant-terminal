@@ -6,7 +6,7 @@ import { TICKERS } from '../lib/universe'
 import { displayTicker } from '../lib/activeTicker.mjs'
 
 const META = new Map(TICKERS.map(m => [m.ticker.toUpperCase(), m]))
-export const CLASS_ORDER = ['br_equity', 'us_equity', 'index', 'etf', 'commodity', 'crypto', 'fx'] as const
+export const CLASS_ORDER = ['br_equity', 'fii', 'bdr', 'us_equity', 'index', 'etf', 'commodity', 'crypto', 'fx'] as const
 const MAX_RESULTS = 60
 const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
 
