@@ -135,6 +135,13 @@ def build_us_fund(g):
         for e, v in pl[i].items(): F['net'][i].setdefault(e, v - nci[i].get(e, 0))
     eqt, mi = inst(g, ['StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest']), I['minority']
     for e, v in eqt.items(): I['equity'].setdefault(e, v - mi.get(e, 0))   # PL do controlador = PL total − não controladores
+    # D&A quando a empresa não usa um conceito agregado (ex.: Microsoft, Oracle, AbbVie, Broadcom): depreciação + amortização
+    # de intangíveis, só nos períodos em que as DUAS parcelas foram publicadas
+    dep, amo = flow(g, ['Depreciation']), flow(g, ['AmortizationOfIntangibleAssets'])
+    da_der = (set(), set())
+    for i in (0, 1):
+        for e, v in dep[i].items():
+            if e not in F['da'][i] and e in amo[i]: F['da'][i][e] = v + amo[i][e]; da_der[i].add(e)
     epsA, epsQ = flow(g, EPS, 'USD/shares', derive=False)   # LPA não se subtrai (a média de ações muda)
     ends_a = sorted(set(F['revenue'][0]) | set(F['net'][0]))[-6:]
     ends_q = sorted(set(F['revenue'][1]) | set(F['net'][1]))[-12:]
@@ -143,6 +150,7 @@ def build_us_fund(g):
         for k in FLOW: r[k] = clean(F[k][i].get(e), 0)
         for k in INST: r[k] = clean(I[k].get(e), 0)
         r['eps'] = clean(eps.get(e), 4)
+        if e in da_der[i]: r['da_derived'] = True
         for k in ('capex', 'buyback', 'divpaid'):                    # saídas de caixa em negativo, como na CVM
             if r[k] is not None: r[k] = -r[k]
         if r['ebit'] is None and r['pretax'] is not None and r['interest'] is not None:

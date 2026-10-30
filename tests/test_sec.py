@@ -92,3 +92,16 @@ def test_profitloss_minus_nci_and_debt_needs_long_term_part():
     r = bs.build_us_fund(g)['annual'][-1]
     assert r['net'] == 100
     assert r['debt'] is None and r['netdebt'] is None   # só a parcela corrente: dívida não é inventada
+
+
+def test_da_from_components_when_no_combined_tag():
+    import build_sec as bs
+    def F(v, s='2025-07-01', e='2026-06-30'): return {'units': {'USD': [{'start': s, 'end': e, 'val': v, 'form': '10-K', 'filed': '2026-07-30'}]}}
+    g = {'Revenues': F(300), 'OperatingIncomeLoss': F(120), 'NetIncomeLoss': F(100), 'Depreciation': F(20), 'AmortizationOfIntangibleAssets': F(5)}
+    r = bs.build_us_fund(g)['annual'][-1]
+    assert r['da'] == 25 and r['ebitda'] == 145 and r.get('da_derived')
+    g2 = dict(g); g2.pop('AmortizationOfIntangibleAssets')
+    r2 = bs.build_us_fund(g2)['annual'][-1]
+    assert r2['da'] is None and r2['ebitda'] is None          # só uma parcela: não inventa D&A
+    g3 = dict(g); g3['DepreciationDepletionAndAmortization'] = F(30)
+    assert bs.build_us_fund(g3)['annual'][-1]['da'] == 30   # conceito agregado vence
