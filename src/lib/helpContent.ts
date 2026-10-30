@@ -282,4 +282,32 @@ export const HELP: Record<string, HelpDoc> = {
       { tex: R`\Delta_i = 100\,\frac{Q_{i,t} - Q_{i,t-1}}{Q_{i,t-1}}`, en: 'Change in shares versus the previous quarter.', pt: 'Variação no número de ações contra o trimestre anterior.' },
     ],
   },
+  FIIM: {
+    en: 'Monitor of Brazilian listed real-estate funds (FIIs). Fund data (net assets, NAV per unit, unitholders, monthly dividend yield, segment, administrator) come from the monthly report every FII files with CVM, published as open data; price and trading value are the official B3 close (COTAHIST). Only funds with net assets above R$ 50 million and average daily trading above R$ 50 thousand over the last month of sessions are listed. P/NAV below 1 means the market price is under the book value per unit. The 12-month yield uses distributions derived from the yields reported to CVM, so it is only as accurate as each filing; the segment is the one the administrator declared. Click a fund to see its NAV per unit against today\'s price and the monthly distributions.',
+    pt: 'Monitor dos FIIs listados. Os dados do fundo (PL, valor patrimonial da cota, cotistas, DY do mês, segmento, administrador) vêm do informe mensal que todo FII entrega à CVM, publicado como dado aberto; preço e volume são o fechamento oficial da B3 (COTAHIST). Só entram fundos com PL acima de R$ 50 milhões e giro médio diário acima de R$ 50 mil no último mês de pregões. P/VP abaixo de 1 indica preço de mercado abaixo do valor patrimonial da cota. O DY 12m usa as distribuições derivadas do DY informado à CVM, então é tão preciso quanto cada informe; o segmento é o declarado pelo administrador. Clique num fundo para ver o VP da cota contra o preço de hoje e as distribuições mensais.',
+    formulas: [
+      { tex: R`P/VP = \frac{P}{PL / N_{cotas}}`, en: 'Price over NAV per unit.', pt: 'Preço sobre valor patrimonial da cota.' },
+      { tex: R`d_m = DY_m \times VP_m`, en: 'Distribution per unit in month m, from the yield reported to CVM.', pt: 'Distribuição por cota no mês m, a partir do DY informado à CVM.' },
+      { tex: R`DY_{12m} = 100\,\frac{\sum_{m=1}^{12} d_m}{P}`, en: '12-month yield on today\'s price.', pt: 'DY de 12 meses sobre o preço de hoje.' },
+    ],
+  },
+  FNDS: {
+    en: 'Ranking of Brazilian investment funds from the CVM daily report (unit price, net assets, subscriptions, redemptions and unitholders of every fund class, published as open data). Only open-ended, non-exclusive classes with net assets above R$ 300 million and at least 100 unitholders enter; the 60 largest per CVM class (fixed income, multimarket, equity, FX) are listed. Returns are those of the unit price, net of fees and before income tax. Volatility is annualised from daily log returns over 12 months; maximum drawdown is the worst fall from a previous peak in the same window. Funds of funds and the funds they invest in both appear, so flows across rows may be double-counted.',
+    pt: 'Ranking de fundos de investimento a partir do informe diário da CVM (cota, PL, aplicações, resgates e cotistas de cada classe, publicado como dado aberto). Só entram classes abertas e não exclusivas com PL acima de R$ 300 milhões e pelo menos 100 cotistas; aparecem as 60 maiores de cada classe CVM (renda fixa, multimercado, ações, cambial). Os retornos são da cota, líquidos de taxas e antes do imposto de renda. A volatilidade é anualizada a partir dos retornos log diários de 12 meses; o drawdown máximo é a pior queda a partir de um pico anterior na mesma janela. Fundos de cotas e os fundos em que investem aparecem juntos, então a captação pode ser contada duas vezes entre linhas.',
+    formulas: [
+      { tex: R`r_{t_0,t} = 100\left(\frac{Q_t}{Q_{t_0}} - 1\right)`, en: 'Return of the unit price between two dates.', pt: 'Retorno da cota entre duas datas.' },
+      { tex: R`\sigma = \sqrt{252}\;\operatorname{sd}\!\left(\ln\frac{Q_t}{Q_{t-1}}\right)`, en: 'Annualised volatility (12 months).', pt: 'Volatilidade anualizada (12 meses).' },
+      { tex: R`MDD = 100\,\min_t\left(\frac{Q_t}{\max_{s\le t} Q_s} - 1\right)`, en: 'Maximum drawdown (12 months).', pt: 'Drawdown máximo (12 meses).' },
+      { tex: R`F = \sum_t (S_t - R_t)`, en: 'Net flow over the window: subscriptions S minus redemptions R.', pt: 'Captação líquida na janela: aplicações S menos resgates R.' },
+    ],
+  },
+  BKS: {
+    en: 'Panel of the 40 largest Brazilian prudential conglomerates by total assets, from the central bank\'s IF.data open data (Olinda API, "Summary" report): total assets, credit portfolio, funding, equity, net income, Basel ratio and fixed-asset ratio. IF.data is quarterly and comes out about three months after each quarter ends. Net income is accumulated within each half-year (a March or September figure covers 3 months; June or December, 6), so ROE is annualised accordingly. Segments S1–S5 are the BCB proportional-regulation tiers. The chart shows the Basel ratio and the credit portfolio over the last quarters.',
+    pt: 'Painel dos 40 maiores conglomerados prudenciais do Brasil por ativo total, a partir dos dados abertos do IF.data do Banco Central (API Olinda, relatório "Resumo"): ativo total, carteira de crédito, captações, patrimônio líquido, lucro líquido, índice de Basileia e índice de imobilização. O IF.data é trimestral e sai cerca de três meses depois do fim de cada trimestre. O lucro líquido é acumulado dentro de cada semestre (março ou setembro cobrem 3 meses; junho ou dezembro, 6), por isso o ROE é anualizado conforme o caso. Os segmentos S1–S5 são as faixas da regulação proporcional do BCB. O gráfico mostra o índice de Basileia e a carteira de crédito nos últimos trimestres.',
+    formulas: [
+      { tex: R`ROE = 100\,\frac{LL_{sem}\cdot 12/m}{PL}`, en: 'Annualised ROE; LL = net income accumulated in the half, m = months it covers (3 or 6), PL = equity.', pt: 'ROE anualizado; m = meses acumulados no semestre (3 ou 6).' },
+      { tex: R`IB = 100\,\frac{PR}{RWA}`, en: 'Basel ratio (IB): regulatory capital (PR) over risk-weighted assets (RWA).', pt: 'Índice de Basileia (IB): patrimônio de referência (PR) sobre ativos ponderados pelo risco (RWA).' },
+      { tex: R`g_{cred} = 100\left(\frac{C_t}{C_{t-4}} - 1\right)`, en: 'Credit growth over four quarters.', pt: 'Crescimento do crédito em quatro trimestres.' },
+    ],
+  },
 }
