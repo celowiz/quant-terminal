@@ -18,7 +18,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --test src/lib/analytics.test.mjs"
+    "test": "node --test src/lib/analytics.test.mjs src/lib/activeTicker.test.mjs"
   },
   "type": "module",
   "devDependencies": {

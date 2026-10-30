@@ -1,12 +1,11 @@
 import { FUNCTION_LIST, HOME_COLUMNS, fnName, type FnCategory } from '../constants/functions'
 import { catLabel, t } from '../lib/i18n'
-import { go } from '../lib/static'
-import { navFunction } from '../lib/track'
+import { openFunction } from '../lib/nav'
 
 const Key = ({ c }: { c: string }) => <span className="bg-[#00A8FF] text-black font-bold px-1 rounded">{c}</span>
 
 function HomePage() {
-  const open = (code: string) => { navFunction('list', code || 'HOME'); go(code === '' ? '/' : `/${code.toLowerCase()}`) }
+  const open = (code: string) => openFunction(code, 'list')
   const byCat = (c: FnCategory) => FUNCTION_LIST.filter(f => f.cat === c)
 
   return (
@@ -17,8 +16,7 @@ function HomePage() {
             <h1 className="text-3xl sm:text-4xl font-bold text-bb-accent text-center">{t('home.title')}</h1>
           </div>
           <p className="text-sm sm:text-base leading-7 lg:leading-6 text-slate-100 mt-4 mb-4 lg:mt-2 lg:mb-3 text-left">
-            {t('home.p1')} {t('home.p2a')} <Key c="GP" /> {t('home.p2b')} <Key c="GPC" /> {t('home.p2c')} {t('home.p3')}{' '}
-            <span className="text-[#FFA028]">{t('home.p4')}</span>
+            {t('home.p1')} {t('home.p2a')} <Key c="GP" /> {t('home.p2b')} <Key c="GPC" /> {t('home.p2c')} {t('home.p3')}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3 lg:gap-y-0">
             {HOME_COLUMNS.map((cats, idx) => (
@@ -30,12 +28,14 @@ function HomePage() {
                     </h2>
                     <ul className="list-none space-y-1.5 lg:space-y-0.5 text-sm sm:text-base lg:text-sm lg:[@media(max-height:820px)]:text-[13px] lg:[@media(max-height:820px)]:space-y-0 text-left">
                       {byCat(c).map(f => (
-                        <li key={f.code} className="flex items-baseline">
+                        <li key={f.code}>
                           <button type="button" onClick={() => open(f.code)} aria-label={`${f.code || 'HOME'} — ${fnName(f)}`}
-                            className="mr-2 shrink-0 bg-[#FFA028] text-black font-bold px-1 rounded cursor-pointer hover:bg-[#ffb347] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
-                            {f.code || 'HOME'}
+                            className="group w-full flex items-baseline text-left rounded cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white hover:bg-white/5">
+                            <span className="mr-2 shrink-0 bg-[#FFA028] text-black font-bold px-1 rounded group-hover:bg-[#ffb347] transition-colors duration-200">
+                              {f.code || 'HOME'}
+                            </span>
+                            <span className="text-slate-200 leading-snug lg:[@media(max-height:820px)]:leading-tight group-hover:text-white group-hover:underline group-focus-visible:underline">{fnName(f)}</span>
                           </button>
-                          <span className="text-slate-200 text-left leading-snug lg:[@media(max-height:820px)]:leading-tight">{fnName(f)}</span>
                         </li>
                       ))}
                     </ul>

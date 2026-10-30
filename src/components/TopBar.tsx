@@ -7,7 +7,9 @@ import { isPanelOpen, setPanelOpen } from '../lib/settings'
 import { t } from '../lib/i18n'
 import Header from './Header'
 import TickerSelector from './TickerSelector'
-import { listTickers, tickerMeta, go, pathParts } from '../lib/static'
+import { listTickers, tickerMeta, go, href, pathParts } from '../lib/static'
+import { acceptsTicker, functionPath, inUniverse } from '../lib/activeTicker.mjs'
+import { getActiveTicker, setActiveTicker, UNIVERSE } from '../lib/nav'
 import { navTicker } from '../lib/track'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { fnNameByCode } from '../constants/functions'
@@ -48,12 +50,23 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
 
   useEffect(() => {
     const parts = pathParts()
-    setCurrentCodeFromPath((parts[0] || '').toUpperCase())
-    setCurrentTickerFromPath((parts[1] || '').toUpperCase())
+    const code = (parts[0] || '').toUpperCase()
+    const urlTicker = (parts[1] || '').toUpperCase()
+    const stored = getActiveTicker()
+    if (urlTicker) {
+      // link direto/compartilhado com ticker explícito sempre vence e vira o ativo corrente
+      setActiveTicker(urlTicker)
+    } else if (acceptsTicker(code) && inUniverse(code, stored, UNIVERSE)) {
+      // /fn/ sem ticker numa função de ativo: abre já com o ativo guardado
+      window.location.replace(href(functionPath(code, stored, UNIVERSE)))
+      return
+    }
+    setCurrentCodeFromPath(code)
+    setCurrentTickerFromPath(urlTicker || stored)
   }, [])
 
   useEffect(() => {
-    // Initialize from URL if present
+    // Initialize from URL (ou do ativo guardado)
     if (!functionInput && currentCodeFromPath) {
       setFunctionInput(currentCodeFromPath)
     }
@@ -110,46 +123,30 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
     fetchTickerLogo()
   }, [selectedTicker])
 
-  // Funções de mercado (sem ticker)
-  const NO_TICKER = ['RRG', 'ANB', 'CDIE', 'WEI', 'WFI', 'ECON', 'FX', 'HEAT', 'TOP', 'PORT', 'ALERT', 'NEWS', 'CAL', 'CORR', 'EQS', 'GC', 'ECFC', 'ECST', 'WCRS', 'GLCO', 'MOST', 'BTMM']
-
+  // a navegação (com o ativo corrente) é feita pelo Header via openFunction()
   const handleFunctionEnter = (code: string) => {
     if (onFunctionChange) onFunctionChange(code)
-    if (code === '') {
-      go('/')
-    } else if (code === 'GP') {
-      go('/gp')
-    } else if (code === 'RRG') {
-      go('/rrg')
-    } else if (code === 'ANB') {
-      go('/anb')
-    } else if (code && selectedTicker && !NO_TICKER.includes(code.toUpperCase())) {
-      go(`/${code.toLowerCase()}/${selectedTicker}`)
-    } else if (code) {
-      go(`/${code.toLowerCase()}`)
-    }
   }
 
   const handleTickerSelect = (ticker: string) => {
     setSelectedTicker(ticker)
     setTickerSearch(ticker)
     setFilteredTickers([])
-    navTicker(ticker)
+    setActiveTicker(ticker)
     if (onTickerChange) onTickerChange(ticker)
 
-    const effectiveCode = (functionInput || currentCodeFromPath).toUpperCase()
-    if (effectiveCode === 'GP') {
-      go(`/gp/${ticker}`)
-    } else if (effectiveCode) {
-      go(`/${effectiveCode.toLowerCase()}/${ticker}`)
+    const effectiveCode = currentCodeFromPath.toUpperCase()
+    if (acceptsTicker(effectiveCode)) {
+      navTicker(ticker)
+      go(`/${effectiveCode.toLowerCase()}/${encodeURIComponent(ticker)}/`)
     }
   }
 
   // Determinar se o ticker selector deve estar desabilitado
   const isTickerDisabled = () => {
-    const effectiveCode = (functionInput || currentCodeFromPath).toUpperCase()
-    // Páginas que não precisam de ticker
-    return NO_TICKER.includes(effectiveCode)
+    const effectiveCode = currentCodeFromPath.toUpperCase()
+    // Funções sem ativo (a home continua aceitando a escolha do ativo)
+    return effectiveCode !== '' && !acceptsTicker(effectiveCode)
   }
 
   return (
@@ -173,6 +170,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
             tickerLogo={tickerLogo}
             onTickerSelect={handleTickerSelect}
             disabled={isTickerDisabled()}
+            disabledHint={t('hdr.tickerUnused')}
           />
         </div>
         <div className="flex-1 h-10 max-lg:h-11 max-lg:pr-3 border-0 flex items-center justify-end pr-4" style={{ backgroundImage: 'linear-gradient(to right, #8E0D0D, #4D0A0A)' }}>
