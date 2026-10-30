@@ -90,6 +90,9 @@ const EN = {
   'cal.irSite': 'IR site',
   'cal.withDate': 'companies with a date',
   'cal.showAll': 'show all',
+  'cal.hidePanel': 'Hide details panel',
+  'cal.showPanel': 'Show details panel',
+  'cal.close': 'Close',
 }
 type Key = keyof typeof EN
 
@@ -180,6 +183,9 @@ const PT: Record<Key, string> = {
   'cal.irSite': 'site de RI',
   'cal.withDate': 'empresas com data',
   'cal.showAll': 'ver todas',
+  'cal.hidePanel': 'Recolher painel de detalhes',
+  'cal.showPanel': 'Mostrar painel de detalhes',
+  'cal.close': 'Fechar',
 }
 
 export function t(k: Key): string { return (lang() === 'pt' ? PT : EN)[k] }

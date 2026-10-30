@@ -1,7 +1,7 @@
 'use client'
 /** CAL v2 — calendário de resultados do Ibovespa (sites de RI checados todo dia; reserva CVM). Só dados reais: "—" quando falta. */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, PanelRightClose, PanelRightOpen, X } from 'lucide-react'
 import { FnScreen, Grid, type Col, Loading, C, dBR, dBRfull, useJSON, useDesktop, useFitH } from '../../components/fn/kit'
 import { t } from '../../lib/i18n'
 import { lang } from '../../lib/settings'
@@ -110,6 +110,49 @@ function Cards({ rows, size, sel, onPick, onMore, all, gap = 4 }: { rows: CalRow
   )
 }
 
+
+/** colunas por dia: até 6 empresas → 1; 7–12 → 2; mais → 3 */
+export const dayCols = (n: number) => (n <= 6 ? 1 : n <= 12 ? 2 : 3)
+
+/** card fluido do dia: preenche a célula; horizontal (logo + ticker + nome) quando largo, vertical quando estreito.
+ *  plain = exportação/captura: borda neutra, sem indicação de status. */
+function DayCard({ r, w, h, sel, onPick, plain }: { r: CalRow; w: number; h: number; sel?: boolean; onPick?: (r: CalRow) => void; plain?: boolean }) {
+  const st = plain ? C.line : r.status ? ST_COLOR[r.status] : C.line
+  const horiz = w >= h * 2.1
+  const logo = Math.max(20, Math.floor(horiz ? Math.min(h - 10, w * 0.32, 88) : Math.min(h - Math.max(14, h * 0.2) - 10, w - 12, 88)))
+  const fs = Math.max(10, Math.min(18, Math.round(logo * (horiz ? 0.3 : 0.26))))
+  return (
+    <button type="button" data-cal-card="" onClick={() => onPick && onPick(r)} title={`${r.ticker} · ${r.name}${plain ? '' : ' · ' + (r.status ? t(`cal.st.${r.status}` as any) : '—')}`}
+      className={`flex ${horiz ? 'flex-row justify-start px-2 gap-2' : 'flex-col justify-center gap-[3px]'} items-center border hover:bg-[#1a1205] min-w-0 overflow-hidden`}
+      style={{ width: '100%', height: h, borderColor: sel ? C.white : st, borderStyle: !plain && r.status === 'expected' ? 'dashed' : 'solid', background: sel ? '#1a1205' : '#080808' }}>
+      <Logo r={r} size={logo} />
+      <span className={`min-w-0 flex flex-col ${horiz ? 'items-start' : 'items-center'} leading-tight`}>
+        <span className="font-bold" style={{ fontSize: fs, color: !plain && r.status === 'released' ? C.up : C.white }}>{r.ticker}</span>
+        {horiz && <span className="truncate max-w-full" style={{ fontSize: Math.max(10, fs - 4), color: C.muted }}>{r.name}</span>}
+      </span>
+    </button>
+  )
+}
+
+/** empresas de um dia num grid de 1–3 colunas; os cards crescem para preencher a célula e, se não couberem, a célula rola */
+function DayCards({ rows, sel, onPick, plain, minH = 54, fixedH }: { rows: CalRow[]; sel?: string | null; onPick?: (r: CalRow) => void; plain?: boolean; minH?: number; fixedH?: number }) {
+  const { ref, w, h } = useBox<HTMLDivElement>()
+  const gap = 4, cols = dayCols(rows.length), nRows = Math.ceil(rows.length / cols)
+  const slots = cols === 1 ? Math.max(nRows, 4) : nRows
+  const cw = w ? (w - gap * (cols - 1)) / cols : 0
+  const fit = h ? (h - gap * (slots - 1)) / slots : minH
+  const ch = fixedH ?? Math.floor(Math.max(minH, Math.min(fit, cols === 1 ? 110 : cw * 1.1, 140)))
+  return (
+    <div ref={ref} className="h-full min-h-0 overflow-y-auto fn-strip">
+      {(w > 0 || fixedH) && (
+        <div className="grid content-start" style={{ gap, gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+          {rows.map(r => <DayCard key={r.ticker} r={r} w={cw || 120} h={ch} sel={sel === r.ticker} onPick={onPick} plain={plain} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Detail({ r }: { r: CalRow | null }) {
   if (!r) return <div className="text-[12px] p-2" style={{ color: C.muted }}>{t('cal.pick')}</div>
   const kv = (k: string, v: React.ReactNode) => <div className="flex justify-between gap-2 py-[2px] border-b" style={{ borderColor: '#1c1c1c' }}><span style={{ color: C.muted }}>{k}</span><span className="text-right">{v}</span></div>
@@ -147,7 +190,7 @@ function WeekBoard({ mon, byDate, sel, onPick, exporting }: { mon: string; byDat
         {days.map(d => (
           <div key={d} className="border" style={{ borderColor: d === today ? C.amber : C.line }}>
             {head(d)}
-            {list(d).length > 0 && <div className="p-2"><Cards rows={list(d)} size={44} sel={sel} onPick={onPick} all /></div>}
+            {list(d).length > 0 && <div className="p-2"><DayCards rows={list(d)} sel={sel} onPick={onPick} fixedH={dayCols(list(d).length) === 1 ? 56 : 78} /></div>}
           </div>
         ))}
       </div>
@@ -157,8 +200,8 @@ function WeekBoard({ mon, byDate, sel, onPick, exporting }: { mon: string; byDat
       {days.map((d, i) => (
         <div key={d} className={i ? 'border-l' : ''} style={{ borderColor: C.line }}>
           {head(d)}
-          <div className="p-1 border-t" style={{ borderColor: C.line, height: exporting ? undefined : bodyH, minHeight: exporting ? 330 : undefined }}>
-            <Cards rows={list(d)} size={exporting ? 56 : 48} sel={exporting ? null : sel} onPick={onPick} all={exporting} />
+          <div className="p-1 border-t" style={{ borderColor: C.line, height: exporting ? 640 : bodyH }}>
+            <DayCards rows={list(d)} sel={exporting ? null : sel} onPick={onPick} plain={exporting} minH={exporting ? 40 : 54} />
           </div>
         </div>
       ))}
@@ -193,6 +236,8 @@ function MonthView({ month, byDate, onDay }: { month: string; byDate: Map<string
   )
 }
 
+const PANEL_KEY = 'qt.cal.panel'
+
 export function CALView() {
   const { data, err } = useJSON<CalData>('calendar.json')
   const [tab, setTab] = useState(0)
@@ -200,6 +245,11 @@ export function CALView() {
   const [month, setMonth] = useState<string | null>(null)
   const [sel, setSel] = useState<CalRow | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [panel, setPanel] = useState(true)
+  useEffect(() => { try { if (localStorage.getItem(PANEL_KEY) === '0') setPanel(false) } catch { /* sem storage */ } }, [])
+  const togglePanel = () => setPanel(p => { try { localStorage.setItem(PANEL_KEY, p ? '0' : '1') } catch { /* sem storage */ } return !p })
+  const [modal, setModal] = useState(false)
+  const pick = (r: CalRow) => { setSel(r); if (!panel) setModal(true) }
   const board = useRef<HTMLDivElement | null>(null)
   const desk = useDesktop()
   const byDate = useMemo(() => {
@@ -218,7 +268,7 @@ export function CALView() {
     if (!board.current) return
     setExporting(true); toast(t('cal.exporting'), 8000)
     try {
-      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+      await new Promise<void>(r => window.setTimeout(r, 350))
       const { domToBlob } = await import('modern-screenshot')
       const blob = await domToBlob(board.current, { scale: 2, backgroundColor: '#000000' })
       if (!blob) throw new Error('empty')
@@ -239,13 +289,16 @@ export function CALView() {
       <span className="font-bold" style={{ color: C.white }}>{tab === 1 ? monthName(curMonth + '-01') : weekLabel(curMon)}</span>
       <button type="button" aria-label="next" className={btn} style={{ borderColor: C.line, color: C.amber }} onClick={() => nav(1)}><ChevronRight className="w-4 h-4" /></button>
       <button type="button" className={btn + ' px-2'} style={{ borderColor: C.line, color: C.amber }} onClick={() => { setMon(null); setMonth(null) }}>{t('cal.today')}</button>
+      {tab === 0 && <button type="button" className={btn + ' px-1'} style={{ borderColor: C.line, color: C.amber }} onClick={togglePanel} data-capture-hide=""
+        aria-pressed={panel} aria-label={t(panel ? 'cal.hidePanel' : 'cal.showPanel')} title={t(panel ? 'cal.hidePanel' : 'cal.showPanel')}>
+        {panel ? <PanelRightClose className="w-4 h-4" aria-hidden /> : <PanelRightOpen className="w-4 h-4" aria-hidden />}</button>}
       {tab === 0 && <button type="button" className={btn + ' gap-1 px-2'} style={{ borderColor: C.amber, color: C.amber }} onClick={exportPng} aria-label={t('cal.export')} title={t('cal.export')} data-capture-hide=""><Download className="w-3.5 h-3.5" aria-hidden /><span className="max-lg:hidden">{t('cal.export')}</span></button>}
     </>
   )
   const asOf = `${t('cal.asOf')} ${asOfLabel(data.generated_at)} · ${data.quarter} ${t('cal.season')} · ${nDated}/${data.rows.length} ${t('cal.withDate')}`
   const legend = (
     <div className="flex flex-wrap items-center gap-2 text-[11px]" style={{ color: C.muted }}>
-      {(['expected', 'confirmed', 'released'] as const).map(s => <Status key={s} s={s} />)}
+      {(['expected', 'confirmed', 'released'] as const).map(s => <span key={s} data-capture-hide=""><Status s={s} /></span>)}
       <span className="ml-auto lg:hidden">{asOf}</span>
     </div>
   )
@@ -271,25 +324,33 @@ export function CALView() {
           <div className="flex gap-2 max-lg:flex-col">
             <div ref={board} className="relative flex-1 min-w-0" style={exporting ? { width: 1600, minWidth: 1600, background: '#000', padding: 20 } : undefined}>
               {exporting && <div className="flex items-baseline justify-between mb-3"><span className="text-[24px] font-bold" style={{ color: C.amber }}>{t('cal.title')} · {data.quarter}</span><span className="text-[18px] font-bold" style={{ color: C.white }}>{weekLabel(curMon)}</span></div>}
-              <WeekBoard mon={curMon} byDate={byDate} sel={sel?.ticker ?? null} onPick={setSel} exporting={exporting} />
+              <WeekBoard mon={curMon} byDate={byDate} sel={sel?.ticker ?? null} onPick={pick} exporting={exporting} />
               {!nWeek && <div className="text-[12px] mt-1" style={{ color: C.muted }}>{t('cal.noEvents')}</div>}
               {!exporting && undated.length > 0 && (
                 <div className="mt-2 border flex items-center gap-2 p-1 max-lg:flex-col max-lg:items-start" style={{ borderColor: C.line }}>
                   <span className="px-1 text-[12px] font-bold whitespace-nowrap" style={{ color: C.amber }}>{t('cal.none')} · {undated.length}</span>
-                  <div className="flex flex-wrap gap-1">{undated.map(r => <Card key={r.ticker} r={r} size={desk ? 28 : 40} sel={sel?.ticker === r.ticker} onPick={setSel} />)}</div>
+                  <div className="flex flex-wrap gap-1">{undated.map(r => <Card key={r.ticker} r={r} size={desk ? 28 : 40} sel={sel?.ticker === r.ticker} onPick={pick} />)}</div>
                 </div>
               )}
               {exporting && <>
                 <div className="flex items-center gap-2 mt-3 text-[12px]" style={{ color: C.muted }}>
-                  {(['expected', 'confirmed', 'released'] as const).map(s => <Status key={s} s={s} />)}
-                  <span className="ml-2">{asOf}</span><span className="ml-auto">{t('fn.edu')}</span>
+                  <span>{asOf}</span><span className="ml-auto">{t('fn.edu')}</span>
                 </div>
                 <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center" style={{ opacity: 0.07 }}>
                   <span className="text-[200px] font-bold" style={{ color: C.white, transform: 'rotate(-12deg)' }}>celowiz</span></div>
                 <div className="text-right text-[14px] font-bold mt-1" style={{ color: C.amber }}>celowiz · quant-terminal</div>
               </>}
             </div>
-            {(desk || sel) && <div className="border lg:w-[260px] shrink-0" style={{ borderColor: C.line, background: C.panel }}><Detail r={sel} /></div>}
+            {panel && (desk || sel) && <div data-cal-panel="" className="border lg:w-[260px] shrink-0" style={{ borderColor: C.line, background: C.panel }}><Detail r={sel} /></div>}
+          </div>
+        )}
+        {modal && sel && !panel && (
+          <div data-capture-hide="" className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70" onClick={() => setModal(false)}>
+            <div role="dialog" aria-modal="true" aria-label={sel.ticker} className="relative border w-[min(92vw,360px)]" style={{ borderColor: C.amber, background: C.panel }} onClick={e => e.stopPropagation()}
+              onKeyDown={e => { if (e.key === 'Escape') setModal(false) }}>
+              <button type="button" autoFocus aria-label={t('cal.close')} className="absolute right-1 top-1 hover:text-white" style={{ color: C.amber }} onClick={() => setModal(false)}><X className="w-4 h-4" /></button>
+              <Detail r={sel} />
+            </div>
           </div>
         )}
         {tab === 1 && <MonthView month={curMonth} byDate={byDate} onDay={d => { setMon(mondayOf(d)); setTab(0) }} />}
