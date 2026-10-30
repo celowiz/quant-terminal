@@ -111,7 +111,7 @@ def build_cot():
     obj = build_cot_obj(r.json())
     obj.update({'generated_at': now_iso(),
                 'source': 'CFTC Commitments of Traders, Legacy report, futures only (publicreporting.cftc.gov, dataset 6dca-aqww)',
-                'note': 'Positions as of Tuesday, released by the CFTC on Friday (3:30 pm ET). Speculators = non-commercial traders; hedgers = commercial; small = non-reportable. Net = long − short, in contracts. COT index = where the net sits between its 3-year low (0) and high (100).'})
+                'note': 'Positions as of Tuesday, released on Friday (3:30 pm ET). Speculators = non-commercial traders; hedgers = commercial; small = non-reportable. Net = long − short, in contracts. COT index = where the net sits between its 3-year low (0) and high (100).'})
     save('cot.json', obj)
 
 # =====================================================================================

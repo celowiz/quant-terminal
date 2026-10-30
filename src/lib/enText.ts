@@ -7,7 +7,7 @@ const MAP: Record<string, string> = {
   'R$ mi': 'R$ mn',
   'Valor de mercado ≈ preço da classe × total de ações ex-tesouraria (aproximação quando ON e PN têm preços diferentes). DY = proventos pagos nos últimos 12 meses ÷ preço.': 'Market cap ≈ class price × shares outstanding ex-treasury (approximation when ON and PN trade at different prices). DY = distributions paid over the last 12 months ÷ price.',
   'CVM – DFP/ITR (resultado 12m = soma dos 4 últimos trimestres; balanço do último ITR), FCA (ticker→CNPJ), composição do capital; B3 – carteira do IBOV; Yahoo Finance – preço, volume, proventos 12m': 'CVM – DFP/ITR (12m earnings = sum of the last 4 quarters; balance sheet from the latest ITR), FCA (ticker→CNPJ), capital breakdown; B3 – IBOV portfolio; Yahoo Finance – price, volume, 12m distributions',
-  'Demonstrações consolidadas (CVM DFP/ITR). 4º trimestre = anual − 9 meses acumulados. EBITDA = EBIT + D&A da DFC (método indireto).': 'Consolidated statements (CVM DFP/ITR). 4th quarter = annual − 9-month year-to-date. EBITDA = EBIT + D&A from the cash-flow statement (indirect method).',
+  'Demonstrações consolidadas (DFP/ITR). 4º trimestre = anual − 9 meses acumulados. EBITDA = EBIT + D&A da DFC (método indireto).': 'Consolidated statements (DFP/ITR). 4th quarter = annual − 9-month year-to-date. EBITDA = EBIT + D&A from the cash-flow statement (indirect method).',
   // países / regiões
   'Estados Unidos': 'United States', 'Alemanha': 'Germany', 'Japão': 'Japan', 'Reino Unido': 'United Kingdom', 'França': 'France',
   'Itália': 'Italy', 'Canadá': 'Canada', 'Espanha': 'Spain', 'Coreia do Sul': 'South Korea', 'México': 'Mexico', 'Suíça': 'Switzerland',

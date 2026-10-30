@@ -150,7 +150,7 @@ def build_fund(cnpj, st, bank):
     A = [fmt(annual[k], k) for k in sorted(annual)]
     Q = [fmt(q[k], k) for k in sorted(q)][-16:]
     return {'annual': A, 'quarterly': Q, 'currency': 'BRL', 'unit': 'R$', 'bank_format': bank,
-            'note': 'Demonstrações consolidadas (CVM DFP/ITR). 4º trimestre = anual − 9 meses acumulados. EBITDA = EBIT + D&A da DFC (método indireto).'}
+            'note': 'Demonstrações consolidadas (DFP/ITR). 4º trimestre = anual − 9 meses acumulados. EBITDA = EBIT + D&A da DFC (método indireto).'}
 
 def fix_share_units(o, ref=None):
     # O formulário da CVM não traz a unidade: algumas companhias (ex.: VALE, ITAÚ) informam a composição do capital
@@ -245,7 +245,7 @@ def unit_equiv(t, shares, off):
         if q and not px: return None
         if q: mc += q * px['close']
     return {'equiv': clean(mc / u['close'], 0), 'equiv_date': u['time'],
-            'note': f'Unit: ações equivalentes = (P {root}3 × ON + P {root}4 × PN) / P {t[:-3]} (B3 COTAHIST {u["time"]})'}
+            'note': f'Unit: ações equivalentes = (P {root}3 × ON + P {root}4 × PN) / P {t[:-3]} (fechamentos oficiais de {u["time"]})'}
 
 def corp():
     cad = pd.read_csv(cached(f'{CVM}/CAD/DADOS/cad_cia_aberta.csv', 'cad_cia_aberta.csv', 20), sep=';', encoding='latin1', dtype=str)
