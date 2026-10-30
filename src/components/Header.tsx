@@ -3,8 +3,8 @@ import { useState, useRef, useEffect } from 'react'
 import { FUNCTION_LIST, fnName } from '../constants/functions'
 import { t } from '../lib/i18n'
 import { useDesktop } from './fn/kit'
-import { go, pathParts } from '../lib/static'
-import { navFunction } from '../lib/track'
+import { pathParts } from '../lib/static'
+import { openFunction } from '../lib/nav'
 // Using location-based navigation to stay framework-agnostic
 
 type HeaderProps = {
@@ -51,19 +51,10 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
     setFunctionInput(code)
     setShowAutocomplete(false)
     setHighlightedIndex(-1)
-    navFunction('command', code || 'HOME')
     if (onFunctionEnter) onFunctionEnter(code)
-    if (code === '') {
-      go('/')
-    } else if (code === 'GP') {
-      go('/gp')
-    } else if (code === 'RRG') {
-      go('/rrg')
-    } else if (code === 'ANB') {
-      go('/anb')
-    } else if (code) {
-      go(`/${code.toLowerCase()}`)
-    }
+    // um único destino: a função com o ativo corrente quando ela aceita ativo (antes havia dois go()
+    // seguidos e o segundo, sem ticker, vencia — o ativo se perdia ao trocar GP → GPC)
+    openFunction(code, 'command')
   }
 
   const [pageTitle, setPageTitle] = useState(() => fnName(FUNCTION_LIST[0]))

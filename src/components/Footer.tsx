@@ -20,7 +20,9 @@ export default function Footer() {
   const stamp = data?.generated_at ? fmtStamp(data.generated_at) : null
   return (
     <footer className="w-full bg-bb-bg bg-[#0b0c10] text-bb-accent text-[#FFA028] text-center py-4 lg:py-1.5 shrink-0 font-sans font-medium text-base">
-      {t('foot.created')} &copy; <span suppressHydrationWarning>{new Date().getFullYear()}</span> Marcelo Wizenberg. {t('foot.rights')}{' '}
+      <span className="block font-mono text-xs text-[#8a8a8a]">
+        {t('foot.builtBy')} <a className="underline decoration-dotted hover:text-slate-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#8a8a8a]" href="https://celowiz.github.io/" target="_blank" rel="noopener noreferrer">Marcelo Wizenberg</a> · &copy; <span suppressHydrationWarning>{new Date().getFullYear()}</span>
+      </span>
       <span className="block text-xs text-[#8a8a8a] mt-1 lg:mt-0">
         {t('foot.data')} <a className="underline" href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener noreferrer">TradingView Lightweight Charts™</a>
         {stamp && <> · {t('foot.updated')} {stamp}</>}
