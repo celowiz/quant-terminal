@@ -40,6 +40,7 @@ export default function FnChartImpl({ panes, height = 420, log = false, intraday
       handleScroll: { vertTouchDrag: false },
       trackingMode: { exitMode: TrackingModeExitMode.OnTouchEnd },
     })
+    let maxPts = 0
     panes.forEach((p, pi) => {
       p.series.forEach(s => {
         const priceFormat = fmt(s.decimals ?? 2, s.pct)
@@ -56,6 +57,7 @@ export default function FnChartImpl({ panes, height = 420, log = false, intraday
           for (const d of s.data as any[]) { if (d && d.time != null && (d.value === undefined ? d.close != null : d.value != null && Number.isFinite(d.value))) m.set(d.time, d) }
           const arr = Array.from(m.values()).sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
           ser.setData(arr as any)
+          maxPts = Math.max(maxPts, arr.length)
         }
         s.lines?.forEach(l => ser.createPriceLine({ price: l.price, color: l.color || tc('#777'), lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: l.title || '' }))
         if (s.markers?.length) createSeriesMarkers(ser, s.markers.map(m => ({ time: m.time, position: m.position || 'aboveBar', color: m.color || C.amber, shape: m.shape || 'arrowDown', text: m.text })) as any)
@@ -63,6 +65,8 @@ export default function FnChartImpl({ panes, height = 420, log = false, intraday
     })
     const ps = chart.panes()
     panes.forEach((p, i) => ps[i] && p.stretch && ps[i].setStretchFactor(p.stretch))
+    // séries curtas (ex.: 5 anos de receita): sem a folga à direita de 3 barras, que ocupava ~40% do gráfico
+    if (maxPts > 0 && maxPts < 40) chart.timeScale().applyOptions({ rightOffset: 0 })
     chart.timeScale().fitContent()
     return () => chart.remove()
   }, [panes, log, active])
