@@ -48,8 +48,13 @@ test('universo ampliado: tickers.json com mínimo de ativos e classes; funções
     assert.ok(inUniverse('GPC', tk, all), tk)
     assert.ok(!inUniverse('DES', tk, all), tk)
   }
-  const corp = d.tickers.filter(t => t.corp).map(t => t.ticker).sort()
+  // o universo das funções corporativas vem do `cov` que o pipeline grava (no CI o tickers.json é o gerado, com todas as ações com dados)
+  const m = await import('./activeTicker.mjs')
+  m.registerCoverage(d.tickers)
+  const corp = d.tickers.filter(t => t.corp).map(t => t.ticker.toUpperCase()).sort()
+  assert.ok(corp.length >= 6, `só ${corp.length} ações com dados corporativos`)
   assert.deepEqual([...FUNCTION_UNIVERSE.DES].sort(), corp)
+  m.registerCoverage([{ ticker: 'X' }])                         // volta ao núcleo fixo para os demais testes
   assert.equal(functionPath('GPC', 'I0.DCE', all), '/gpc/I0.DCE/')
   assert.equal(functionPath('DES', 'GOOGL', all), '/des/')
 })
