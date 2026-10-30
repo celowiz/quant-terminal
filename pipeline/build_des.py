@@ -154,6 +154,19 @@ def fii_records(tickers, geral, comp, reg, months=24, cnpj_by_root=None):
         })
     return out
 
+FII_B3_SECS = 90   # teto para o CNPJ via B3 dos poucos FIIs sem ISIN no informe (o proxy da B3 às vezes não responde)
+
+def _b3_fii_cnpjs(miss):
+    alt = {}
+    ids = {r['acronym'].strip().upper(): r['id'] for r in b3_fund_list('FII') if r.get('acronym')}
+    for a in miss:
+        if a in ids:
+            try:
+                d = b3_fund_detail(ids[a], 'FII')
+                if d and digits(d.get('cnpj')).strip('0'): alt[a] = digits(d['cnpj']).zfill(14)
+            except Exception as e: print('  B3 FII', a, e)
+    return alt
+
 def build_fii(reg):
     T = universe('fii')
     y = time.localtime().tm_year
@@ -162,21 +175,19 @@ def build_fii(reg):
         try: G.append(_inf(yr, 'geral')); C.append(_inf(yr, 'complemento'))
         except Exception as e: print('  inf_mensal', yr, e)
     geral = pd.concat(G)
-    have = set(geral.Codigo_ISIN.fillna('').str.extract(r'^BR([A-Z0-9]{4})CTF', expand=False).dropna())
-    miss = [t[:4] for t in T if t[:4] not in have]
-    alt = {}
+    comp = pd.concat(C)
+    # 1º os FIIs casados pelo ISIN do informe mensal (mesmos zips do passo fiim, já no cache): gravados já,
+    # para que uma travada da B3 abaixo não derrube o passo inteiro (30/10/2026: 0 FIIs no Actions).
+    recs = fii_records(T, geral, comp, reg)
+    for t, r in recs.items(): put(t, r)
+    miss = [t[:4] for t in T if t not in recs]
     if miss:
         try:
-            ids = {r['acronym'].strip().upper(): r['id'] for r in b3_fund_list('FII') if r.get('acronym')}
-            for a in miss:
-                if a in ids:
-                    try:
-                        d = b3_fund_detail(ids[a], 'FII')
-                        if d and digits(d.get('cnpj')).strip('0'): alt[a] = digits(d['cnpj']).zfill(14)
-                    except Exception as e: print('  B3 FII', a, e)
-        except Exception as e: print('  B3 lista FII', e)
-    recs = fii_records(T, geral, pd.concat(C), reg, cnpj_by_root=alt)
-    for t, r in recs.items(): put(t, r)
+            alt = with_timeout(_b3_fii_cnpjs, FII_B3_SECS, miss)
+            extra = {t: r for t, r in fii_records([t for t in T if t not in recs], geral, comp, reg, cnpj_by_root=alt).items()}
+            for t, r in extra.items(): put(t, r)
+            recs.update(extra)
+        except Exception as e: print('  B3 FII (CNPJ dos sem ISIN):', e)
     print(f'  FII: {len(recs)} de {len(T)}')
     if len(recs) < len(T) // 2: raise RuntimeError(f'FII: só {len(recs)} de {len(T)}')
 
