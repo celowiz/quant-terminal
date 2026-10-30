@@ -1,11 +1,12 @@
 'use client'
 import { tc } from '../../lib/themeRuntime'
 import React, { useEffect, useMemo, useState } from 'react'
-import { FitBox, FnScreen, Panel, Grid, Btns, Field, KV, Loading, NA, C, nf, pf, big, dBR, dBRfull, clr, short, useJSON, corpPath, hasData, inputCls, inputStyle, isoMinus } from '../../components/fn/kit'
+import { FitBox, FnScreen, Panel, Grid, Btns, Field, KV, Loading, NA, C, nf, pf, big, dBR, dBRfull, clr, short, useJSON, corpPath, hasData, isEquity, inputCls, inputStyle, isoMinus } from '../../components/fn/kit'
 import FnChart, { type PaneDef } from '../../components/fn/FnChart'
 import { usePrices } from './tech'
 import { getJSON, tickerKey } from '../../lib/static'
 import { L, regLabel, regValue, sectorEN, fyEnd, isoDate } from './desLabels'
+import { DESClassView } from './desClasses'
 
 const SRC_CVM = 'CVM Open Data (DFP/ITR, FCA, IPE) + Yahoo Finance (profile, raw price, distributions). Scripts: tools/pipeline/build_corp.py.'
 const SRC_SEC = 'SEC EDGAR (XBRL companyfacts, submissions) + Yahoo Finance (profile, raw price, distributions). Script: pipeline/build_sec.py.'
@@ -46,7 +47,11 @@ function valuation(d: any) {
 }
 
 // ---------------- DES ----------------
+/** DES: ações → perfil corporativo; FIIs, ETFs e BDRs → layout da classe (desClasses). */
 export function DESView({ ticker }: { ticker: string }) {
+  return !isEquity(ticker) && hasData('DES', ticker) ? <DESClassView ticker={ticker} /> : <DESCorp ticker={ticker} />
+}
+function DESCorp({ ticker }: { ticker: string }) {
   const { data: d, err } = useCorp(ticker)
   const { rows } = usePrices(ticker)
   const [tab, setTab] = useState(0)
@@ -88,9 +93,9 @@ export function DESView({ ticker }: { ticker: string }) {
             <KV rows={[[L('Market cap', 'Valor de mercado'), v.mcap != null ? `${$} ${big(v.mcap)}` : '—', C.amber], [us ? L('Shares outstanding', 'Ações em circulação') : L('Shares (ON+PN)', 'Ações (ON+PN)'), big(v.shares, 2)], ['EV', v.ev != null ? `${$} ${big(v.ev)}` : '—'], [`${L('P/E', 'P/L')} (${v.basis})`, nf(v.pe)], [L('P/B', 'P/VP'), nf(v.pb)], [`EV/EBITDA (${v.basis})`, nf(v.evEbitda)], [L('Div. yield 12m', 'Div. yield 12m'), pf(v.dy, 2, false)], [`ROE (${v.basis})`, pf(v.roe, 1, false)], [L('Net margin', 'Margem líquida'), pf(v.margin, 1, false)], [L('Net debt/EBITDA', 'Dív. líq./EBITDA'), nf(v.ndEbitda)], [`${L('Revenue', 'Receita')} ${v.basis}`, v.revLtm != null ? `${$} ${big(v.revLtm)}` : '—'], [`${L('Earnings', 'Lucro')} ${v.basis}`, v.netLtm != null ? `${$} ${big(v.netLtm)}` : '—']]} />
           </Panel>
         </div>}
-        {tab === 1 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-          <Panel title={`${L('Annual revenue', 'Receita anual')} (${$} ${L('bn', 'bi')})`}><FnChart height={300} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.annual.filter((r: any) => r.revenue).map((r: any) => ({ time: r.period, value: r.revenue / 1e9 })), color: C.amber, title: L('Revenue', 'Receita'), decimals: 1 }] }]} /></Panel>
-          <Panel title={`${L('Quarterly net income', 'Lucro líquido trimestral')} (${$} ${L('bn', 'bi')})`}><FnChart height={300} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.quarterly.filter((r: any) => r.net != null).map((r: any) => ({ time: r.period, value: r.net / 1e9, color: r.net >= 0 ? C.up : C.down })), title: L('Earnings', 'Lucro'), decimals: 1 }] }]} /></Panel>
+        {tab === 1 && <div className="grid gap-2 fn-grid pb-4" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <Panel title={`${L('Annual revenue', 'Receita anual')} (${$} ${L('bn', 'bi')})`}><FnChart height={240} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.annual.filter((r: any) => r.revenue).map((r: any) => ({ time: r.period, value: r.revenue / 1e9 })), color: C.amber, title: L('Revenue', 'Receita'), decimals: 1 }] }]} /></Panel>
+          <Panel title={`${L('Quarterly net income', 'Lucro líquido trimestral')} (${$} ${L('bn', 'bi')})`}><FnChart height={240} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.quarterly.filter((r: any) => r.net != null).map((r: any) => ({ time: r.period, value: r.net / 1e9, color: r.net >= 0 ? C.up : C.down })), title: L('Earnings', 'Lucro'), decimals: 1 }] }]} /></Panel>
           <div className="col-span-2"><Panel title={L('Annual summary', 'Resumo anual')}>
             <Grid cols={[{ k: 'period', label: L('Fiscal year', 'Exercício'), fmt: v => v.slice(0, 4) }, { k: 'revenue', label: L('Revenue', 'Receita'), align: 'r', fmt: v => big(v) }, { k: 'ebitda', label: 'EBITDA', align: 'r', fmt: v => big(v) }, { k: 'mge', label: L('EBITDA margin', 'Margem EBITDA'), align: 'r', fmt: v => pf(v, 1, false) }, { k: 'net', label: L('Net income', 'Lucro líquido'), align: 'r', fmt: v => big(v), color: clr }, { k: 'mg', label: L('Net margin', 'Margem líquida'), align: 'r', fmt: v => pf(v, 1, false) }]} rows={ann.map((r: any) => ({ ...r, mg: r.net != null && r.revenue ? (r.net / r.revenue) * 100 : null, mge: r.ebitda != null && r.revenue ? (r.ebitda / r.revenue) * 100 : null }))} />
           </Panel></div>

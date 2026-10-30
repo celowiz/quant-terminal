@@ -255,7 +255,7 @@ export function buildEvents(d: any, cal: any, ticker: string): Ev[] {
 }
 
 export function EVTSView({ ticker }: { ticker: string }) {
-  const ok = hasData('DES', ticker)
+  const ok = hasData('EVTS', ticker)
   const { data: d, err } = useJSON<any>(ok ? corpPath(ticker) : null)
   const { data: cal } = useJSON<any>('calendar.json')
   const { rows: px } = usePrices(ticker)

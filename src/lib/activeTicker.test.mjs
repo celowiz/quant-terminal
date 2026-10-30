@@ -53,7 +53,10 @@ test('universo ampliado: tickers.json com mínimo de ativos e classes; funções
   m.registerCoverage(d.tickers)
   const corp = d.tickers.filter(t => t.corp).map(t => t.ticker.toUpperCase()).sort()
   assert.ok(corp.length >= 6, `só ${corp.length} ações com dados corporativos`)
-  assert.deepEqual([...FUNCTION_UNIVERSE.DES].sort(), corp)
+  // DES: ações (corp) + FIIs, BDRs e ETFs com descrição (des); as demais funções corporativas só nas ações
+  const des = [...new Set([...corp, ...d.tickers.filter(t => (t.cov || []).includes('des')).map(t => t.ticker.toUpperCase())])].sort()
+  assert.deepEqual([...FUNCTION_UNIVERSE.DES].sort(), des)
+  assert.deepEqual([...FUNCTION_UNIVERSE.FUND].sort(), corp)
   m.registerCoverage([{ ticker: 'X' }])                         // volta ao núcleo fixo para os demais testes
   assert.equal(functionPath('GPC', 'I0.DCE', all), '/gpc/I0.DCE/')
   assert.equal(functionPath('DES', 'GOOGL', all), '/des/')
@@ -89,6 +92,8 @@ test('registerCoverage: universo por função vem do cov do tickers.json; sem co
   assert.ok(!m.covers('OMON', 'WEGE3.SA') && m.covers('OMON', 'PETR4.SA') && !m.covers('HDS', 'PETR4.SA'))
   assert.ok(m.covers('GP', 'ANYTHING'))                       // função sem universo próprio
   assert.deepEqual(m.functionUniverse('GIP', ['^BVSP', 'WEGE3.SA']), ['^BVSP'])
+  m.registerCoverage([{ ticker: 'KNRI11.SA', cov: ['des'] }, { ticker: 'PETR4.SA', cov: ['corp'] }])   // DES = corp ∪ des
+  assert.ok(m.covers('DES', 'KNRI11.SA') && !m.covers('FUND', 'KNRI11.SA') && !m.covers('EVTS', 'KNRI11.SA') && m.covers('DES', 'PETR4.SA'))
   m.registerCoverage([{ ticker: 'X' }])                        // seed antigo sem cov
   assert.ok(m.covers('DES', 'PETR4.SA') && !m.covers('DES', 'WEGE3.SA'))
 })
