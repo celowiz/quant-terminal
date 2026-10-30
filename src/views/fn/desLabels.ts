@@ -6,8 +6,8 @@ export const L = (en: string, ptS: string) => (pt() ? ptS : en)
 
 const CVM_KEYS: Record<string, [string, string]> = {
   DENOM_SOCIAL: ['Legal name', 'Razão social'], DENOM_COMERC: ['Trade name', 'Nome comercial'],
-  DT_REG: ['Registered with CVM', 'Registro na CVM'], DT_CONST: ['Founded', 'Data de constituição'],
-  SIT: ['Registration status', 'Situação do registro'], CD_CVM: ['CVM code', 'Código CVM'],
+  DT_REG: ['Registration date', 'Data de registro'], DT_CONST: ['Founded', 'Data de constituição'],
+  SIT: ['Registration status', 'Situação do registro'], CD_CVM: ['Registry code', 'Código de registro'],
   SETOR_ATIV: ['Sector', 'Setor de atividade'], TP_MERC: ['Market', 'Mercado'],
   CATEG_REG: ['Issuer category', 'Categoria de registro'], SIT_EMISSOR: ['Issuer status', 'Situação do emissor'],
   CONTROLE_ACIONARIO: ['Shareholder control', 'Controle acionário'], LOGRADOURO: ['Address', 'Endereço'],

@@ -172,7 +172,7 @@ const S_TAYL = {
   usInfl: [{ v: 'core_pce', l: 'Core PCE' }, { v: 'cpi', l: 'CPI' }], brInfl: [{ v: 'ipca12', l: 'IPCA 12m' }, { v: 'exp12', l: 'Focus IPCA 12m ahead' }],
   usGap: [{ v: 'gap', l: 'CBO output gap' }, { v: 'okun', l: 'Okun (NAIRU − u)' }, { v: 'none', l: 'None' }], brGap: [{ v: 'none', l: 'None' }, { v: 'okun', l: 'Okun (user NAIRU)' }],
   rstarUs: 'Default r* = FOMC longer-run median fed funds − 2%.', rstarBr: 'Default r* = Focus long-run Selic − long-run IPCA (real neutral rate).',
-  unUs: 'US Taylor rule data (FRED did not respond in the last update)', unBr: 'Brazil Taylor rule data',
+  unUs: 'US Taylor rule data (not available in the last update)', unBr: 'Brazil Taylor rule data',
   brGapNote: 'Brazil has no official output gap series in open data; the gap is off by default. Choose Okun and type a NAIRU to include one.',
 }
 export function TAYLView() {
@@ -249,7 +249,7 @@ const S_WB = {
 }
 /** selo de frequência: D = série diária (BC/Tesouro), M = média mensal da OCDE */
 const FreqBadge = ({ f }: { f: string }) => (
-  <span title={f === 'M' ? 'Monthly average (OECD)' : 'Daily'} className="inline-block px-[3px] text-[9px] leading-[12px] border rounded-sm"
+  <span title={f === 'M' ? 'Monthly average' : 'Daily'} className="inline-block px-[3px] text-[9px] leading-[12px] border rounded-sm"
     style={{ color: f === 'M' ? C.yellow : C.muted, borderColor: f === 'M' ? C.yellow : tc('#444') }}>{f === 'M' ? 'M' : 'D'}</span>)
 export function WBView() {
   const { data: d, err } = useJSON<any>('wb.json')
@@ -289,7 +289,6 @@ export function WBView() {
                 ...(['d1', 'w1', 'm1', 'ytd', 'y1'] as const).map(k => ({ k, label: S.c[k], align: 'r' as const, fmt: (x: any) => bps(x, 0), color: (x: any) => cl(x) })),
                 { k: 'avg3m', label: '3M avg', align: 'r', fmt: x => n(x, 3) }, { k: 'date', label: S.c.date, fmt: (x: any, r: any) => r.freq === 'M' ? mLab(x) : dUS(x) },
               ]} />
-              <div className="p-2 text-[11px]" style={{ color: C.muted }}>{S.src}: {s.source}</div>
             </Panel>
           </> : null}
         </div>

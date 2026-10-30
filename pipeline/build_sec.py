@@ -324,7 +324,7 @@ def sec():
         if not fund['quarterly']: print('  sem XBRL us-gaap:', t); continue
         sic = int(sub.get('sic') or 0)
         fund.update({'currency': 'USD', 'unit': 'USD', 'bank_format': sic in FIN_SIC, 'basis': 'consolidated',
-                     'note': 'SEC XBRL (10-K/10-Q), consolidated, US GAAP.'})
+                     'note': 'XBRL (10-K/10-Q), consolidated, US GAAP.'})
         prev = load_prev(f'corp/{key(t)}.json') or {}
         ba = (sub.get('addresses') or {}).get('business') or {}
         o = {'ticker': t, 'cik': cik, 'country': 'US', 'generated_at': now_iso(),

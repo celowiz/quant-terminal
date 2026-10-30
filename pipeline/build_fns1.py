@@ -201,7 +201,7 @@ def build_cbr():
     obj = build_cbr_obj(d, m, TODAY)
     if len(obj['banks']) < 10: raise RuntimeError('BIS: poucos países')
     obj.update({'generated_at': now_iso(), 'source': 'BIS – Central bank policy rates (WS_CBPOL, SDMX API stats.bis.org), daily and monthly end-of-period',
-                'note': 'Policy rate as compiled by the BIS (for some countries a proxy such as the main refinancing or target rate). '
+                'note': 'Policy rate (for some countries a proxy such as the main refinancing or target rate). '
                         'Last move = last change in the daily series (monthly if no daily data). Euro area = ECB.'})
     save('cbr.json', obj)
 
@@ -249,7 +249,7 @@ def build_cryp():
     except Exception as e: print('  defillama falhou:', e)
     obj.update({'generated_at': now_iso(),
                 'source': 'Data provided by CoinGecko (coins/markets, global) · alternative.me Crypto Fear & Greed Index · DefiLlama (DeFi TVL by chain)',
-                'note': 'Prices in USD, snapshot at build time (crypto trades 24/7). TVL = total value locked in DeFi protocols (DefiLlama methodology, excludes double counting by default).'})
+                'note': 'Prices in USD, snapshot at build time (crypto trades 24/7). TVL = total value locked in DeFi protocols (excludes double counting by default).'})
     save('cryp.json', obj)
 
 if __name__ == '__main__':

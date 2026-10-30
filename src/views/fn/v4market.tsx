@@ -42,7 +42,7 @@ export function CDIEView() {
   const first = v.path[0]
   return (
     <FnScreen code="CDIE" title="CDI / Copom expectations implied by DI futures" tabs={['Copom meetings', 'DI1 contracts', 'History']} tab={tab} setTab={setTab}
-      source={d.source} note={<>{en(d.method)} The implied rate is what the market prices in (not a forecast); it includes a risk premium that grows with maturity. Focus = median Selic per meeting (BCB). Implied Selic = implied CDI + current Selic−CDI spread ({nf(d.spread_selic_cdi, 2)} p.p.). Δ meeting vs the previous period; 25 bp = a &quot;standard&quot; cut/hike. Est. only exists up to the last expiry covered by the published Copom calendar. History starts with the sessions available in the B3 Daily Bulletin and grows by one session per day with each pipeline run.</>}>
+      source={d.source} note={<>{en(d.method)} The implied rate is what the market prices in (not a forecast); it includes a risk premium that grows with maturity. Focus = median Selic per meeting from the market survey. Implied Selic = implied CDI + current Selic−CDI spread ({nf(d.spread_selic_cdi, 2)} p.p.). Δ meeting vs the previous period; 25 bp = a &quot;standard&quot; cut/hike. Est. only exists up to the last expiry covered by the published Copom calendar. History starts with the first sessions collected and grows by one session per day with each pipeline run.</>}>
       <div className="mb-2 grid gap-2 text-[12px] fn-kpi" style={{ gridTemplateColumns: 'repeat(6,minmax(0,1fr))' }}>
         {[
           ['Reference date (settlement)', dBRfull(d.ref_date), C.text],
@@ -192,7 +192,7 @@ export function EQSView() {
   const num = (k: keyof Flt, label: string, w = 'w-16', step = 1) => <Field label={label}><input className={inputCls + ' ' + w} style={inputStyle} type="number" step={step} value={(f[k] as number) || ''} placeholder="—" onChange={e => setF({ ...f, [k]: +e.target.value || 0 })} /></Field>
   const exp = () => downloadCSV(`eqs_${s.generated_at?.slice(0, 10)}.csv`, EQ_COLS.map(c => c.label), rows.map(r => EQ_COLS.map(c => r[c.k] ?? null)))
   return (
-    <FnScreen code="EQS" title="Equity Screening – Ibovespa (CVM fundamentals + market)" right={<CsvBtn onClick={exp} />}
+    <FnScreen code="EQS" title="Equity Screening – Ibovespa (fundamentals + market)" right={<CsvBtn onClick={exp} />}
       source={s.source} note={<>{s.note} Fundamentals: last 12 months (sum of 4 quarters) from each company's latest ITR/DFP; equity and debt from the latest balance sheet. Click a header to sort.</>}>
       <div className="mb-2 flex items-center gap-2 lg:hidden">
         <button className="px-3 py-1 text-[12px] border font-bold" style={{ borderColor: drawer ? C.amber : C.line, color: drawer ? tc('#000') : C.amber, background: drawer ? C.amber : C.panel }} onClick={() => setDrawer(!drawer)}>
@@ -249,7 +249,7 @@ export function GCView() {
   const toggle = (k: string) => setCmp(cmp.includes(k) ? cmp.filter(x => x !== k) : [...cmp, k])
   const unit = tab === 2 ? 'Treasury (% p.a.)' : tab === 1 ? (td === 'pre' ? 'Fixed-rate (% p.a.)' : 'IPCA+ (real rate, % p.a.)') : 'DI1 (% p.a.)'
   return (
-    <FnScreen code="GC" title="Yield curves – Brazil and US" tabs={['Brazil – DI1 (B3)', 'Brazil – Tesouro Direto', 'US – Treasuries']} tab={tab} setTab={setTab}
+    <FnScreen code="GC" title="Yield curves – Brazil and US" tabs={['Brazil – DI1', 'Brazil – Tesouro Direto', 'US – Treasuries']} tab={tab} setTab={setTab}
       right={<>{tab === 1 && <Btns opts={[{ v: 'pre', l: 'Fixed-rate' }, { v: 'ipca', l: 'IPCA+' }]} value={td} onChange={setTd} />}<span className="text-[12px]" style={{ color: C.muted }}>Compare:</span>{avail.map(k => <button key={k} onClick={() => toggle(k)} className="px-2 py-[1px] text-[12px] border" style={{ borderColor: COLS[k], color: cmp.includes(k) ? tc('#000') : COLS[k], background: cmp.includes(k) ? COLS[k] : 'transparent' }}>{LBL[k]}</button>)}</>}
       source={tab === 0 ? 'B3 – Daily Bulletin (DI1 settlement rate), via cdie.json' : tab === 1 ? g.td_source : 'FRED – Treasury constant maturity (DGS1MO…DGS30)'}
       note={tab === 0 ? 'X axis in business years (bd/252). DI1 history only covers sessions already collected from the Daily Bulletin; longer comparisons appear as the pipeline accumulates sessions.' : tab === 1 ? 'Zero-coupon bonds (Tesouro Prefixado / Tesouro IPCA+), morning bid rate published by the Treasury; X axis in calendar years to maturity.' : 'Treasury par curve (constant maturity), X axis in years.'}>
@@ -284,7 +284,7 @@ export function ECFCView() {
   const rows = inds.map(k => { const r: any = { k, unit: unitOf(k), date: f.indicators[k].date }; refs.forEach(y => { const s = f.indicators[k].snap?.[y]; r[y] = s?.median; r[y + 'd'] = s && s.w4 != null ? s.median - s.w4 : null }); return r })
   const arrow = (d: number | null) => d == null || Math.abs(d) < 1e-9 ? '' : d > 0 ? ' ▲' : ' ▼'
   return (
-    <FnScreen code="ECFC" title="Economic forecasts – Brazil (Focus / BCB)"
+    <FnScreen code="ECFC" title="Economic forecasts – Brazil (Focus survey)"
       source={f.source} note="Median of the institutions' forecasts in the Focus Report (annual). Arrow = change in the median over the last 4 weeks. Click a row to see the dispersion (mean, std. dev., min, max, no. of respondents) and the median's evolution.">
       <Grid onRow={(r: any) => setSel(r.k)} rowStyle={(r: any) => r.k === sel ? { background: tc('#2a1d08') } : undefined} rows={rows} cols={[
         { k: 'k', label: 'Indicator', color: () => C.amber }, { k: 'unit', label: 'Unit', color: () => C.muted },
@@ -369,9 +369,9 @@ export function ECSTView() {
             { k: 'group', label: 'Country', color: () => C.muted }, { k: 'label', label: 'Indicator', color: () => C.amber }, { k: 'per', label: 'Period' },
             { k: 'last', label: 'Last', align: 'r', fmt: (x, r: any) => nf(x, r.dec), color: () => C.white }, { k: 'prev', label: 'Previous', align: 'r', fmt: (x, r: any) => nf(x, r.dec) },
             { k: 'chg', label: 'Var.', align: 'r', fmt: (x, r: any) => x == null ? '—' : `${x > 0 ? '+' : ''}${nf(x, r.dec)}`, color: x => clr(x) },
-            { k: 'unit', label: 'Unit', color: () => C.muted }, { k: 'spark', label: '24 obs.', fmt: x => <Spark data={x} color={C.amber} /> }, { k: 'src', label: 'Source', color: () => C.muted },
+            { k: 'unit', label: 'Unit', color: () => C.muted }, { k: 'spark', label: '24 obs.', fmt: x => <Spark data={x} color={C.amber} /> },
           ]} />
-        <Panel title={`${cur.label} (${cur.unit}) — ${cur.src}`}>
+        <Panel title={`${cur.label} (${cur.unit})`}>
           <FnChart height={420} panes={[{ series: [{ kind: cur.unit.startsWith('% m') || cur.unit.includes('t/t') || cur.unit === 'thousand' || cur.unit === '%' && cur.label.includes('m/m') ? 'hist' : 'line', data: cur.pts.map(p => ({ time: p[0], value: p[1], color: p[1] >= 0 ? C.amber : C.down })), color: C.amber, title: cur.label, decimals: cur.dec }] }]} />
         </Panel>
       </div>
@@ -424,7 +424,7 @@ export function GLCOView() {
   const cur = rows.find(r => r.ticker === sel) || rows[0]
   return (
     <FnScreen code="GLCO" title="Global commodities – futures (front month)"
-      source={f.source} note="Front-month continuous contract (Yahoo, ticker =F), delayed daily close. Period changes are on the close; 52w = 52-week low/high range. Click a row for the chart.">
+      source={f.source} note="Front-month continuous contract, delayed daily close. Period changes are on the close; 52w = 52-week low/high range. Click a row for the chart.">
       <Grid onRow={(r: any) => setSel(r.ticker)} rowStyle={(r: any) => r.ticker === cur.ticker ? { background: tc('#2a1d08') } : undefined} rows={rows} cols={[
         { k: 'g', label: 'Group', color: () => C.amber }, { k: 'name', label: 'Commodity', color: () => C.white }, { k: 'ticker', label: 'Ticker', color: () => C.muted }, { k: 'exchange', label: 'Exchange', color: () => C.muted }, { k: 'unit', label: 'Unit', color: () => C.muted },
         { k: 'last', label: 'Last', align: 'r', fmt: x => nf(x, x >= 1000 ? 1 : 2), color: () => C.amber }, { k: 'chg', label: 'Var.', align: 'r', fmt: x => nf(x, 2), color: x => clr(x) }, { k: 'pct', label: 'Var.%', align: 'r', fmt: x => pf(x), color: x => clr(x) },

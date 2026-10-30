@@ -2,9 +2,9 @@
 const BP = process.env.NEXT_PUBLIC_BASE_PATH ?? '/quant-terminal'
 // SEO/compartilhamento: URLs absolutas do site publicado (o basePath /quant-terminal já está em SITE)
 const SITE = 'https://celowiz.github.io/quant-terminal/'
-const DESC = 'Terminal financeiro no navegador, com funções no estilo de terminal profissional (gráficos, RRG, curva DI/Copom, demonstrações da CVM, opções, screener) e dados reais de fontes abertas (B3, CVM, BCB, FRED, Yahoo Finance) atualizados todo dia útil. Projeto de Marcelo Wizenberg.'
+const DESC = 'Terminal financeiro no navegador, com funções no estilo de terminal profissional (gráficos, RRG, curva DI/Copom, demonstrações financeiras, opções, screener) e dados reais atualizados todo dia útil. Projeto de Marcelo Wizenberg.'
 const OG_TITLE = 'Quant Terminal · Um terminal financeiro com dados abertos'
-const OG_DESC = 'Gráficos, RRG, curva DI/Copom, demonstrações da CVM, opções e screener de ações da B3, com dados reais atualizados diariamente.'
+const OG_DESC = 'Gráficos, RRG, curva DI/Copom, demonstrações financeiras, opções e screener de ações brasileiras, com dados reais atualizados diariamente.'
 export const metadata = {
   metadataBase: new URL(SITE),
   title: 'Quant Terminal · Terminal financeiro com dados abertos — Marcelo Wizenberg',

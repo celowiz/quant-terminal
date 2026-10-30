@@ -12,10 +12,10 @@ Universo (dinâmico onde há fonte oficial):
 Barra final das ações BR: fechamento oficial do COTAHIST diário da B3 (substitui barra incompleta ou acrescenta o pregão que faltar).
 Fontes: B3 (carteiras, COTAHIST), Yahoo Finance via yfinance (lotes + retry + circuit breaker), Sina Finance (DCE).
 Se uma fonte cair, o arquivo anterior do ticker é mantido (load_prev) e o ticker continua no tickers.json."""
-import base64, io, json, os, re, time
+import base64, io, json, os, re, time, datetime as dt
 import pandas as pd, requests, yfinance as yf
 from common import OUT, now_iso, get_json, get, save, mark_coverage, EQUITIES, pack_prices, unpack_prices
-from cotahist import latest_cotahist, parse, official_closes, apply_official
+from cotahist import latest_cotahist, cotahist_day, parse, official_closes, apply_official, repair_bad_bars
 
 MIN_TICKERS = 200          # o teste e o pipeline falham abaixo disso (proteção contra universo truncado)
 BATCH = 40                 # tickers por chamada ao Yahoo
@@ -267,6 +267,14 @@ def main():
     except Exception as e: print(f'  Sina DCE indisponível ({type(e).__name__})')
     off, off_info = official_bars()
     meta, kept, patched = [], [], {'replaced': 0, 'appended': 0}
+    repaired, day_cache = {}, {}
+    def official_day(d):
+        """barras oficiais de um pregão passado (no máx. 5 arquivos por execução)"""
+        if d not in day_cache:
+            z = cotahist_day(dt.date.fromisoformat(d)) if len(day_cache) < 5 else None
+            try: day_cache[d] = official_closes(parse(z)) if z else {}
+            except Exception: day_cache[d] = {}
+        return day_cache[d]
     for t, m in U.items():
         rows = data.get(t)
         if not rows:
@@ -274,6 +282,9 @@ def main():
             if not rows: print('  sem dados:', t); continue
             kept.append(t)
         mo = {}
+        if t.endswith('.SA'):
+            rows, fx = repair_bad_bars(rows, _prev_rows(t), lambda d, c=t[:-3]: official_day(d).get(c))
+            if fx: repaired[t] = fx
         if t.endswith('.SA') and t[:-3] in off:
             rows, how = apply_official(rows, off[t[:-3]])
             if how: patched[how] += 1
@@ -281,6 +292,7 @@ def main():
         json.dump(pack_prices(rows), open(f'{OUT}/prices/{key(t)}.json', 'w'), separators=(',', ':'))
         meta.append({'ticker': t, 'key': key(t), **m, 'first': rows[0]['time'], 'last': rows[-1]['time'], 'n': len(rows), **mo})
     if off_info: print(f"  COTAHIST {off_info['date']}: {patched['replaced']} barras finais substituídas, {patched['appended']} acrescentadas")
+    if repaired: print(f'  barras com O/H/L corrigidos pelo oficial: {repaired}')
     if kept: print(f'  {len(kept)} tickers mantidos do arquivo anterior: {", ".join(kept[:20])}')
     if len(meta) < MIN_TICKERS: raise RuntimeError(f'universo com {len(meta)} tickers (< {MIN_TICKERS}); tickers.json anterior mantido')
     mark_coverage({m['ticker']: m for m in meta})   # cobertura da execução anterior; o build_coverage atualiza no fim

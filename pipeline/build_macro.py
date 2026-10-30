@@ -258,8 +258,8 @@ def wb():
         add(cc, name, src, {'10Y': s}, 'M')
     if len(countries) < 5: raise RuntimeError(f'só {len(countries)} países')
     save('wb.json', {'generated_at': now_iso(), 'tenors': TENORS, 'countries': countries, 
-                     'note': 'D = daily series published by the central bank / treasury; M = OECD monthly average (1D/1W blank; the latest month is published with a lag of a few weeks). '
-                             'Brazil = local-currency fixed-rate curve from Tesouro Direto rates (retail platform; may lag a few days), not USD bonds.',
+                     'note': 'D = daily series published by the central bank / treasury; M = monthly average (1D/1W blank; the latest month is published with a lag of a few weeks). '
+                             'Brazil = local-currency fixed-rate curve from Tesouro Direto rates (may lag a few days), not USD bonds.',
                      'source': 'US Treasury (FRED fallback), Bank of Canada, Deutsche Bundesbank, Bank of England, MoF Japan, RBA, Tesouro Transparente, OECD SDMX API (FRED fallback)'})
 
 # =====================================================================================
@@ -526,7 +526,7 @@ def tayl():
         p = next((p for p in cd.get('path', []) if p['decision'] == cu[0]['decision']), None)
         if p and p.get('focus'): out['br']['survey'] = {'median': p['focus'].get('median'), 'date': p['focus'].get('date'), 'n': p['focus'].get('n')}
     if 'us' not in out and 'br' not in out: raise RuntimeError('sem dados')
-    out['method'] = ('Taylor = r* + π + α·(π − π*) + β·gap. Gap = output gap (US, CBO) or Okun × (NAIRU − unemployment). '
+    out['method'] = ('Taylor = r* + π + α·(π − π*) + β·gap. Gap = output gap (US) or Okun × (NAIRU − unemployment). '
                      'With inertia ρ: rate = ρ·previous policy rate + (1 − ρ)·Taylor. Parameters are user inputs; defaults follow Taylor (1993): α = β = 0.5.')
     save('tayl.json', out)
 
@@ -827,8 +827,8 @@ def fxfc():
     hist_spot = [[k, v] for k, v in sorted(dict((p[0], p[1]) for p in hist_spot).items())]  # econ.json mixes monthly + daily points
     save('fxfc.json', {'generated_at': now_iso(), 'survey_date': last, 'spot': spot, 'spot_date': spot_date, 'monthly': monthly_rows, 'annual': annual_rows,
                        'spot_hist': hist_spot,
-                       'note': 'Focus = BCB market survey (median of respondents, BRL per USD, monthly average for monthly references / year-end for annual). '
-                               'Forward = theoretical covered-interest-parity value from DI1 (B3) and US Treasury yields; not a traded onshore forward.',
+                       'note': 'Focus = market survey (median of respondents, BRL per USD, monthly average for monthly references / year-end for annual). '
+                               'Forward = theoretical covered-interest-parity value from DI1 and US Treasury yields; not a traded onshore forward.',
                        'source': 'BCB Focus via Olinda (ExpectativaMercadoMensais / ExpectativasMercadoAnuais, indicator Câmbio = BRL/USD); BCB PTAX; B3 DI1; FRED Treasuries'})
 
 # =====================================================================================

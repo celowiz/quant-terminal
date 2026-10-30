@@ -103,7 +103,7 @@ function FII({ d, ticker }: { d: any; ticker: string }) {
         </Panel></div>
       </div>}
       {tab === 2 && <Panel title={L('Registry', 'Cadastro')}>
-        <KV cols={2} rows={[[L('Name', 'Nome'), S(d.name)], ['CNPJ', S(d.cnpj)], ['ISIN', S(d.isin)], [L('Registered with the regulator', 'Registro na CVM'), D(d.registered)],
+        <KV cols={2} rows={[[L('Name', 'Nome'), S(d.name)], ['CNPJ', S(d.cnpj)], ['ISIN', S(d.isin)], [L('Registration date', 'Data de registro'), D(d.registered)],
           [L('Operating since', 'Início de funcionamento'), D(d.start)], [L('Exclusive fund', 'Fundo exclusivo'), ev(d.exclusive)], [L('Administrator', 'Administrador'), S(d.admin)],
           [L('Administrator CNPJ', 'CNPJ do administrador'), S(d.admin_cnpj)], [L('Manager', 'Gestor'), S(d.manager)], [L('Custodian', 'Custodiante'), S(d.custodian)],
           [L('Auditor', 'Auditor'), S(d.auditor)], [L('Officer in charge', 'Diretor responsável'), S(d.director)], [L('City', 'Cidade'), S(d.city)], [L('Website', 'Site'), site(d.site)]]} />
@@ -122,7 +122,7 @@ function ETFBR({ d, ticker }: { d: any; ticker: string }) {
       {tab === 0 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1.3fr 1fr 1fr' }}>
         <Panel title={L('Fund profile', 'Perfil do fundo')}>
           <KV rows={[[L('Name', 'Nome'), S(d.name)], [L('Trading name', 'Nome de pregão'), S(d.trading_name)], ['CNPJ', S(d.cnpj)], [L('Status', 'Situação'), ev(d.status)],
-            [L('Registered with the regulator', 'Registro na CVM'), D(d.registered)], [L('Fiscal year end', 'Fim do exercício social'), dayMonth(d.fy_end)],
+            [L('Registration date', 'Data de registro'), D(d.registered)], [L('Fiscal year end', 'Fim do exercício social'), dayMonth(d.fy_end)],
             [L('Administrator', 'Administrador'), S(d.admin)], [L('Manager', 'Gestor'), S(d.manager)], [L('Custodian', 'Custodiante'), S(d.custodian)], [L('Website', 'Site'), site(d.site)]]} />
         </Panel>
         <PricePanel ticker={ticker} ccy="R$" />
@@ -133,7 +133,7 @@ function ETFBR({ d, ticker }: { d: any; ticker: string }) {
       </div>}
       {tab === 1 && <Panel title={L('Registry', 'Cadastro')}>
         <KV cols={2} rows={[[L('Name', 'Nome'), S(d.name)], [L('Trading name', 'Nome de pregão'), S(d.trading_name)], [L('Class CNPJ', 'CNPJ da classe'), S(d.cnpj)], [L('Fund CNPJ', 'CNPJ do fundo'), S(d.fund_cnpj)],
-          [L('Status', 'Situação'), ev(d.status)], [L('Registered with the regulator', 'Registro na CVM'), D(d.registered)], [L('Adapted to CVM Res. 175', 'Adaptado à Res. CVM 175'), D(d.adapted_175)],
+          [L('Status', 'Situação'), ev(d.status)], [L('Registration date', 'Data de registro'), D(d.registered)], [L('Adapted to CVM Res. 175', 'Adaptado à Res. CVM 175'), D(d.adapted_175)],
           [L('Fiscal year end', 'Fim do exercício social'), dayMonth(d.fy_end)], [L('Administrator', 'Administrador'), S(d.admin)], [L('Administrator CNPJ', 'CNPJ do administrador'), S(d.admin_cnpj)],
           [L('Manager', 'Gestor'), S(d.manager)], [L('Custodian', 'Custodiante'), S(d.custodian)], [L('Auditor', 'Auditor'), S(d.auditor)], [L('Officer in charge', 'Diretor responsável'), S(d.director)]]} />
       </Panel>}

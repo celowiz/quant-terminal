@@ -123,7 +123,7 @@ export default function RRGTerminal() {
         <span className="text-[#d9d9d9] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate">Relative Rotation Graph · vs <b className="text-[#FFA028]">{label(bench)}</b> · {lang() === 'pt' ? 'semanal (sexta)' : 'weekly (Friday)'}</span>
         <div className="lg:contents max-lg:w-full max-lg:flex max-lg:items-center max-lg:gap-4 max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0 max-lg:text-[12px] fn-strip">
           <span className="text-[#8a8a8a]">{endDate ? `Week of ${fmtD(endDate)} · tail ${tail} wk` : ''}</span>
-          <span className="ml-auto text-[#8a8a8a] text-[11px] max-lg:ml-0">Source: Yahoo Finance · educational use, not a recommendation</span>
+          <span className="ml-auto text-[#8a8a8a] text-[11px] max-lg:ml-0">Educational use, not a recommendation</span>
         </div>
       </div>
       {/* controles */}

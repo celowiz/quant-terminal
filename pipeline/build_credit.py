@@ -224,7 +224,7 @@ def drsk():
             return {'period': per, 'st': st, 'lt': lt, 'dp': DP, 'sigma_e': float(sE.iloc[-1]), 'r': rr.iloc[-1], **m}
         cur = at(TODAY, r['mcap'], use_lag=False)
         if not cur:
-            skipped.append({'cod': cod, 'reason': 'loans & financing (CVM 2.01.04/2.02.01) zero or not filed, or no price history'}); continue
+            skipped.append({'cod': cod, 'reason': 'loans & financing (accounts 2.01.04/2.02.01) zero or not filed, or no price history'}); continue
         hist = []
         for me in pd.date_range(end=pd.Timestamp(TODAY), periods=37, freq='ME'):
             px = close[close.index <= me]
@@ -244,7 +244,7 @@ def drsk():
     save('drsk.json', {'generated_at': now_iso(), 'date': sc.get('date'), 'r_cdi': clean(cdi_s.iloc[-1], 2) if len(cdi_s) else None,
                        'rows': out, 'sectors': sectors, 'skipped': skipped, 'banks_excluded': banks,
                        'method': 'Merton (1974), horizon T = 1 year. E = market cap; σE = annualized 252-session volatility; default point DP = short-term debt + 0.5 × long-term debt '
-                                 '(CVM balance sheet accounts 2.01.04 and 2.02.01, loans & financing); r = CDI (SGS 4389), continuous. Solves for V and σV; '
+                                 '(balance sheet accounts 2.01.04 and 2.02.01, loans & financing); r = CDI, continuous. Solves for V and σV; '
                                  'DD = [ln(V/DP) + (r − σV²/2)T] / (σV√T); PD = N(−DD), risk-neutral. Monthly history uses the balance sheet with a 45-day filing lag and the current share count.',
                        'source': 'CVM DFP/ITR (debt), Yahoo Finance (prices), BCB SGS 4389 (CDI), B3/CVM screener data (market cap)'})
 

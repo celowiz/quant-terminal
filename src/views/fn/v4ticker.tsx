@@ -205,19 +205,19 @@ export function RVView({ ticker }: { ticker: string }) {
     return { me, peers, med: { cod: 'Peer median', name: '', ...stat(med) }, avg: { cod: 'Peer average', name: '', ...stat(v => v.length ? mean(v) : null) } }
   }, [s, cod, scope])
   if (!s) return <FnScreen code="RV" ticker={ticker}><Loading err={err} /></FnScreen>
-  if (!calc) return <FnScreen code="RV" ticker={ticker}><NA ticker={ticker} what={us ? 'Relative value (US stock without SEC fundamentals)' : 'Relative value (stock outside the Ibovespa / no fundamentals)'} code="RV" /></FnScreen>
+  if (!calc) return <FnScreen code="RV" ticker={ticker}><NA ticker={ticker} what={us ? 'Relative value (US stock without fundamentals)' : 'Relative value (stock outside the Ibovespa / no fundamentals)'} code="RV" /></FnScreen>
   const M = RV_M.find(m => m.k === metric)!
   return (
     <FnScreen code="RV" ticker={ticker} title={`Relative Valuation – ${calc.me.cod} vs peers (${scope === 'sub' ? calc.me.subsector : calc.me.sector})`}
       right={<><Field label="Stock"><select className={inputCls} style={inputStyle} value={cod} onChange={e => setCod(e.target.value)}>{(s.rows as any[]).map(r => r.cod).sort().map(c => <option key={c}>{c}</option>)}</select></Field><Btns opts={[{ v: 'sub', l: us ? 'Industry' : 'Subsector' }, { v: 'sec', l: 'Sector' }]} value={scope} onChange={setScope} /></>}
-      source={s.source} note={us ? <>Peers = covered US stocks in the same industry (Yahoo classification; widened to the sector if there are fewer than 3). {s.note} Click a column to chart it.</> : <>Peers = Ibovespa companies in the same B3 subsector (widened to the sector if there are fewer than 3). {s.note} Click a column to chart it.</>}>
+      source={s.source} note={us ? <>Peers = covered US stocks in the same industry (widened to the sector if there are fewer than 3). {s.note} Click a column to chart it.</> : <>Peers = Ibovespa companies in the same subsector (widened to the sector if there are fewer than 3). {s.note} Click a column to chart it.</>}>
       <Grid rows={[...calc.peers, calc.med, calc.avg]} rowStyle={(r: any) => r.cod === cod ? { background: tc('#2a1d08') } : r.cod.startsWith('M') && !r.name ? { background: tc('#151515') } : undefined} cols={[
         { k: 'cod', label: 'Ticker', color: (x: any) => x === cod ? C.amber : C.white }, { k: 'name', label: 'Company', w: '170px' },
         ...RV_M.map(m => ({ k: m.k, label: <span className="cursor-pointer" style={{ textDecoration: m.k === metric ? 'underline' : undefined }} onClick={() => setMetric(m.k)}>{m.l}</span>, align: 'r' as const, fmt: (x: any) => m.f(x), color: (x: any, r: any) => ['ytd', 'y1'].includes(m.k) ? clr(x) : r.cod === cod && calc.med[m.k] != null && x != null ? ((m.lowGood ? x < calc.med[m.k] : x > calc.med[m.k]) ? C.up : C.down) : C.text })),
       ]} />
       <div className="mt-2 grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
         <Panel title={`${M.l} — ${calc.me.cod} vs peers`}><HBars hi={cod} rows={calc.peers.map((r: any) => ({ label: r.cod, v: r[metric] ?? null, color: r.cod === cod ? C.amber : C.blue })).concat([{ label: 'Median', v: calc.med[metric], color: tc('#888') }])} fmt={M.f} /></Panel>
-        <Panel title="Reading"><div className="p-2 text-[12px]" style={{ color: C.muted }}>Green/red on the stock's row = better/worse than the peer median for that metric (multiples and leverage: lower is better; profitability and DY: higher is better). Fundamentals from the {dBR(calc.me.fund_period)} {us ? 'SEC filing (10-Q/10-K)' : 'quarterly report (ITR)'}; price as of {dBR(calc.me.date)}.</div></Panel>
+        <Panel title="Reading"><div className="p-2 text-[12px]" style={{ color: C.muted }}>Green/red on the stock's row = better/worse than the peer median for that metric (multiples and leverage: lower is better; profitability and DY: higher is better). Fundamentals from the {dBR(calc.me.fund_period)} {us ? 'filing (10-Q/10-K)' : 'quarterly report (ITR)'}; price as of {dBR(calc.me.date)}.</div></Panel>
       </div>
     </FnScreen>
   )
@@ -337,7 +337,7 @@ export function FAView({ ticker }: { ticker: string }) {
   const n = periods.length, cur = rows.find(r => r.code === sel) || rows[0]
   const us = f.country === 'US', mn = us ? 'US$ mn' : en('R$ mi')
   return (
-    <FnScreen code="FA" ticker={ticker} asOf={periods[n - 1]} title={`Financial Analysis – financial statements (${us ? 'SEC' : 'CVM'})`} tabs={keys.map(k => f.stmts[k].name)} tab={tab} setTab={i => { setTab(i); setSel(null) }}
+    <FnScreen code="FA" ticker={ticker} asOf={periods[n - 1]} title="Financial Analysis – financial statements" tabs={keys.map(k => f.stmts[k].name)} tab={tab} setTab={i => { setTab(i); setSel(null) }}
       right={<><Btns opts={[{ v: false, l: 'Yearly' }, { v: true, l: 'Quarterly' }]} value={q} onChange={setQ} /><Field label="Detail"><Btns opts={[{ v: 1, l: '1' }, { v: 2, l: '2' }, { v: 3, l: '3' }]} value={depth} onChange={setDepth} /></Field></>}
       source={f.source} note={us ? <>{f.note} Values in US$ millions, consolidated (US GAAP). Quarterly flows as filed, or the difference between consecutive year-to-date 10-Q figures (Q4 = fiscal year − 9 months); columns labelled by the calendar quarter in which the fiscal period ends; balance sheet = position at period end. Lines not tagged by the company show —. Click an account to chart it.</> : <>{f.note} Values in R$ millions, consolidated. Income-statement/cash-flow quarters derived from the cumulative ITR figures (Q4 = annual − 9 months); balance sheet = position at period end. Click an account to chart it.</>}>
       <Grid maxH={470} onRow={(r: any) => setSel(r.code)} rowStyle={(r: any) => r.code === cur?.code ? { background: tc('#2a1d08') } : r.level === 1 ? { background: tc('#141414') } : undefined} rows={rows.map(r => ({ ...r, ...Object.fromEntries(r.vals.map((v: number | null, i: number) => [`p${i}`, v])), yoy: q ? (r.vals[n - 1] != null && r.vals[n - 5] ? (r.vals[n - 1] / Math.abs(r.vals[n - 5]) - Math.sign(r.vals[n - 5])) * 100 : null) : (r.vals[n - 1] != null && r.vals[n - 2] ? (r.vals[n - 1] / Math.abs(r.vals[n - 2]) - Math.sign(r.vals[n - 2])) * 100 : null) }))} cols={[

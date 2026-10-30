@@ -36,7 +36,6 @@ export default function HelpModal({ code, onClose }: { code: string; onClose: ()
     return () => window.removeEventListener('keydown', k)
   }, [onClose])
   const note = reg?.code?.toUpperCase() === c ? reg.note : undefined
-  const source = reg?.code?.toUpperCase() === c ? reg.source : undefined
   const intro = doc ? (pt ? doc.pt : doc.en) : fi ? `${pt ? fi.pt : fi.desc}.` : (pt ? HELP.HOME.pt : HELP.HOME.en)
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-3" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }} data-audit-help>
@@ -57,7 +56,6 @@ export default function HelpModal({ code, onClose }: { code: string; onClose: ()
             </div>)}
           </div> : null}
           {note && <div><div className="text-[12px] font-bold text-[#FFA028]">{t('help.notes')}</div><div className="text-[12px] text-[#bdbdbd]">{tr(note)}</div></div>}
-          {source && <div><div className="text-[12px] font-bold text-[#FFA028]">{t('fn.source')}</div><div className="text-[12px] text-[#bdbdbd]">{tr(source)}</div></div>}
           {refs.length > 0 && <div data-help-refs><div className="text-[12px] font-bold text-[#FFA028]">{t('ref.title')}</div>
             <ul className="text-[12px] text-[#bdbdbd]">{refs.map(r => <li key={r.path}>
               <span className="text-[#8a8a8a]">{r.path.replace(/\.json$/, '')}</span>: {r.kind === 'generated' ? `${t('ref.generated')} ` : ''}<span className="text-white">{fmtDateFull(r.date)}</span>{r.official ? <span className="text-[#3DDC84]"> — {t('ref.official')}</span> : null}

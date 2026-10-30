@@ -25,6 +25,20 @@ def latest_cotahist(days=10):
         except Exception as e: print('cotahist', x, e)
     raise RuntimeError('COTAHIST indisponível')
 
+def cotahist_day(x):
+    """zip do COTAHIST de um pregão específico (datetime.date), com cache; None se indisponível."""
+    p = os.path.join(CACHE, f'COTAHIST_D{x:%Y%m%d}.ZIP')
+    if os.path.exists(p):
+        b = open(p, 'rb').read()
+        if b[:2] == b'PK': return b
+    try:
+        r = get(URL.format(x), tries=1, timeout=90)
+        if r.content[:2] == b'PK':
+            open(p, 'wb').write(r.content)
+            return r.content
+    except Exception as e: print('cotahist', x, e)
+    return None
+
 def parse(content):
     z = zipfile.ZipFile(io.BytesIO(content)); txt = z.read(z.namelist()[0]).decode('latin1')
     rows = []
@@ -62,3 +76,44 @@ def apply_official(rows, bar):
     if last == b['time']: return rows[:-1] + [b], 'replaced'
     if last < b['time']: return rows + [b], 'appended'
     return rows, None
+
+def suspect(rows, i, tol=0.10):
+    """barra i com abertura/mínima/máxima muito fora do intervalo entre o fechamento anterior e o fechamento do dia
+    (ex.: negócio isolado sem volume gravado como abertura/mínima)."""
+    if i <= 0 or i >= len(rows): return False
+    r, pc = rows[i], rows[i - 1]['close']
+    lo, hi = min(pc, r['close']), max(pc, r['close'])
+    return (r['low'] < lo * (1 - tol) or r['high'] > hi * (1 + tol)
+            or not (r['low'] <= r['open'] <= r['high']) or not (r['low'] <= r['close'] <= r['high']))
+
+def _rescaled(row, ref):
+    """O/H/L de ref levados à escala do fechamento de row (série ajustada); None se as escalas não batem."""
+    if not ref or not ref.get('close') or ref['close'] <= 0: return None
+    k = row['close'] / ref['close']
+    if not 0.85 < k < 1.15: return None
+    out = dict(row)
+    for f in ('open', 'high', 'low'): out[f] = float(f'{ref[f] * k:.6g}')
+    out['high'], out['low'] = max(out['high'], out['open'], out['close']), min(out['low'], out['open'], out['close'])
+    return out
+
+def repair_bad_bars(rows, prev=None, official=None, recent=20):
+    """Corrige O/H/L de barras suspeitas sem inventar valores:
+    1) barra já corrigida numa execução anterior (mesma data, fechamento igual) é mantida;
+    2) nas últimas `recent` barras, usa o O/H/L oficial do COTAHIST daquele pregão (official(data) → barra ou None).
+    Barra sem referência fica como está. Devolve (rows, [datas corrigidas])."""
+    if not rows: return rows, []
+    pm = {r['time']: r for r in (prev or [])}
+    out, fixed = [dict(r) for r in rows], []
+    for i in range(1, len(out)):
+        if not suspect(out, i): continue
+        cand = None
+        p = pm.get(out[i]['time'])
+        if p and abs(p['close'] / out[i]['close'] - 1) < 0.005:
+            c = _rescaled(out[i], p)
+            if c and not suspect(out[:i] + [c], i): cand = c
+        if cand is None and official and i >= len(out) - recent:
+            c = _rescaled(out[i], official(out[i]['time']))
+            if c and not suspect(out[:i] + [c], i): cand = c
+        if cand:
+            out[i] = cand; fixed.append(out[i]['time'])
+    return out, fixed

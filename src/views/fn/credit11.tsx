@@ -17,7 +17,7 @@ const S_YAS = {
   k: { mac: 'Macaulay dur. (yrs)', mod: 'Modified dur.', cvx: 'Convexity', dv01: 'DV01 per face', dv01u: 'DV01 per bond', bd: 'Business days', vna: 'VNA', face: 'Face value per bond',
     di: 'DI1 at maturity', sp: 'Spread vs DI1 (bp)', z: 'Z-spread vs DI1 (bp)', be: 'Breakeven inflation (DI1 vs real)', lft: 'Rate is a spread over Selic', qty: 'Quantity', principal: 'Principal (R$)', anbima: 'Tesouro Direto PU' },
   fc: { date: 'Date', du: 'BD', cf: 'Flow (R$)', pv: 'PV (R$)', w: 'Weight' },
-  curve: 'DI1 curve (B3 settlement) and bond rates', diLine: 'DI1 (% p.a.)',
+  curve: 'DI1 curve (settlement) and bond rates', diLine: 'DI1 (% p.a.)',
 }
 type Bond = { id: string; bond: string; maturity: string; rate: number; bid: number; ask: number; pu: number; vna: number | null; du: number; flows: [number, number, string][] }
 const pv = (f: [number, number, string][], y: number) => f.reduce((s, [du, cf]) => s + cf / Math.pow(1 + y / 100, du / 252), 0)
@@ -137,7 +137,7 @@ function YasCurve({ di, bonds, sel }: { di: [number, number][]; bonds: Bond[]; s
 
 // ======================= DRSK =======================
 const S_DRSK = {
-  title: 'Default Risk – Merton distance-to-default (B3 non-financials)', sector: 'Sector', all: 'All',
+  title: 'Default Risk – Merton distance-to-default (Brazilian non-financials)', sector: 'Sector', all: 'All',
   c: { cod: 'Ticker', name: 'Company', sector: 'Sector', dd: 'DD', pd: '1Y PD %', lev: 'Lev. %', sigma_e: 'σE %', sigma_v: 'σV %', mcap: 'Mkt cap', dp: 'Default pt.', bal: 'Balance' },
   sectors: 'Median DD by sector', detail: 'Details', hist: 'DD history (monthly)', pdl: '1Y PD % (risk-neutral)',
   k: { price: 'Price (R$)', mcap: 'Market cap (R$)', st: 'Short-term debt', lt: 'Long-term debt', dp: 'Default point', V: 'Asset value V', sv: 'Asset vol σV', se: 'Equity vol σE', lev: 'Leverage DP/V', dd: 'Distance to default', pd: '1Y PD', bal: 'Balance sheet', sub: 'B3 subsector (PT)' },

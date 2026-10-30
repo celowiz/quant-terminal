@@ -55,3 +55,38 @@ def test_b3_cnpj_formata_e_exige_codigo_exato(monkeypatch):
     monkeypatch.setattr(build_corp, 'get_json', lambda url: res)
     assert build_corp.b3_cnpj('TGMA') == '02.351.144/0001-18'
     assert build_corp.b3_cnpj('ZZZZ') is None
+
+
+def _bars():
+    return [{'time': '2026-10-22', 'open': 202.29, 'high': 203.07, 'low': 199.89, 'close': 200.96, 'volume': 1},
+            {'time': '2026-10-23', 'open': 201.13, 'high': 202.67, 'low': 200.23, 'close': 201.69, 'volume': 1},
+            {'time': '2026-10-26', 'open': 140.0, 'high': 175.82, 'low': 140.0, 'close': 172.42, 'volume': 9},   # negócio isolado a 140
+            {'time': '2026-10-27', 'open': 174.5, 'high': 175.66, 'low': 171.9, 'close': 173.0, 'volume': 1}]
+
+
+def test_suspect_marca_so_a_barra_ruim():
+    r = _bars()
+    assert [ch.suspect(r, i) for i in range(len(r))] == [False, False, True, False]
+
+
+def test_repair_usa_oficial_e_nao_inventa():
+    off = {'2026-10-26': {'time': '2026-10-26', 'open': 176.1, 'high': 176.4, 'low': 171.3, 'close': 172.42, 'volume': 5}}
+    out, fixed = ch.repair_bad_bars(_bars(), official=lambda d: off.get(d))
+    assert fixed == ['2026-10-26']
+    b = out[2]
+    assert (b['open'], b['high'], b['low'], b['close'], b['volume']) == (176.1, 176.4, 171.3, 172.42, 9)
+    # sem referência: a barra fica como veio
+    out, fixed = ch.repair_bad_bars(_bars(), official=lambda d: None)
+    assert fixed == [] and out[2]['open'] == 140.0
+
+
+def test_repair_mantem_correcao_da_execucao_anterior():
+    prev = _bars(); prev[2] = {**prev[2], 'open': 176.1, 'high': 176.4, 'low': 171.3}
+    out, fixed = ch.repair_bad_bars(_bars(), prev=prev)
+    assert fixed == ['2026-10-26'] and out[2]['low'] == 171.3
+
+
+def test_repair_ignora_oficial_de_outra_escala():
+    off = {'2026-10-26': {'time': '2026-10-26', 'open': 17.6, 'high': 17.64, 'low': 17.1, 'close': 17.24, 'volume': 5}}
+    out, fixed = ch.repair_bad_bars(_bars(), official=lambda d: off.get(d))
+    assert fixed == [] and out[2]['open'] == 140.0
