@@ -6,15 +6,28 @@ import { usePrices } from './tech'
 import { getJSON, tickerKey } from '../../lib/static'
 
 const SRC_CVM = 'CVM Open Data (DFP/ITR, FCA, IPE) + Yahoo Finance (profile, raw price, distributions). Scripts: tools/pipeline/build_corp.py.'
+const SRC_SEC = 'SEC EDGAR (XBRL companyfacts, submissions) + Yahoo Finance (profile, raw price, distributions). Script: pipeline/build_sec.py.'
+/** ações dos EUA: fundamentos da SEC (10-K/10-Q), valores em US$ */
+const isUS = (d: any) => d?.country === 'US'
+const ccy = (d: any) => isUS(d) ? 'US$' : 'R$'
+const srcOf = (d: any) => isUS(d) ? SRC_SEC : SRC_CVM
+const US_NOTE = 'Quarterly flows: the standalone quarter as filed, or the difference between consecutive year-to-date figures (10-Q cash flows are cumulative); Q4 = fiscal year − 9 months. Columns are labelled by the calendar quarter in which the fiscal period ends. EBIT = operating income (pre-tax income + interest expense when operating income is not tagged). Lines the company does not tag in XBRL (without dimensions) show —.'
 const useCorp = (t: string) => useJSON<any>(corpPath(t))
 const Guard = ({ code, ticker, children }: { code: string; ticker: string; children: React.ReactNode }) =>
-  hasData(code, ticker) ? <>{children}</> : <FnScreen code={code} ticker={ticker}><NA ticker={ticker} what="corporate data (CVM)" code={code.toLowerCase()} /></FnScreen>
+  hasData(code, ticker) ? <>{children}</> : <FnScreen code={code} ticker={ticker}><NA ticker={ticker} what="corporate data (CVM/SEC)" code={code.toLowerCase()} /></FnScreen>
 
 /** valor de mercado e múltiplos a partir do preço bruto e ações CVM */
 function valuation(d: any) {
   const q = d.fundamentals.quarterly as any[], a = d.fundamentals.annual as any[]
   const last4 = q.slice(-4)
-  const ltm = (k: string) => last4.length === 4 && last4.every(r => r[k] != null) ? last4.reduce((s, r) => s + r[k], 0) : null
+  const fy = a[a.length - 1], lastQ = q[q.length - 1]
+  let basis = 'LTM'
+  // LTM = soma dos 4 últimos trimestres; sem os 4, o último exercício completo (se recente) — rotulado FYaaaa
+  const ltm = (k: string) => {
+    if (last4.length === 4 && last4.every(r => r[k] != null)) return last4.reduce((s, r) => s + r[k], 0)
+    if (fy?.[k] != null && (!lastQ || fy.period >= isoMinus(lastQ.period, 0, 3, 1))) { basis = `FY${fy.period.slice(0, 4)}`; return fy[k] }
+    return null
+  }
   const px = d.raw_close[d.raw_close.length - 1]
   // units (código 11): ações equivalentes calculadas no pipeline com os fechamentos oficiais das classes ON/PN
   const shares = d.shares && 'equiv' in d.shares ? d.shares.equiv : d.shares?.total ? d.shares.total - (d.shares.treasury || 0) : null
@@ -23,7 +36,7 @@ function valuation(d: any) {
   const netLtm = ltm('net'), ebitdaLtm = ltm('ebitda'), revLtm = ltm('revenue')
   const divs12 = (d.dividends_full as [string, number][]).filter(x => x[0] > isoMinus(px[0], 0, 0, 1)).reduce((s, x) => s + x[1], 0)
   const ev = mcap != null && bs?.netdebt != null ? mcap + bs.netdebt + (bs.minority || 0) : null
-  return { px, shares, mcap, bs, netLtm, ebitdaLtm, revLtm, ev, divs12,
+  return { px, shares, mcap, bs, netLtm, ebitdaLtm, revLtm, ev, divs12, basis,
     pe: mcap && netLtm ? mcap / netLtm : null, pb: mcap && bs?.equity ? mcap / bs.equity : null,
     evEbitda: ev && ebitdaLtm ? ev / ebitdaLtm : null, dy: divs12 ? (divs12 / px[1]) * 100 : null,
     roe: netLtm && bs?.equity ? (netLtm / bs.equity) * 100 : null, margin: netLtm && revLtm ? (netLtm / revLtm) * 100 : null,
@@ -42,30 +55,31 @@ export function DESView({ ticker }: { ticker: string }) {
     const hi = r1.length ? Math.max(...r1.map(r => r.high)) : null, lo = r1.length ? Math.min(...r1.map(r => r.low)) : null
     const ret1 = r1.length ? (r1[r1.length - 1].close / r1[0].close - 1) * 100 : null
     const ann = d.fundamentals.annual.slice(-5)
+    const us = isUS(d), $ = ccy(d)
     return (
-      <FnScreen code="DES" ticker={ticker} title={`Description — ${p.longName || cad.DENOM_SOCIAL}`} tabs={['Profile', 'Revenue & Earnings', 'CVM registry']} tab={tab} setTab={setTab}
-        source={SRC_CVM} note={<>Market cap = raw closing price × shares outstanding (CVM capital breakdown, all classes). Multiples use trailing 4-quarter earnings/EBITDA.{d.shares?.note ? ` ${d.shares.note}.` : ''}</>}>
+      <FnScreen code="DES" ticker={ticker} title={`Description — ${p.longName || cad.DENOM_SOCIAL}`} tabs={['Profile', 'Revenue & Earnings', us ? 'SEC registry' : 'CVM registry']} tab={tab} setTab={setTab}
+        source={srcOf(d)} note={us ? <>Market cap = raw closing price × shares outstanding ({d.shares?.source || 'SEC'}). Multiples use trailing 4-quarter earnings/EBITDA from 10-K/10-Q (latest fiscal year when 4 quarters are not available). EV = market cap + net debt + non-controlling interests; — when debt is not tagged in XBRL.</> : <>Market cap = raw closing price × shares outstanding (CVM capital breakdown, all classes). Multiples use trailing 4-quarter earnings/EBITDA.{d.shares?.note ? ` ${d.shares.note}.` : ''}</>}>
         {tab === 0 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1.3fr 1fr 1fr' }}>
           <Panel title="Company description">
             <div className="p-2 text-[12px] leading-snug" style={{ color: C.text, maxHeight: 210, overflow: 'auto', borderBottom: `1px solid ${C.line}` }}>{p.longBusinessSummary}</div>
-            <KV rows={[['Sector (Yahoo)', `${p.sector || '—'} / ${p.industry || '—'}`], ['CVM sector', cad.SETOR_ATIV || '—'], ['Employees', p.fullTimeEmployees ? nf(p.fullTimeEmployees, 0) : '—'], ['Headquarters', `${p.city || cad.MUN || '—'}, ${p.country || ''}`], ['Site', p.website || '—'], ['CNPJ', d.cnpj], ['Shareholder control', cad.CONTROLE_ACIONARIO || '—']]} />
+            <KV rows={[['Sector (Yahoo)', `${p.sector || '—'} / ${p.industry || '—'}`], [us ? 'SIC' : 'CVM sector', us ? `${cad.SIC || '—'} ${cad.SETOR_ATIV || ''}` : cad.SETOR_ATIV || '—'], ['Employees', p.fullTimeEmployees ? nf(p.fullTimeEmployees, 0) : '—'], ['Headquarters', `${p.city || cad.MUN || '—'}, ${p.country || ''}`], ['Site', p.website || '—'], ...(us ? [['CIK', d.cik || '—'], ['Fiscal year end', cad.FISCAL_YEAR_END ? `${cad.FISCAL_YEAR_END.slice(2)}/${cad.FISCAL_YEAR_END.slice(0, 2)}` : '—']] as [string, string][] : [['CNPJ', d.cnpj], ['Shareholder control', cad.CONTROLE_ACIONARIO || '—']] as [string, string][])]} />
           </Panel>
           <Panel title="Price — 1 year" asOf={v.px[0]}>
             {r1.length > 0 && <FnChart height={190} panes={[{ series: [{ kind: 'area', data: r1.map(r => ({ time: r.time, value: r.close })), color: C.white, title: short(ticker) }] }]} />}
-            <KV rows={[['Last (raw)', `R$ ${nf(v.px[1])}`, C.amber], ['Date', dBR(v.px[0])], ['1Y return (adj.)', pf(ret1), clr(ret1)], ['52w High', nf(hi)], ['52w Low', nf(lo)]]} />
+            <KV rows={[['Last (raw)', `${$} ${nf(v.px[1])}`, C.amber], ['Date', dBR(v.px[0])], ['1Y return (adj.)', pf(ret1), clr(ret1)], ['52w High', nf(hi)], ['52w Low', nf(lo)]]} />
           </Panel>
           <Panel title="Key data" asOf={v.bs?.period}>
-            <KV rows={[['Market cap', `R$ ${big(v.mcap)}`, C.amber], ['Shares (ON+PN)', big(v.shares, 2)], ['EV', `R$ ${big(v.ev)}`], ['P/E (LTM)', nf(v.pe)], ['P/B', nf(v.pb)], ['EV/EBITDA (LTM)', nf(v.evEbitda)], ['Div. yield 12m', pf(v.dy, 2, false)], ['ROE (LTM)', pf(v.roe, 1, false)], ['Net margin', pf(v.margin, 1, false)], ['Net debt/EBITDA', nf(v.ndEbitda)], ['Revenue LTM', `R$ ${big(v.revLtm)}`], ['Earnings LTM', `R$ ${big(v.netLtm)}`]]} />
+            <KV rows={[['Market cap', v.mcap != null ? `${$} ${big(v.mcap)}` : '—', C.amber], [us ? 'Shares outstanding' : 'Shares (ON+PN)', big(v.shares, 2)], ['EV', v.ev != null ? `${$} ${big(v.ev)}` : '—'], [`P/E (${v.basis})`, nf(v.pe)], ['P/B', nf(v.pb)], [`EV/EBITDA (${v.basis})`, nf(v.evEbitda)], ['Div. yield 12m', pf(v.dy, 2, false)], [`ROE (${v.basis})`, pf(v.roe, 1, false)], ['Net margin', pf(v.margin, 1, false)], ['Net debt/EBITDA', nf(v.ndEbitda)], [`Revenue ${v.basis}`, v.revLtm != null ? `${$} ${big(v.revLtm)}` : '—'], [`Earnings ${v.basis}`, v.netLtm != null ? `${$} ${big(v.netLtm)}` : '—']]} />
           </Panel>
         </div>}
         {tab === 1 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-          <Panel title="Annual revenue (R$ bn)"><FnChart height={300} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.annual.filter((r: any) => r.revenue).map((r: any) => ({ time: r.period, value: r.revenue / 1e9 })), color: C.amber, title: 'Revenue', decimals: 1 }] }]} /></Panel>
-          <Panel title="Quarterly net income (R$ bn)"><FnChart height={300} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.quarterly.filter((r: any) => r.net != null).map((r: any) => ({ time: r.period, value: r.net / 1e9, color: r.net >= 0 ? C.up : C.down })), title: 'Earnings', decimals: 1 }] }]} /></Panel>
+          <Panel title={`Annual revenue (${$} bn)`}><FnChart height={300} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.annual.filter((r: any) => r.revenue).map((r: any) => ({ time: r.period, value: r.revenue / 1e9 })), color: C.amber, title: 'Revenue', decimals: 1 }] }]} /></Panel>
+          <Panel title={`Quarterly net income (${$} bn)`}><FnChart height={300} panes={[{ series: [{ kind: 'hist', data: d.fundamentals.quarterly.filter((r: any) => r.net != null).map((r: any) => ({ time: r.period, value: r.net / 1e9, color: r.net >= 0 ? C.up : C.down })), title: 'Earnings', decimals: 1 }] }]} /></Panel>
           <div className="col-span-2"><Panel title="Annual summary">
             <Grid cols={[{ k: 'period', label: 'Fiscal year', fmt: v => v.slice(0, 4) }, { k: 'revenue', label: 'Revenue', align: 'r', fmt: v => big(v) }, { k: 'ebitda', label: 'EBITDA', align: 'r', fmt: v => big(v) }, { k: 'net', label: 'Net income', align: 'r', fmt: v => big(v), color: clr }, { k: 'mg', label: 'Margin', align: 'r', fmt: v => pf(v, 1, false) }]} rows={ann.map((r: any) => ({ ...r, mg: r.net && r.revenue ? (r.net / r.revenue) * 100 : null }))} />
           </Panel></div>
         </div>}
-        {tab === 2 && <Panel title="Registry (CVM cad_cia_aberta)"><KV cols={2} rows={Object.entries(cad).filter(([, x]) => x != null && x !== '').map(([k, x]) => [k, String(x)] as [string, string])} /></Panel>}
+        {tab === 2 && <Panel title={us ? 'Registry (SEC EDGAR submissions)' : 'Registry (CVM cad_cia_aberta)'}><KV cols={2} rows={Object.entries(cad).filter(([, x]) => x != null && x !== '').map(([k, x]) => [k, String(x)] as [string, string])} /></Panel>}
       </FnScreen>)
   })()}</Guard>
 }
@@ -87,10 +101,10 @@ export function FUNDView({ ticker }: { ticker: string }) {
     return (
       <FnScreen code="FUND" ticker={ticker} asOf={src.length ? src[src.length - 1].period : null} title="Fundamentals — financial statements" tabs={['Income Statement', 'Balance Sheet', 'Cash Flow', 'Ratios']} tab={tab} setTab={setTab}
         right={<Btns opts={[{ v: 'a', l: 'Yearly' }, { v: 'q', l: 'Quarterly' }] as any} value={per} onChange={setPer as any} />}
-        source={SRC_CVM} note={<>{d.fundamentals.note} Values in R$ millions. Amber figures = reported (no consensus estimates in this version).{d.fundamentals.bank_format ? ' Bank: financial-institution layout — EBIT/EBITDA/debt do not apply.' : ''}{d.fundamentals.basis === 'individual' ? ' Individual (parent-only) statements: the company does not file consolidated statements with CVM.' : ''}</>}>
+        source={srcOf(d)} note={<>{d.fundamentals.note}{isUS(d) ? ` ${US_NOTE}` : ''} Values in {ccy(d)} millions. Amber figures = reported (no consensus estimates in this version).{d.fundamentals.bank_format ? ' Bank: financial-institution layout — EBIT/EBITDA/debt do not apply.' : ''}{d.fundamentals.basis === 'individual' && !isUS(d) ? ' Individual (parent-only) statements: the company does not file consolidated statements with CVM.' : ''}</>}>
         <div className="overflow-auto border" style={{ borderColor: C.line }}>
           <table className="w-full border-collapse text-[12px]">
-            <thead><tr style={{ background: C.panel2 }}><th className="px-2 py-1 text-left font-normal" style={{ color: C.amber }}>R$ mi</th>{src.map((r: any) => <th key={r.period} className="px-2 py-1 text-right font-normal" style={{ color: C.amber }}>{lbl(r.period)}</th>)}</tr></thead>
+            <thead><tr style={{ background: C.panel2 }}><th className="px-2 py-1 text-left font-normal" style={{ color: C.amber }}>{ccy(d)} mn</th>{src.map((r: any) => <th key={r.period} className="px-2 py-1 text-right font-normal" style={{ color: C.amber }}>{lbl(r.period)}</th>)}</tr></thead>
             <tbody>{rowsDef.map(([k, l, bold]) => (
               <tr key={k} className="border-t" style={{ borderColor: '#1a1a1a' }}><td className="px-2 py-[3px]" style={{ fontWeight: bold ? 700 : 400 }}>{l}</td>
                 {src.map((r: any) => <td key={r.period} className="px-2 py-[3px] text-right" style={{ color: r[k] == null ? C.muted : r[k] < 0 ? C.down : C.amber, fontWeight: bold ? 700 : 400 }}>{r[k] == null ? '—' : isRatio ? nf(r[k], k === 'lev' ? 2 : 1) : nf(r[k] / 1e6, 0)}</td>)}</tr>))}
@@ -105,19 +119,21 @@ export function FUNDView({ ticker }: { ticker: string }) {
 }
 
 // ---------------- VAL ----------------
-/** Pares do VAL: mesmo subsetor (senão setor) da carteira do IBOV no screener, com dados CVM; até 5, maior valor de mercado primeiro. */
+/** Pares do VAL: mesmo subsetor (senão setor) no screener (IBOV/CVM ou EUA/SEC), com dados; até 5, maior valor de mercado primeiro. */
 function usePeers(ticker: string) {
-  const { data: sc } = useJSON<any>('screener.json')
+  const us = !ticker.toUpperCase().endsWith('.SA')
+  const { data: sc } = useJSON<any>(us ? 'screener_us.json' : 'screener.json')
   const [rows, setRows] = useState<[string, any][]>([])
   const [sector, setSector] = useState('')
   useEffect(() => {
     if (!sc) return
-    const all = sc.rows as any[], me = all.find(r => `${r.cod}.SA` === ticker.toUpperCase())
-    const pick = (k: 'subsector' | 'sector') => me ? all.filter(r => r[k] === me[k] && `${r.cod}.SA` !== ticker.toUpperCase() && hasData('VAL', `${r.cod}.SA`)) : []
+    const tk = (r: any) => us ? String(r.cod) : `${r.cod}.SA`
+    const all = sc.rows as any[], me = all.find(r => tk(r) === ticker.toUpperCase())
+    const pick = (k: 'subsector' | 'sector') => me ? all.filter(r => me[k] && r[k] === me[k] && tk(r) !== ticker.toUpperCase() && hasData('VAL', tk(r))) : []
     let list = pick('subsector'), label = me?.subsector || ''
     if (list.length < 2) { list = pick('sector'); label = me?.sector || '' }
-    if (!me) { list = all.filter(r => ['PETR4', 'VALE3', 'ITUB4', 'B3SA3'].includes(r.cod) && `${r.cod}.SA` !== ticker.toUpperCase()); label = '' }
-    const top = list.sort((a, b) => (b.mcap || 0) - (a.mcap || 0)).slice(0, 5).map(r => `${r.cod}.SA`)
+    if (!me) { list = all.filter(r => (us ? ['AAPL', 'MSFT', 'GOOGL', 'AMZN'] : ['PETR4', 'VALE3', 'ITUB4', 'B3SA3']).includes(r.cod) && tk(r) !== ticker.toUpperCase()); label = '' }
+    const top = list.sort((a, b) => (b.mcap || 0) - (a.mcap || 0)).slice(0, 5).map(tk)
     let alive = true
     Promise.all(top.map(t => getJSON<any>(`corp/${tickerKey(t)}.json`).then(x => [t, x] as [string, any]).catch(() => null)))
       .then(r => { if (alive) { setRows(r.filter(Boolean) as [string, any][]); setSector(label) } })
@@ -147,13 +163,13 @@ export function VALView({ ticker }: { ticker: string }) {
     const ys = d.yahoo_stats || {}
     const peerRows = [[ticker, d] as [string, any], ...peerData.rows].map(([t, x]) => ({ t: short(t), ...valuation(x), cur: t === ticker }))
     return (
-      <FnScreen code="VAL" ticker={ticker} title="Valuation — multiples and history" source={SRC_CVM}
-        note="Multiples computed in the pipeline from raw price × CVM share count and trailing 4-quarter results (DFP/ITR). History assumes results are released 45 days after quarter end. Yahoo column shown for cross-checking; differences come from share-count/LTM criteria.">
+      <FnScreen code="VAL" ticker={ticker} title="Valuation — multiples and history" source={srcOf(d)}
+        note={isUS(d) ? `Multiples computed from raw price × SEC share count (10-K/10-Q cover) and trailing 4-quarter results (10-K/10-Q XBRL; latest fiscal year when 4 quarters are not available, shown as ${v.basis}). History assumes results are released 45 days after quarter end. Yahoo column shown for cross-checking; differences come from share-count/LTM criteria.` : 'Multiples computed in the pipeline from raw price × CVM share count and trailing 4-quarter results (DFP/ITR). History assumes results are released 45 days after quarter end. Yahoo column shown for cross-checking; differences come from share-count/LTM criteria.'}>
         <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '300px 1fr' }}>
           <Panel title="Current multiples" asOf={v.px[0]}>
             <Grid cols={[{ k: 'l', label: 'Indicator' }, { k: 'v', label: 'Computed', align: 'r', color: () => C.amber }, { k: 'y', label: 'Yahoo', align: 'r', color: () => C.muted }]} rows={[
               { l: 'Price (raw)', v: nf(v.px[1]), y: '—' }, { l: 'Market cap', v: big(v.mcap), y: big(ys.marketCap) }, { l: 'EV', v: big(v.ev), y: '—' },
-              { l: 'P/E LTM', v: nf(v.pe), y: nf(ys.trailingPE) }, { l: 'P/B', v: nf(v.pb), y: nf(ys.priceToBook) }, { l: 'EV/EBITDA', v: nf(v.evEbitda), y: nf(ys.enterpriseToEbitda) },
+              { l: `P/E ${v.basis}`, v: nf(v.pe), y: nf(ys.trailingPE) }, { l: 'P/B', v: nf(v.pb), y: nf(ys.priceToBook) }, { l: 'EV/EBITDA', v: nf(v.evEbitda), y: nf(ys.enterpriseToEbitda) },
               { l: 'Div. yield 12m', v: pf(v.dy, 2, false), y: pf(ys.dividendYield, 2, false) }, { l: 'ROE', v: pf(v.roe, 1, false), y: '—' }, { l: 'Net debt/EBITDA', v: nf(v.ndEbitda), y: '—' },
             ]} />
           </Panel>
@@ -180,11 +196,11 @@ export function DYView({ ticker }: { ticker: string }) {
     const yr = years.map(y => { const pe = px.filter(x => x[0].startsWith(y)); const tot = divs.filter(x => x[0].startsWith(y)).reduce((s, x) => s + x[1], 0); const end = pe[pe.length - 1]?.[1], avg = pe.reduce((s, x) => s + x[1], 0) / (pe.length || 1); return { y, tot, n: divs.filter(x => x[0].startsWith(y)).length, end, dyEnd: end ? tot / end * 100 : null, dyAvg: avg ? tot / avg * 100 : null } })
     const cur = ser[ser.length - 1]?.value, avg = ser.reduce((s, x) => s + x.value, 0) / (ser.length || 1)
     return (
-      <FnScreen code="DY" ticker={ticker} title="Dividend Yield" source={SRC_CVM} note="12m DY = sum of distributions (gross dividends + JCP, by ex-date) over the previous 12 months ÷ that day's raw price. Distributions and price unadjusted.">
+      <FnScreen code="DY" ticker={ticker} title="Dividend Yield" source={srcOf(d)} note={`12m DY = sum of distributions (${isUS(d) ? 'cash dividends' : 'gross dividends + JCP'}, by ex-date) over the previous 12 months ÷ that day's raw price. Distributions and price unadjusted.`}>
         <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 380px' }}>
           <div><div className="flex gap-4 text-[12px] pb-1"><span>Current 12m DY <b style={{ color: C.amber }}>{pf(cur, 2, false)}</b></span><span style={{ color: C.muted }}>10y average {pf(avg, 2, false)}</span></div>
             <FnChart height={520} panes={[{ series: [{ kind: 'area', data: ser, color: C.amber, title: 'DY 12m', pct: true, lines: [{ price: avg, color: '#888', title: 'Average' }] }] }]} /></div>
-          <Panel title="By year"><Grid cols={[{ k: 'y', label: 'Year' }, { k: 'n', label: 'Nº', align: 'r' }, { k: 'tot', label: 'R$/share', align: 'r', fmt: v => nf(v, 4) }, { k: 'end', label: 'End price', align: 'r', fmt: (v: any) => nf(v) }, { k: 'dyEnd', label: 'End DY', align: 'r', fmt: v => pf(v, 2, false), color: () => C.amber }, { k: 'dyAvg', label: 'Avg DY', align: 'r', fmt: v => pf(v, 2, false) }]} rows={yr} /></Panel>
+          <Panel title="By year"><Grid cols={[{ k: 'y', label: 'Year' }, { k: 'n', label: 'Nº', align: 'r' }, { k: 'tot', label: `${ccy(d)}/share`, align: 'r', fmt: v => nf(v, 4) }, { k: 'end', label: 'End price', align: 'r', fmt: (v: any) => nf(v) }, { k: 'dyEnd', label: 'End DY', align: 'r', fmt: v => pf(v, 2, false), color: () => C.amber }, { k: 'dyAvg', label: 'Avg DY', align: 'r', fmt: v => pf(v, 2, false) }]} rows={yr} /></Panel>
         </div>
       </FnScreen>)
   })()}</Guard>
@@ -197,16 +213,17 @@ export function DVDView({ ticker }: { ticker: string }) {
     const divs = (d.dividends_full as [string, number][]).slice().reverse()
     const px = new Map((d.raw_close as [string, number][]))
     const prev = (t: string) => { let v: number | undefined; for (const [k, p] of d.raw_close as [string, number][]) { if (k < t) v = p; else break } return v }
-    const rows = divs.map(([t, a]) => { const p = prev(t); return { ex: t, amt: a, px: p, y: p ? a / p * 100 : null, freq: 'Irregular', type: 'Dividend/JCP' } })
+    const us = isUS(d), $ = ccy(d)
+    const rows = divs.map(([t, a]) => { const p = prev(t); return { ex: t, amt: a, px: p, y: p ? a / p * 100 : null, freq: 'Irregular', type: us ? 'Dividend' : 'Dividend/JCP' } })
     const relat = (d.filings as any[]).filter(f => /provento|dividend|juros sobre/i.test(f.cat + ' ' + f.subject)).slice(0, 40)
     const byY = new Map<string, number>(); divs.forEach(([t, a]) => byY.set(t.slice(0, 4), (byY.get(t.slice(0, 4)) || 0) + a))
     void px
     return (
-      <FnScreen code="DVD" ticker={ticker} title="Dividend / Split History" tabs={['Distribution history', 'CVM notices (IPE)']} tab={tab} setTab={setTab} source={SRC_CVM}
-        note="Yahoo only provides the ex-date and gross amount per share. Declaration/record/payment dates and the type (dividend vs JCP) are in the CVM notices (tab 2), linked to the original document.">
-        {tab === 0 ? <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-          <Panel title={`Distributions (${rows.length})`}><Grid maxH={560} cols={[{ k: 'ex', label: 'Ex-date', fmt: dBRfull }, { k: 'amt', label: 'Amount R$', align: 'r', fmt: v => nf(v, 6), color: () => C.amber }, { k: 'px', label: 'Prev. price', align: 'r', fmt: (v: any) => nf(v) }, { k: 'y', label: 'Yield', align: 'r', fmt: v => pf(v, 2, false) }, { k: 'type', label: 'Type' }]} rows={rows} /></Panel>
-          <Panel title="Total per year (R$/share)"><FnChart height={560} panes={[{ series: [{ kind: 'hist', data: Array.from(byY.entries()).sort().map(([y, v]) => ({ time: `${y}-12-31`, value: v })), color: C.amber, title: 'R$/share', decimals: 3 }] }]} /></Panel>
+      <FnScreen code="DVD" ticker={ticker} title="Dividend / Split History" tabs={us ? undefined : ['Distribution history', 'CVM notices (IPE)']} tab={tab} setTab={setTab} source={srcOf(d)}
+        note={us ? 'Yahoo only provides the ex-date and amount per share. Declaration, record and payment dates are in the company\'s press releases (often furnished on Form 8-K, see CF).' : 'Yahoo only provides the ex-date and gross amount per share. Declaration/record/payment dates and the type (dividend vs JCP) are in the CVM notices (tab 2), linked to the original document.'}>
+        {tab === 0 || us ? <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <Panel title={`Distributions (${rows.length})`}><Grid maxH={560} cols={[{ k: 'ex', label: 'Ex-date', fmt: dBRfull }, { k: 'amt', label: `Amount ${$}`, align: 'r', fmt: v => nf(v, 6), color: () => C.amber }, { k: 'px', label: 'Prev. price', align: 'r', fmt: (v: any) => nf(v) }, { k: 'y', label: 'Yield', align: 'r', fmt: v => pf(v, 2, false) }, { k: 'type', label: 'Type' }]} rows={rows} /></Panel>
+          <Panel title={`Total per year (${$}/share)`}><FnChart height={560} panes={[{ series: [{ kind: 'hist', data: Array.from(byY.entries()).sort().map(([y, v]) => ({ time: `${y}-12-31`, value: v })), color: C.amber, title: `${$}/share`, decimals: 3 }] }]} /></Panel>
         </div> : <Panel title="Dividend notices / meetings"><Grid maxH={600} cols={[{ k: 'date', label: 'Date', fmt: dBRfull }, { k: 'cat', label: 'Category' }, { k: 'subject', label: 'Subject', fmt: (v, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: C.cyan }}>{v || r.type}</a> }]} rows={relat} /></Panel>}
       </FnScreen>)
   })()}</Guard>
@@ -221,7 +238,7 @@ export function SPLITView({ ticker }: { ticker: string }) {
     const cum = sp.reduce((p, [, r]) => p * r, 1)
     const months = raw.filter((_, i) => i % 5 === 0)
     return (
-      <FnScreen code="SPLIT" ticker={ticker} title="Splits / reverse splits" source={SRC_CVM} note="Split events from Yahoo (ratio = new shares per old share). Chart: raw price (as traded) with markers on event dates. Stock bonuses also appear as fractional splits.">
+      <FnScreen code="SPLIT" ticker={ticker} title="Splits / reverse splits" source={srcOf(d)} note="Split events from Yahoo (ratio = new shares per old share). Chart: raw price (as traded) with markers on event dates. Stock bonuses also appear as fractional splits.">
         <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '420px 1fr' }}>
           <Panel title={`Events (${rows.length})`}>
             {rows.length ? <Grid cols={[{ k: 'date', label: 'Ex-date', fmt: dBRfull }, { k: 'desc', label: 'Event', color: () => C.amber }, { k: 'factor', label: 'Factor', align: 'r', fmt: v => nf(v, 4) }]} rows={rows} /> : <div className="p-2 text-[12px]" style={{ color: C.muted }}>No events in the available history.</div>}
@@ -241,8 +258,9 @@ export function CFView({ ticker }: { ticker: string }) {
     const cats = ['All', ...Array.from(new Set((d.filings as any[]).map(f => f.cat))).slice(0, 10)]
     const rows = (d.filings as any[]).filter(f => (cat === 'All' || f.cat === cat) && (!q || (f.subject + f.type).toLowerCase().includes(q.toLowerCase())))
     return (
-      <FnScreen code="CF" ticker={ticker} title="Company Filings — CVM documents" right={<Field label="Search"><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
-        source="CVM Open Data – IPE (periodic and ad-hoc filings), links to RAD/ENET." note="Brazilian equivalent of 10-K/10-Q/8-K: DFP/ITR, Material Facts, Notices, Minutes. Latest 400 documents.">
+      <FnScreen code="CF" ticker={ticker} title={isUS(d) ? 'Company Filings — SEC EDGAR' : 'Company Filings — CVM documents'} right={<Field label="Search"><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
+        source={isUS(d) ? 'SEC EDGAR – submissions API (10-K, 10-Q, 8-K, proxy statements…), links to the original document on sec.gov.' : 'CVM Open Data – IPE (periodic and ad-hoc filings), links to RAD/ENET.'}
+        note={isUS(d) ? `10-K = annual report, 10-Q = quarterly report, 8-K = current report (subject = official Form 8-K item titles), DEF 14A = proxy statement. Latest ${d.filings.length} filings${d.cad?.PREDECESSOR ? `, including the predecessor registrant ${d.cad.PREDECESSOR}` : ''}.` : 'Brazilian equivalent of 10-K/10-Q/8-K: DFP/ITR, Material Facts, Notices, Minutes. Latest 400 documents.'}>
         <div className="flex flex-wrap gap-0 pb-2">{cats.map(c => <button key={c} onClick={() => setCat(c)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: cat === c ? C.amber : 'transparent', color: cat === c ? '#000' : C.amber }}>{c.length > 34 ? c.slice(0, 32) + '…' : c}</button>)}</div>
         <Grid maxH={640} cols={[{ k: 'date', label: 'Date', fmt: dBRfull, w: '90px' }, { k: 'cat', label: 'Category', color: () => C.amber, w: '230px' }, { k: 'type', label: 'Type', color: () => C.muted, w: '220px' }, { k: 'subject', label: 'Subject / document', fmt: (v, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: C.text }}>{v || r.type || r.cat}</a> }, { k: 'version', label: 'V', align: 'r', w: '30px' }]} rows={rows} />
       </FnScreen>)
@@ -254,12 +272,15 @@ export function CNView({ ticker }: { ticker: string }) {
   const news = useJSON<any>('news.json')
   return <Guard code="CN" ticker={ticker}>{!d ? <FnScreen code="CN" ticker={ticker}><Loading err={err} /></FnScreen> : (() => {
     const k = tickerKey(ticker), nm = (d.profile?.longName || '').split(/[ .-]/)[0]
-    const fil = (d.filings as any[]).filter(f => /Fato Relevante|Comunicado|Aviso|Assembleia|Dados Econ/i.test(f.cat)).map(f => ({ date: f.date, src: f.cat === 'Fato Relevante' ? 'MAT FACT' : 'CVM', title: f.subject || f.type, link: f.link, hot: f.cat === 'Fato Relevante' }))
+    const us = isUS(d)
+    // EUA: os 8-K (current reports) são o fluxo oficial de notícias da empresa; destaque para resultados (item 2.02)
+    const fil = us ? (d.filings as any[]).filter(f => /^8-K/.test(f.cat)).map(f => ({ date: f.date, src: `SEC ${f.cat}`, title: f.subject || f.type, link: f.link, hot: /Results of Operations/.test(f.subject || '') }))
+      : (d.filings as any[]).filter(f => /Fato Relevante|Comunicado|Aviso|Assembleia|Dados Econ/i.test(f.cat)).map(f => ({ date: f.date, src: f.cat === 'Fato Relevante' ? 'MAT FACT' : 'CVM', title: f.subject || f.type, link: f.link, hot: f.cat === 'Fato Relevante' }))
     const nw = (news.data?.items || []).filter((n: any) => n.tags?.includes(k) || (nm.length > 3 && n.title.toLowerCase().includes(nm.toLowerCase()))).map((n: any) => ({ date: n.date.slice(0, 10), src: n.source.split('–')[0].trim(), title: n.title, link: n.link, hot: false }))
     const rows = [...nw, ...fil].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 200)
     return (
-      <FnScreen code="CN" ticker={ticker} title="Company News" source="CVM IPE (Material Facts, Market Notices, Notices) + open-license RSS (Agência Brasil, CC BY 4.0) filtered by company name."
-        note="No paid news-agency feed: the stream is the company's official regulatory news. Material Facts highlighted.">
+      <FnScreen code="CN" ticker={ticker} title="Company News" source={us ? 'SEC EDGAR – Form 8-K current reports + open-license RSS filtered by company name.' : 'CVM IPE (Material Facts, Market Notices, Notices) + open-license RSS (Agência Brasil, CC BY 4.0) filtered by company name.'}
+        note={us ? 'No paid news-agency feed: the stream is the company\'s official regulatory news (Form 8-K, official item titles). Earnings releases (item 2.02) highlighted.' : 'No paid news-agency feed: the stream is the company\'s official regulatory news. Material Facts highlighted.'}>
         <Grid maxH={700} rowStyle={(r: any) => r.hot ? { background: '#1a1205' } : undefined} cols={[{ k: 'date', label: 'Date', fmt: dBR, w: '70px' }, { k: 'src', label: 'Source', w: '90px', color: (_, r: any) => r.hot ? C.down : C.amber }, { k: 'title', label: 'Headline', fmt: (v, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: r.hot ? C.white : C.text, fontWeight: r.hot ? 700 : 400 }}>{v}</a> }]} rows={rows} />
       </FnScreen>)
   })()}</Guard>

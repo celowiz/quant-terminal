@@ -27,6 +27,7 @@ run prices   build_prices.py     # OHLCV 10a dos tickers do seletor + tickers.js
 run markets  build_markets.py    # universe (IBOV/B3), world, fx, econ (BCB/FRED), wfi, cdi
 run rates    build_rates.py      # CDIE: DI1 (B3 BDI) + Copom (BCB) + Focus por reunião; curvas GC (FRED, Tesouro Transparente)
 run corp     build_corp.py       # CVM DFP/ITR/FCA/IPE + Yahoo (proventos, splits, perfil)
+run sec      build_sec.py        # ações dos EUA: SEC EDGAR companyfacts/submissions (DES/FUND/FA/VAL/RV) + Yahoo (preço bruto, proventos)
 run calendar build_calendar.py   # CAL: datas de resultado do trimestre — sites de RI (todo dia) + CVM (IPE calendário, ITR/DFP) como reserva
 run extra    build_extra.py      # GIP intradiário, GLCO futuros, ECFC Focus, ECST SIDRA, HDS (FRE), FA (DFP/ITR), screener EQS/RV/MOST
 run macro    build_macro.py      # WB, FOMC, WIRP, TAYL, ECO, FXFC, FXC, GMM (Tesouro Transparente, BoE, FRED, Fed, BCB, IBGE, BLS/BEA/Census, Yahoo)

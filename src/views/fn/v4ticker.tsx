@@ -189,8 +189,10 @@ const RV_M: { k: string; l: string; f: (v: any) => string; lowGood?: boolean }[]
 ]
 const med = (v: number[]) => { const s = v.slice().sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null }
 export function RVView({ ticker }: { ticker: string }) {
-  const { data: s, err } = useJSON<any>('screener.json')
-  const [cod, setCod] = useState(short(ticker)), [metric, setMetric] = useState('pe'), [scope, setScope] = useState<'sub' | 'sec'>('sub')
+  // EUA: screener próprio (SEC); setor/indústria do Yahoo como grupo de pares
+  const us = !ticker.toUpperCase().endsWith('.SA') && !ticker.startsWith('^')
+  const { data: s, err } = useJSON<any>(us ? 'screener_us.json' : 'screener.json')
+  const [cod, setCod] = useState(us ? ticker.toUpperCase() : short(ticker)), [metric, setMetric] = useState('pe'), [scope, setScope] = useState<'sub' | 'sec'>('sub')
   const calc = useMemo(() => {
     if (!s) return null
     const me = (s.rows as any[]).find(r => r.cod === cod); if (!me) return null
@@ -202,19 +204,19 @@ export function RVView({ ticker }: { ticker: string }) {
     return { me, peers, med: { cod: 'Peer median', name: '', ...stat(med) }, avg: { cod: 'Peer average', name: '', ...stat(v => v.length ? mean(v) : null) } }
   }, [s, cod, scope])
   if (!s) return <FnScreen code="RV" ticker={ticker}><Loading err={err} /></FnScreen>
-  if (!calc) return <FnScreen code="RV" ticker={ticker}><NA ticker={ticker} what="Relative value (stock outside the Ibovespa / no fundamentals)" code="RV" /></FnScreen>
+  if (!calc) return <FnScreen code="RV" ticker={ticker}><NA ticker={ticker} what={us ? 'Relative value (US stock without SEC fundamentals)' : 'Relative value (stock outside the Ibovespa / no fundamentals)'} code="RV" /></FnScreen>
   const M = RV_M.find(m => m.k === metric)!
   return (
     <FnScreen code="RV" ticker={ticker} title={`Relative Valuation – ${calc.me.cod} vs peers (${scope === 'sub' ? calc.me.subsector : calc.me.sector})`}
-      right={<><Field label="Stock"><select className={inputCls} style={inputStyle} value={cod} onChange={e => setCod(e.target.value)}>{(s.rows as any[]).map(r => r.cod).sort().map(c => <option key={c}>{c}</option>)}</select></Field><Btns opts={[{ v: 'sub', l: 'Subsector' }, { v: 'sec', l: 'Sector' }]} value={scope} onChange={setScope} /></>}
-      source={s.source} note={<>Peers = Ibovespa companies in the same B3 subsector (widened to the sector if there are fewer than 3). {s.note} Click a column to chart it.</>}>
+      right={<><Field label="Stock"><select className={inputCls} style={inputStyle} value={cod} onChange={e => setCod(e.target.value)}>{(s.rows as any[]).map(r => r.cod).sort().map(c => <option key={c}>{c}</option>)}</select></Field><Btns opts={[{ v: 'sub', l: us ? 'Industry' : 'Subsector' }, { v: 'sec', l: 'Sector' }]} value={scope} onChange={setScope} /></>}
+      source={s.source} note={us ? <>Peers = covered US stocks in the same industry (Yahoo classification; widened to the sector if there are fewer than 3). {s.note} Click a column to chart it.</> : <>Peers = Ibovespa companies in the same B3 subsector (widened to the sector if there are fewer than 3). {s.note} Click a column to chart it.</>}>
       <Grid rows={[...calc.peers, calc.med, calc.avg]} rowStyle={(r: any) => r.cod === cod ? { background: '#2a1d08' } : r.cod.startsWith('M') && !r.name ? { background: '#151515' } : undefined} cols={[
         { k: 'cod', label: 'Ticker', color: (x: any) => x === cod ? C.amber : C.white }, { k: 'name', label: 'Company', w: '170px' },
         ...RV_M.map(m => ({ k: m.k, label: <span className="cursor-pointer" style={{ textDecoration: m.k === metric ? 'underline' : undefined }} onClick={() => setMetric(m.k)}>{m.l}</span>, align: 'r' as const, fmt: (x: any) => m.f(x), color: (x: any, r: any) => ['ytd', 'y1'].includes(m.k) ? clr(x) : r.cod === cod && calc.med[m.k] != null && x != null ? ((m.lowGood ? x < calc.med[m.k] : x > calc.med[m.k]) ? C.up : C.down) : C.text })),
       ]} />
       <div className="mt-2 grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
         <Panel title={`${M.l} — ${calc.me.cod} vs peers`}><HBars hi={cod} rows={calc.peers.map((r: any) => ({ label: r.cod, v: r[metric] ?? null, color: r.cod === cod ? C.amber : C.blue })).concat([{ label: 'Median', v: calc.med[metric], color: '#888' }])} fmt={M.f} /></Panel>
-        <Panel title="Reading"><div className="p-2 text-[12px]" style={{ color: C.muted }}>Green/red on the stock's row = better/worse than the peer median for that metric (multiples and leverage: lower is better; profitability and DY: higher is better). Fundamentals from the {dBR(calc.me.fund_period)} quarterly report (ITR); price as of {dBR(calc.me.date)}.</div></Panel>
+        <Panel title="Reading"><div className="p-2 text-[12px]" style={{ color: C.muted }}>Green/red on the stock's row = better/worse than the peer median for that metric (multiples and leverage: lower is better; profitability and DY: higher is better). Fundamentals from the {dBR(calc.me.fund_period)} {us ? 'SEC filing (10-Q/10-K)' : 'quarterly report (ITR)'}; price as of {dBR(calc.me.date)}.</div></Panel>
       </div>
     </FnScreen>
   )
@@ -275,13 +277,13 @@ export function TRAView({ ticker }: { ticker: string }) {
   if (!calc) return <FnScreen code="TRA" ticker={ticker}><Loading err={err} /></FnScreen>
   return (
     <FnScreen code="TRA" ticker={ticker} title="Total Return Analysis – distributions reinvested" right={<Btns opts={PERIODS} value={per} onChange={setPer} />}
-      source="Yahoo Finance: nominal close (not adjusted for distributions, adjusted for splits) and dividend/JCP history by ex-date; pipeline build_corp.py."
-      note="Total return = distributions (dividends + JCP, gross) reinvested at the ex-date close: units × (1 + distribution ÷ price). No taxes or costs. Comparing with the price line shows how much of the return came from distributions.">
+      source={c.country === 'US' ? 'Yahoo Finance: nominal close (not adjusted for distributions, adjusted for splits) and dividend history by ex-date; pipeline build_sec.py.' : 'Yahoo Finance: nominal close (not adjusted for distributions, adjusted for splits) and dividend/JCP history by ex-date; pipeline build_corp.py.'}
+      note={`Total return = distributions (${c.country === 'US' ? 'cash dividends' : 'dividends + JCP, gross'}) reinvested at the ex-date close: units × (1 + distribution ÷ price). No taxes or costs. Comparing with the price line shows how much of the return came from distributions.`}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 260px' }}>
         <FnChart height={400} panes={panes} />
-        <Panel title={`${dBR(calc.from)} – ${dBR(calc.last)}`}><KV rows={[['Total return', pf(calc.T), C.amber], ['Price return', pf(calc.P), clr(calc.P)], ['Contribution of distributions', pf(calc.T - calc.P), C.up], ['Annualized total', pf(calc.ann), clr(calc.ann)], ['Annualized price', pf(calc.annP), clr(calc.annP)], ['Distributions per share (R$)', nf(calc.divSum, 4)], ['No. of payments (ex-date)', String(calc.nDiv)]]} /></Panel>
+        <Panel title={`${dBR(calc.from)} – ${dBR(calc.last)}`}><KV rows={[['Total return', pf(calc.T), C.amber], ['Price return', pf(calc.P), clr(calc.P)], ['Contribution of distributions', pf(calc.T - calc.P), C.up], ['Annualized total', pf(calc.ann), clr(calc.ann)], ['Annualized price', pf(calc.annP), clr(calc.annP)], [`Distributions per share (${c.country === 'US' ? 'US$' : 'R$'})`, nf(calc.divSum, 4)], ['No. of payments (ex-date)', String(calc.nDiv)]]} /></Panel>
       </div>
-      <Panel title="By calendar year" className="mt-2"><Grid rows={calc.yt} cols={[{ k: 'y', label: 'Year', color: () => C.amber }, { k: 'price', label: 'Price', align: 'r', fmt: x => pf(x), color: x => clr(x) }, { k: 'total', label: 'Total', align: 'r', fmt: x => pf(x), color: x => clr(x) }, { k: 'div', label: 'Distributions R$/share', align: 'r', fmt: x => nf(x, 4) }, { k: 'dy', label: 'Yield on initial price', align: 'r', fmt: x => pf(x, 2, false) }]} /></Panel>
+      <Panel title="By calendar year" className="mt-2"><Grid rows={calc.yt} cols={[{ k: 'y', label: 'Year', color: () => C.amber }, { k: 'price', label: 'Price', align: 'r', fmt: x => pf(x), color: x => clr(x) }, { k: 'total', label: 'Total', align: 'r', fmt: x => pf(x), color: x => clr(x) }, { k: 'div', label: `Distributions ${c.country === 'US' ? 'US$' : 'R$'}/share`, align: 'r', fmt: x => nf(x, 4) }, { k: 'dy', label: 'Yield on initial price', align: 'r', fmt: x => pf(x, 2, false) }]} /></Panel>
     </FnScreen>
   )
 }
@@ -332,16 +334,17 @@ export function FAView({ ticker }: { ticker: string }) {
   const keys = Object.keys(f.stmts), st = f.stmts[keys[tab]] || f.stmts[keys[0]], blk = q ? st.quarterly : st.annual
   const periods: string[] = blk.periods, rows = (blk.rows as any[]).filter(r => r.level <= depth)
   const n = periods.length, cur = rows.find(r => r.code === sel) || rows[0]
+  const us = f.country === 'US', mn = us ? 'US$ mn' : en('R$ mi')
   return (
-    <FnScreen code="FA" ticker={ticker} asOf={periods[n - 1]} title="Financial Analysis – financial statements (CVM)" tabs={keys.map(k => f.stmts[k].name)} tab={tab} setTab={i => { setTab(i); setSel(null) }}
+    <FnScreen code="FA" ticker={ticker} asOf={periods[n - 1]} title={`Financial Analysis – financial statements (${us ? 'SEC' : 'CVM'})`} tabs={keys.map(k => f.stmts[k].name)} tab={tab} setTab={i => { setTab(i); setSel(null) }}
       right={<><Btns opts={[{ v: false, l: 'Yearly' }, { v: true, l: 'Quarterly' }]} value={q} onChange={setQ} /><Field label="Detail"><Btns opts={[{ v: 1, l: '1' }, { v: 2, l: '2' }, { v: 3, l: '3' }]} value={depth} onChange={setDepth} /></Field></>}
-      source={f.source} note={<>{f.note} Values in R$ millions, consolidated. Income-statement/cash-flow quarters derived from the cumulative ITR figures (Q4 = annual − 9 months); balance sheet = position at period end. Click an account to chart it.</>}>
+      source={f.source} note={us ? <>{f.note} Values in US$ millions, consolidated (US GAAP). Quarterly flows as filed, or the difference between consecutive year-to-date 10-Q figures (Q4 = fiscal year − 9 months); columns labelled by the calendar quarter in which the fiscal period ends; balance sheet = position at period end. Lines not tagged by the company show —. Click an account to chart it.</> : <>{f.note} Values in R$ millions, consolidated. Income-statement/cash-flow quarters derived from the cumulative ITR figures (Q4 = annual − 9 months); balance sheet = position at period end. Click an account to chart it.</>}>
       <Grid maxH={470} onRow={(r: any) => setSel(r.code)} rowStyle={(r: any) => r.code === cur?.code ? { background: '#2a1d08' } : r.level === 1 ? { background: '#141414' } : undefined} rows={rows.map(r => ({ ...r, ...Object.fromEntries(r.vals.map((v: number | null, i: number) => [`p${i}`, v])), yoy: q ? (r.vals[n - 1] != null && r.vals[n - 5] ? (r.vals[n - 1] / Math.abs(r.vals[n - 5]) - Math.sign(r.vals[n - 5])) * 100 : null) : (r.vals[n - 1] != null && r.vals[n - 2] ? (r.vals[n - 1] / Math.abs(r.vals[n - 2]) - Math.sign(r.vals[n - 2])) * 100 : null) }))} cols={[
-        { k: 'code', label: 'Account', color: () => C.muted }, { k: 'name', label: 'Description', fmt: (x, r: any) => <span style={{ paddingLeft: (r.level - 1) * 12, fontWeight: r.level === 1 ? 700 : 400 }}>{en(x)}</span>, color: (_, r: any) => r.level === 1 ? C.amber : C.text },
+        ...(us ? [] : [{ k: 'code', label: 'Account', color: () => C.muted }]), { k: 'name', label: 'Description', fmt: (x, r: any) => <span style={{ paddingLeft: (r.level - 1) * 12, fontWeight: r.level === 1 ? 700 : 400 }}>{en(x)}</span>, color: (_, r: any) => r.level === 1 ? C.amber : C.text },
         ...periods.map((p, i) => ({ k: `p${i}`, label: fiscalLabel(p, q), align: 'r' as const, fmt: (x: any) => x == null ? '—' : nf(x / 1e6, 0), color: (x: any) => x < 0 ? C.down : C.text })),
         { k: 'yoy', label: q ? 'Δ a/a' : 'Δ annual', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) },
       ]} />
-      {cur && <Panel title={`${cur.code} ${en(cur.name)} (${en('R$ mi')})`} className="mt-2"><FnChart height={200} panes={[{ series: [{ kind: 'hist', data: periods.map((p, i) => ({ time: p, value: cur.vals[i] == null ? 0 : cur.vals[i] / 1e6, color: (cur.vals[i] ?? 0) >= 0 ? C.amber : C.down })), title: cur.name.slice(0, 30), decimals: 0 }] }]} /></Panel>}
+      {cur && <Panel title={`${us ? '' : cur.code + ' '}${en(cur.name)} (${mn})`} className="mt-2"><FnChart height={200} panes={[{ series: [{ kind: 'hist', data: periods.map((p, i) => ({ time: p, value: cur.vals[i] == null ? 0 : cur.vals[i] / 1e6, color: (cur.vals[i] ?? 0) >= 0 ? C.amber : C.down })), title: cur.name.slice(0, 30), decimals: 0 }] }]} /></Panel>}
     </FnScreen>
   )
 }
