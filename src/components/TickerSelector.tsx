@@ -167,7 +167,7 @@ export default function TickerSelector({
 				<div className="absolute left-0 top-full mt-1 z-50 w-[240px] px-2 py-1 bg-black border border-[#3a3a3a] text-[12px] text-[#8a8a8a]">{t('hdr.noMatch')}</div>
 			)}
 			{selectedTicker && tickerName && (
-				<div className="ticker-name-label absolute left-full ml-2 whitespace-nowrap pointer-events-none font-bold text-white flex items-center gap-2 max-lg:max-w-[calc(100vw-120px-96px-84px)] md:max-lg:max-w-[calc(100vw-220px-96px-84px)] max-lg:overflow-hidden max-lg:text-[12px]">
+				<div className="ticker-name-label absolute left-full ml-2 whitespace-nowrap pointer-events-none font-bold text-white flex items-center gap-2 max-lg:max-w-[calc(100vw-120px-96px-120px)] md:max-lg:max-w-[calc(100vw-220px-96px-120px)] max-lg:overflow-hidden max-lg:text-[12px]">
 					<span className="max-lg:truncate max-lg:min-w-0">{tickerName}</span>
 					{tickerLogo && (
 						<img 
