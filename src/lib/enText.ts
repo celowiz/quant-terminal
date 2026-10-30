@@ -45,6 +45,7 @@ const MAP: Record<string, string> = {
   'Renda Fixa': 'Fixed Income', 'Ações': 'Equities', 'Multimercado': 'Multimarket', 'Cambial': 'FX', 'Participações (FIP)': 'Private Equity (FIP)',
   'Não classificado': 'Unclassified', 'R$ milhões': 'R$ millions', 'Previdência': 'Pension', 'Imobiliário (FII)': 'Real Estate (FII)', 'Direitos Creditórios (FIDC)': 'Receivables (FIDC)',
   // acionistas (HDS)
+  'Multimercados': 'Multimarket', 'Diversos': 'Miscellaneous', 'Resultado nominal': 'Nominal balance', 'Linha': 'Line',
   'Ações Tesouraria': 'Treasury shares', 'União Federal': 'Federal Government',
   // DES
   'ATIVO': 'ACTIVE',

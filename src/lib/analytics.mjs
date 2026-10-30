@@ -129,13 +129,24 @@ export function injectGtagScript(win = defaultWindow()) {
   doc.head.appendChild(s)
 }
 
+/** gtag.js (~150 KB) fica fora do caminho crítico: baixa na 1ª interação (toque, tecla, rolagem, clique)
+ *  ou, sem interação, quando o navegador fica ocioso alguns segundos depois do load. O stub enfileira os eventos até lá. */
+export const GTAG_IDLE_DELAY_MS = 4000
+const GTAG_EVENTS = ['pointerdown', 'keydown', 'scroll', 'touchstart']
 export function scheduleGtagScriptLoad(win = defaultWindow()) {
   if (!win) return
-  const start = () => injectGtagScript(win)
-  const afterLoad = () => (typeof win.requestIdleCallback === 'function' ? win.requestIdleCallback(start, { timeout: 3000 }) : win.setTimeout(start, 1))
-  if (win.document?.readyState === 'complete') afterLoad()
-  else if (typeof win.addEventListener === 'function') win.addEventListener('load', afterLoad, { once: true })
-  else afterLoad()
+  let done = false
+  const start = () => {
+    if (done) return
+    done = true
+    if (typeof win.removeEventListener === 'function') GTAG_EVENTS.forEach(e => win.removeEventListener(e, start, { capture: true }))
+    injectGtagScript(win)
+  }
+  if (typeof win.addEventListener === 'function') GTAG_EVENTS.forEach(e => win.addEventListener(e, start, { once: true, passive: true, capture: true }))
+  const idle = () => (typeof win.requestIdleCallback === 'function' ? win.requestIdleCallback(start, { timeout: 4000 }) : start())
+  const afterLoad = () => win.setTimeout(idle, GTAG_IDLE_DELAY_MS)
+  if (win.document?.readyState === 'complete' || typeof win.addEventListener !== 'function') afterLoad()
+  else win.addEventListener('load', afterLoad, { once: true })
 }
 
 export function trackEvent(name, params = {}, win = defaultWindow()) {

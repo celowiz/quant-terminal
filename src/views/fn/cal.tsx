@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Download, PanelRightClose, PanelRightOpen, X
 import { FnScreen, Grid, type Col, Loading, C, dBR, dBRfull, useJSON, useDesktop, useFitH } from '../../components/fn/kit'
 import { t } from '../../lib/i18n'
 import { lang } from '../../lib/settings'
+import { fmtDayMonth, fmtQuarter } from '../../lib/dates'
 import { href } from '../../lib/static'
 import { trackShare } from '../../lib/track'
 import { toast } from '../../components/ShareMenu'
@@ -26,6 +27,8 @@ const parse = (s: string) => { const [y, m, d] = s.split('-').map(Number); retur
 const addDays = (s: string, n: number) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d) }
 /** segunda-feira da semana; sábado/domingo pulam para a semana seguinte */
 const mondayOf = (s: string) => { const wd = parse(s).getDay(); return addDays(s, wd === 0 ? 1 : wd === 6 ? 2 : 1 - wd) }
+/** '3T26' (rótulo B3) → PT '3T26' · EN 'Q3 26' */
+const qLab = (q: string) => { const m = /^(\d)T(\d{2})$/.exec(q || ''); return m ? fmtQuarter(+m[1], 2000 + +m[2]) : q }
 const loc = () => (lang() === 'pt' ? 'pt-BR' : 'en-US')
 const dayName = (s: string) => parse(s).toLocaleDateString(loc(), { weekday: 'short' }).replace('.', '')
 const monthName = (s: string) => parse(s).toLocaleDateString(loc(), { month: 'long', year: 'numeric' })
@@ -181,7 +184,7 @@ function WeekBoard({ mon, byDate, sel, onPick, exporting }: { mon: string; byDat
   const list = (d: string) => (byDate.get(d) || []).slice().sort(byTicker)
   const head = (d: string) => (
     <div className="px-2 py-1 font-bold flex justify-between items-baseline" style={{ background: d === today && !exporting ? C.amber : C.panel2, color: d === today && !exporting ? '#000' : C.amber, fontSize: exporting ? 16 : 12 }}>
-      <span>{dayName(d).toUpperCase()} {dBR(d).slice(0, 5)}</span><span style={{ opacity: 0.75 }}>{list(d).length || '—'}</span>
+      <span>{dayName(d).toUpperCase()} {fmtDayMonth(d)}</span><span style={{ opacity: 0.75 }}>{list(d).length || '—'}</span>
     </div>
   )
   if (!desk && !exporting)
@@ -259,7 +262,9 @@ export function CALView() {
   }, [data])
   const curMon = mon ?? mondayOf(iso(new Date()))
   const curMonth = month ?? curMon.slice(0, 7)
-  if (!data) return <FnScreen code="CAL"><Loading err={err} /></FnScreen>
+  // carregando: mesmas abas e faixa de controles da tela final (altura igual) + área reservada → sem deslocamento no mobile
+  if (!data) return <FnScreen code="CAL" tabs={[t('cal.tabWeek'), t('cal.tabMonth'), t('cal.tabList')]} tab={tab} setTab={setTab}
+    right={<span className="inline-flex items-center px-1 border font-bold" style={{ borderColor: 'transparent', color: C.white }}><span className="w-4 h-4" />{tab === 1 ? monthName(curMonth + '-01') : weekLabel(curMon)}</span>}><Loading err={err} reserve /></FnScreen>
   const nDated = data.rows.filter(r => r.date).length
   const undated = data.rows.filter(r => !r.date).sort(byTicker)
   const nWeek = [0, 1, 2, 3, 4].reduce((a, i) => a + (byDate.get(addDays(curMon, i)) || []).length, 0)
@@ -295,7 +300,7 @@ export function CALView() {
       {tab === 0 && <button type="button" className={btn + ' gap-1 px-2'} style={{ borderColor: C.amber, color: C.amber }} onClick={exportPng} aria-label={t('cal.export')} title={t('cal.export')} data-capture-hide=""><Download className="w-3.5 h-3.5" aria-hidden /><span className="max-lg:hidden">{t('cal.export')}</span></button>}
     </>
   )
-  const asOf = `${t('cal.asOf')} ${asOfLabel(data.generated_at)} · ${data.quarter} ${t('cal.season')} · ${nDated}/${data.rows.length} ${t('cal.withDate')}`
+  const asOf = `${t('cal.asOf')} ${asOfLabel(data.generated_at)} · ${qLab(data.quarter)} ${t('cal.season')} · ${nDated}/${data.rows.length} ${t('cal.withDate')}`
   const legend = (
     <div className="flex flex-wrap items-center gap-2 text-[11px]" style={{ color: C.muted }}>
       {(['expected', 'confirmed', 'released'] as const).map(s => <span key={s} data-capture-hide=""><Status s={s} /></span>)}

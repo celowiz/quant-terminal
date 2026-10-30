@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { C, MONO, useFitH, useFit } from '@/components/fn/kit'
 import { numLocale } from '@/lib/settings'
 import { t } from '@/lib/i18n'
+import { fmtDate, fmtDateFull, fmtDayMonth, fmtMonth } from '@/lib/dates'
 
 const ok = (v: any) => v != null && v !== '' && isFinite(+v)
 /** número no formato escolhido em Settings (padrão en-US) */
@@ -23,13 +24,12 @@ export const bigE = (v: any, d = 1) => {
   if (a >= 1e3) return `${s}${n(a / 1e3, d)}K`
   return `${s}${n(a, d)}`
 }
-const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 /** ISO → MM/DD/YY */
-export const dUS = (s?: string | null) => !s ? '—' : `${s.slice(5, 7)}/${s.slice(8, 10)}/${s.slice(2, 4)}`
-export const dUSfull = (s?: string | null) => !s ? '—' : `${s.slice(5, 7)}/${s.slice(8, 10)}/${s.slice(0, 4)}`
+export const dUS = fmtDate          // antes MM/DD/AA; agora segue o idioma (lib/dates)
+export const dUSfull = fmtDateFull
 /** ISO → 'Oct 23' */
-export const dShort = (s?: string | null) => !s ? '—' : `${MON[+s.slice(5, 7) - 1]} ${+s.slice(8, 10)}`
-export const mLab = (iso: string) => `${MON[+iso.slice(5, 7) - 1]} ${iso.slice(2, 4)}`
+export const dShort = fmtDayMonth
+export const mLab = (iso: string) => fmtMonth(iso)
 export const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export const weekday = (iso: string) => WD[new Date(iso.slice(0, 10) + 'T12:00:00Z').getUTCDay()]
 export const cl = (v: any) => !ok(v) || +v === 0 ? C.text : +v > 0 ? C.up : C.down
