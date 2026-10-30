@@ -11,11 +11,16 @@ export const HELP: Record<string, HelpDoc> = {
   GP: {
     en: 'Line chart of the daily close (Yahoo Finance, adjusted for distributions and splits) with traded volume in the lower pane. The axis label marks the latest close.',
     pt: 'Gráfico de linha do fechamento diário (Yahoo Finance, ajustado por proventos e desdobramentos) com volume negociado no painel inferior. O rótulo no eixo marca o último fechamento.',
-    formulas: [{ tex: R`r_{t} = \frac{P_t}{P_{t_0}} - 1`, en: 'Period change shown in the header, from the first visible close.', pt: 'Variação do período exibida no cabeçalho, a partir do primeiro fechamento visível.' }],
+    formulas: [{ tex: R`\Delta_t = C_t - C_{t-1},\qquad \Delta\%_t = \frac{C_t}{C_{t-1}} - 1`, en: 'Change shown in the header: the bar under the cursor (or the last bar) against the previous bar.', pt: 'Variação no cabeçalho: a barra sob o cursor (ou a última) contra a anterior.' }],
   },
   GPC: {
     en: 'Candlestick chart (open, high, low, close) of daily bars with volume. White candles: close ≥ open; blue candles: close < open.',
     pt: 'Gráfico de candles (abertura, máxima, mínima, fechamento) diários com volume. Candle branco: fechamento ≥ abertura; azul: fechamento < abertura.',
+    formulas: [
+      { tex: R`\text{candle}_t = \begin{cases} \text{white} & C_t \ge O_t \\ \text{blue} & C_t < O_t \end{cases}\qquad \text{wick} = [L_t,\ H_t]`, en: 'Body from open O to close C; the wick spans the low L to the high H of the bar.', pt: 'Corpo da abertura O ao fechamento C; o pavio vai da mínima L à máxima H da barra.' },
+      { tex: R`\mathrm{SMAVG}_n(t) = \frac{1}{n}\sum_{i=0}^{n-1} C_{t-i},\quad n \in \{50,\ 200\}`, en: 'Simple moving averages of the close (toggle SMAVG 50 / 200).', pt: 'Médias móveis simples do fechamento (botões SMAVG 50 / 200).' },
+      { tex: R`\Delta_t = C_t - C_{t-1},\qquad \Delta\%_t = \frac{C_t}{C_{t-1}} - 1`, en: 'Change shown in the header: the bar under the cursor (or the last bar) against the previous bar.', pt: 'Variação no cabeçalho: a barra sob o cursor (ou a última) contra a anterior.' },
+    ],
   },
   GIP: {
     en: 'Intraday chart from delayed Yahoo Finance bars (1-minute bars cover ~5–7 sessions; 5-minute bars ~60 days), Brasília time. VWAP accumulates from the session open.',

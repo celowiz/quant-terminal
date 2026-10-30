@@ -70,6 +70,14 @@
   font-weight: bold;
 }
 
+.ticker-combo-box:disabled {
+  /* função sem ativo (CAL, ECO...): o ticker guardado fica visível, mas claramente apagado */
+  background-color: #3a3a3a;
+  color: #9a9a9a;
+  opacity: 1;
+}
+.ticker-name-label[data-ticker-unused] { opacity: .45; }
+
 .ticker-combo-box:focus {
   outline: none;
   ring: 2px;

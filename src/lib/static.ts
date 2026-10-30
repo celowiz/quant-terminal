@@ -1,6 +1,7 @@
 // Camada de dados estática: substitui a API FastAPI por JSON gerado no GitHub Actions
 // e publicado junto com o site (GitHub Pages). Sem servidor em runtime.
 import { RRGResponse, RRGFormData, RRGAssetData, RRGPoint } from '@/types/rrg'
+import { cleanUniverse } from './dataFix.mjs'
 
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || ''
 export const href = (path: string) => `${BASE_PATH}${path.startsWith('/') ? path : '/' + path}`
@@ -19,7 +20,7 @@ export function getJSON<T = any>(path: string): Promise<T> {
     cache.set(path, fetch(href(`/data/${path}`)).then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status} at ${path}`)
       return r.json()
-    }))
+    }).then(d => path === 'universe.json' ? cleanUniverse(d) : d))
   }
   return cache.get(path)!
 }

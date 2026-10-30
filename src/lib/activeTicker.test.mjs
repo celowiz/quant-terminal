@@ -61,3 +61,18 @@ test('displayTicker strips the .SA suffix only', async () => {
   assert.equal(displayTicker('^BVSP'), '^BVSP')
   assert.equal(displayTicker(''), '')
 })
+
+import { barTicker, functionUniverse, defaultTicker } from './activeTicker.mjs'
+test('barTicker: DES com GOOGL guardado mostra o PETR4 que a página renderiza', () => {
+  const U = ['PETR4.SA', 'VALE3.SA', 'GOOGL']
+  assert.deepEqual(barTicker('DES', 'GOOGL', U), { ticker: 'PETR4.SA', fallbackFrom: 'GOOGL' })
+  assert.deepEqual(barTicker('DES', 'VALE3.SA', U), { ticker: 'VALE3.SA', fallbackFrom: '' })
+  assert.deepEqual(barTicker('DES', '', U), { ticker: 'PETR4.SA', fallbackFrom: '' })
+  assert.deepEqual(barTicker('ECO', 'GOOGL', U), { ticker: 'GOOGL', fallbackFrom: '' })
+  assert.equal(defaultTicker('GP'), '')
+})
+test('functionUniverse: DES lista só ações com CVM', () => {
+  const U = ['PETR4.SA', 'GOOGL', 'VALE3.SA', '^BVSP']
+  assert.deepEqual(functionUniverse('DES', U), ['PETR4.SA', 'VALE3.SA'])
+  assert.deepEqual(functionUniverse('GP', U), U)
+})

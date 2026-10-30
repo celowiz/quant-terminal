@@ -4,6 +4,10 @@
 # 3) build estático do Next.js (output: 'export') e publica no Pages.
 # Horário: 10:47 UTC = 07:47 BRT, ter–sáb (dados do pregão de seg–sex já consolidados).
 # O CAL (calendário de resultados) tem um job leve próprio, todo dia às 21:30 BRT: calendar.yml.
+# Push que só muda o frontend (nada em pipeline/, tests/, alerts.yaml ou neste workflow) não roda o pipeline:
+# reaproveita os dados do último site publicado (artefato github-pages) e faz só o build (~3 min em vez de ~30).
+# Nas execuções completas os dados publicados também são restaurados antes do pipeline, para o load_prev()
+# manter o último valor bom quando uma fonte falha (antes o runner começava sem public/data).
 # Minuto :47 escolhido para evitar picos do Actions e os minutos já usados (:04 :07 :09 :11 :13 :17 :23 :34 :39 :41).
 name: pages
 
@@ -19,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  actions: read      # baixar o artefato do último deploy (dados publicados)
   pages: write
   id-token: write
   issues: write
@@ -78,6 +83,38 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Dados do último site publicado (mesmo artefato que o calendar.yml usa) → public/data
+      - name: Dados publicados (último artefato github-pages)
+        id: base
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=github-pages&per_page=30" \
+            --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main")] | sort_by(.created_at) | reverse | .[0].id // empty' || true)
+          if [ -n "$id" ] && gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > /tmp/site.zip \
+             && mkdir -p /tmp/a /tmp/site && unzip -q /tmp/site.zip -d /tmp/a && tar -xf /tmp/a/artifact.tar -C /tmp/site \
+             && test -f /tmp/site/data/universe.json; then
+            cp -r /tmp/site/data/. public/data/
+            echo "ok=true" >> "$GITHUB_OUTPUT"; echo "base: artefato $id ($(ls public/data | wc -l) itens em public/data)"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"; echo "::warning::sem artefato github-pages válido: pipeline completo"
+          fi
+
+      - name: Modo (pipeline completo ou só frontend)
+        id: mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          full=true
+          if [ "${{ github.event_name }}" = push ] && [ "${{ steps.base.outputs.ok }}" = true ] && [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
+            files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$GITHUB_SHA" --jq '.files[].filename' 2>/dev/null) || files=PIPELINE
+            echo "$files"
+            if [ -n "$files" ] && ! echo "$files" | grep -qE '^(pipeline/|tests/|alerts\.yaml$|public/data/|\.github/workflows/pages\.yml$)|^PIPELINE$'; then full=false; fi
+          fi
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          if [ "$full" = true ]; then echo "Modo: pipeline completo"; else echo "Modo: só frontend (dados do último deploy)"; fi
+
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
@@ -89,11 +126,13 @@ jobs:
 
       # Chave do cache por semana ISO: antes era por run_id e salvava ~150 MB novos a cada execução.
       - name: Chave do cache (semana)
+        if: steps.mode.outputs.full == 'true'
         id: week
         run: echo "week=$(TZ=America/Sao_Paulo date +%G-W%V)" >> "$GITHUB_OUTPUT"
 
       # Cache dos downloads grandes (CVM DFP/ITR, COTAHIST) entre execuções.
       - uses: actions/cache@v6
+        if: steps.mode.outputs.full == 'true'
         with:
           path: .qt_cache
           key: qt-cache-v2-${{ steps.week.outputs.week }}
@@ -102,6 +141,7 @@ jobs:
             qt-cache-
 
       - name: Pipeline de dados
+        if: steps.mode.outputs.full == 'true'
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: bash pipeline/run_all.sh
@@ -110,6 +150,7 @@ jobs:
         run: python -m pytest -q tests
 
       - name: Issue de alerta (ALERT)
+        if: steps.mode.outputs.full == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

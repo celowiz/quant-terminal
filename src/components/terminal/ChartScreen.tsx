@@ -48,10 +48,12 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
       if (!el) return
       const top = el.getBoundingClientRect().top + window.scrollY
       const desk = window.matchMedia('(min-width: 1024px)').matches
-      const fh = desk ? (document.querySelector('footer') as HTMLElement | null)?.offsetHeight || 0 : 0
-      // celular: altura fixa (~300px preço + ~110px volume), a página rola; tablet: preenche a tela; desktop: preenche a viewport
       const tab = window.matchMedia('(min-width: 768px)').matches
-      setH(desk ? Math.max(240, window.innerHeight - top - fh - 6) : tab ? Math.max(410, window.innerHeight - top - 6) : showVol ? 410 : 300)
+      const fh = (document.querySelector('footer') as HTMLElement | null)?.offsetHeight || 0
+      // celular: preenche até o rodapé (antes ficava fixo em 410px e sobrava um vão vazio acima do rodapé),
+      // com mínimo de ~300px preço + ~110px volume; tablet e desktop: preenchem a viewport com o rodapé visível
+      const min = desk ? 240 : tab || showVol ? 410 : 300
+      setH(Math.max(min, window.innerHeight - top - fh - 6))
     }
     fit()
     window.addEventListener('resize', fit)

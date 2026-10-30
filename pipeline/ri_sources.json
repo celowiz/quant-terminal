@@ -278,7 +278,9 @@
   "PRIO3": {
    "ri": "https://ri.prio3.com.br/",
    "page": "https://ri.prio3.com.br/servicos-aos-investidores/calendario-de-eventos/",
-   "platform": "auto"
+   "platform": "auto",
+   "mz_id": "cecb3d3e-6bd6-4edd-b9b3-3cacde780cac",
+   "note": "página de agenda atrás de Cloudflare (falha nos runners do GitHub): id da agenda MZ fixado; consulta direta ao api.mziq.com"
   },
   "UGPA3": {
    "ri": "https://ri.ultra.com.br/",

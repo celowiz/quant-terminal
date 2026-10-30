@@ -1,10 +1,11 @@
 'use client'
 /** Funções por ticker da v4: COMP, HS, HRA, GIP, RV, HP, TRA, HDS, FA, MRR. */
+import { lastValid } from '@/lib/dataFix.mjs'
 import React, { useEffect, useMemo, useState } from 'react'
 import { en } from '@/lib/enText'
 import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
-import { C, PALETTE, nf, pf, big, dBR, dBRfull, clr, short, useJSON, FnScreen, Panel, Grid, Btns, perLabel, Field, inputCls, inputStyle, KV, Loading, NA, isEquity, corpPath } from '@/components/fn/kit'
+import { C, PALETTE, nf, pf, big, dBR, dBRfull, clr, short, useJSON, FnScreen, Panel, Grid, Btns, perLabel, Field, inputCls, inputStyle, KV, Loading, NA, isEquity, corpPath, defaultBench } from '@/components/fn/kit'
 import { getPrices, listTickers, tickerKey, type Price } from '@/lib/static'
 import { mean, std, regress, corr, align, weekly, monthEnds, monthlyReturns, maxDrawdown } from '@/lib/quant'
 import { usePrices } from './tech'
@@ -20,7 +21,7 @@ function useMulti(list: string[]) {
   return m
 }
 const tv = (r: Price[]) => r.map(x => ({ time: x.time, value: x.close }))
-const pairOf = (t: string) => ({ 'PETR4.SA': 'PETR3.SA', 'PETR3.SA': 'PETR4.SA', 'ITUB4.SA': 'ITUB3.SA', 'ITUB3.SA': 'ITUB4.SA', 'VALE3.SA': 'PETR4.SA', '^BVSP': 'PETR4.SA' } as Record<string, string>)[t] || '^BVSP'
+const pairOf = (t: string) => ({ 'PETR4.SA': 'PETR3.SA', 'PETR3.SA': 'PETR4.SA', 'ITUB4.SA': 'ITUB3.SA', 'ITUB3.SA': 'ITUB4.SA', 'VALE3.SA': 'PETR4.SA', '^BVSP': 'PETR4.SA' } as Record<string, string>)[t] || defaultBench(t)
 
 // ======================= COMP =======================
 export function COMPView({ ticker }: { ticker: string }) {
@@ -100,7 +101,7 @@ export function HSView({ ticker }: { ticker: string }) {
 // ======================= HRA =======================
 export function HRAView({ ticker }: { ticker: string }) {
   const all = useTickerList()
-  const [bench, setBench] = useState(ticker === '^BVSP' ? 'BRL=X' : '^BVSP')
+  const [bench, setBench] = useState(() => defaultBench(ticker))
   const [freq, setFreq] = useState<'d' | 'w' | 'm'>('w'), [per, setPer] = useState('2A')
   const m = useMulti([ticker, bench])
   const calc = useMemo(() => {
@@ -355,7 +356,7 @@ export function MRRView({ ticker }: { ticker: string }) {
     const D: string[] = u.dates, L = D.length - 1
     const start = per === '1D' ? D[L - 1] : periodStart(D[L], per)
     let i0 = D.findIndex(d => d >= start); if (per !== '1D' && i0 > 0) i0--
-    const rt = (s: (number | null)[]) => { let a = i0; while (a < L && s[a] == null) a++; const b = s[L]; return b != null && s[a] != null ? (b / (s[a] as number) - 1) * 100 : null }
+    const rt = (s: (number | null)[]) => { let a = i0; while (a < L && s[a] == null) a++; const b = s[lastValid(s, L)]; return b != null && s[a] != null && lastValid(s, L) > a ? (b / (s[a] as number) - 1) * 100 : null }
     const rows = (u.components as any[]).map(c => { const r = u.close[c.cod] ? rt(u.close[c.cod]) : null; return { ...c, r, contrib: r == null ? null : r * c.weight / 100 } }).filter(x => x.r != null).sort((a, b) => b.r - a.r).map((x, i) => ({ ...x, rk: i + 1 }))
     const rs = rows.map(x => x.r as number)
     return { rows, from: D[i0], to: D[L], idx: u.close['^BVSP'] ? rt(u.close['^BVSP']) : null, up: rs.filter(x => x > 0).length, dn: rs.filter(x => x < 0).length, avg: mean(rs), med: med(rs), contrib: rows.reduce((s, x) => s + (x.contrib || 0), 0) }

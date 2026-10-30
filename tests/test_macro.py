@@ -205,3 +205,23 @@ def test_fred_api_key_path(monkeypatch, capsys):
     assert len([s for s in seen if s[1]['series_id'] == 'BAD']) == 1   # 400 não repete
     bm.fred(['BAD'], '2026-10-01')
     assert 'sekret123' not in capsys.readouterr().out
+
+
+def test_ibge_events_cache_semanal(tmp_path, monkeypatch):
+    """API do IBGE fora (como nos runners do Actions): usa o cache de até 7 dias que cubra a janela; senão, falha."""
+    monkeypatch.setattr(bm, 'CACHE', str(tmp_path / 'cache')); monkeypatch.setattr(bm, 'OUT', str(tmp_path / 'out'))
+    a, b = dt.date(2026, 10, 9), dt.date(2026, 12, 14)
+    item = {'tipo_id': 1, 'titulo': 'Índice Nacional de Preços ao Consumidor Amplo', 'data_divulgacao': '10/11/2026 12:00:00'}
+    items, cached_at = bm.ibge_events(a, b, fetch=lambda u: {'items': [item]})
+    assert items == [item] and cached_at is None
+    assert (tmp_path / 'cache' / bm.IBGE_CAL).exists() and (tmp_path / 'out' / bm.IBGE_CAL).exists()
+
+    def down(u): raise RuntimeError('ConnectTimeout')
+    items, cached_at = bm.ibge_events(a + dt.timedelta(days=3), b + dt.timedelta(days=3), fetch=down)
+    assert items == [item] and cached_at
+    with pytest.raises(RuntimeError):   # janela fora do que o cache cobre
+        bm.ibge_events(a + dt.timedelta(days=60), b + dt.timedelta(days=60), fetch=down)
+    c = json.loads((tmp_path / 'cache' / bm.IBGE_CAL).read_text()); c['fetched_at'] = '2026-01-01T00:00:00-03:00'
+    (tmp_path / 'cache' / bm.IBGE_CAL).write_text(json.dumps(c)); (tmp_path / 'out' / bm.IBGE_CAL).unlink()
+    with pytest.raises(RuntimeError):   # cache com mais de 7 dias
+        bm.ibge_events(a, b, fetch=down)

@@ -50,6 +50,16 @@ export function useJSON<T = any>(path: string | null) {
 }
 export const EQUITIES = ['PETR4.SA', 'PETR3.SA', 'VALE3.SA', 'ITUB4.SA', 'ITUB3.SA', 'B3SA3.SA']
 export const isEquity = (t: string) => EQUITIES.includes(t.toUpperCase())
+/** Benchmark padrão por mercado: ações e índices BR → Ibovespa; Ibovespa → dólar (BRL=X); S&P 500 → Nasdaq-100;
+ *  demais (ações e ETFs dos EUA, índices externos, cripto, commodities) → S&P 500. Usado em GR, BETA, HS e HRA. */
+export function defaultBench(t: string) {
+  const u = t.toUpperCase()
+  if (u === '^BVSP') return 'BRL=X'
+  if (u.endsWith('.SA') || u.includes('BRL')) return '^BVSP'
+  if (u === '^GSPC') return '^NDX'
+  return '^GSPC'
+}
+export const isBR = (t: string) => { const u = t.toUpperCase(); return u.endsWith('.SA') || u === '^BVSP' || u.includes('BRL') }
 export const corpPath = (t: string) => isEquity(t) ? `corp/${tickerKey(t)}.json` : null
 
 // ---------- encaixe na viewport (desktop ≥1024px) ----------

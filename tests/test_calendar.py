@@ -167,3 +167,47 @@ def test_manifest_matches_rule():
     ax = {x['ticker']: x for x in m['logos']}['AXIA3']
     assert ax['source_file'] == 'AXIA7.png' and ax['match'] == 'override'
     assert all(x['match'] in ('exact', 'root', 'override') for x in m['logos'])
+
+
+RAD_SAMPLE = ("00865-6$&METALURGICA GERDAU S.A.$&ITR - Informações Trimestrais$& - $&<spanOrder></spanOrder> - $&"
+              "<spanOrder>20260930</spanOrder> 30/09/2026$&<spanOrder>20261026</spanOrder> 26/10/2026 18:12$&Ativo$&1$&AP$&"
+              "<i onclick=OpenPopUpVer('frmGerenciaPaginaFRE.aspx?NumeroSequencialDocumento=161846&CodigoTipoInstituicao=1')></i>$&$&&*"
+              "00417-0$&VALE S.A.$&ITR - Informações Trimestrais$& - $& - $&<spanOrder>20260930</spanOrder> 30/09/2026$&"
+              "<spanOrder>20261029</spanOrder> 29/10/2026 21:27$&Ativo$&2$&AP$&x$&$&&*"
+              "00417-0$&VALE S.A.$&ITR - Informações Trimestrais$& - $& - $&<spanOrder>20260930</spanOrder> 30/09/2026$&"
+              "<spanOrder>20261029</spanOrder> 29/10/2026 19:25$&Inativo$&1$&AP$&x$&$&&*"
+              "01131-2$&OI S.A.$&ITR - Informações Trimestrais$& - $& - $&<spanOrder>20250930</spanOrder> 30/09/2025$&"
+              "<spanOrder>20261007</spanOrder> 07/10/2026 22:02$&Ativo$&1$&AP$&x$&$&")
+
+
+def test_parse_rad_entregas_em_tempo_real():
+    out = bc.parse_rad(RAD_SAMPLE, D(2026, 9, 30))
+    assert set(out) == {'8656', '4170'}                     # código CVM no formato do IPE (sem zeros/traço); ITR antigo da Oi fora
+    assert out['8656'][0] == D(2026, 10, 26) and 'NumeroSequencialDocumento=161846' in out['8656'][1]
+    assert out['4170'][0] == D(2026, 10, 29)                 # primeira entrega (v1 19:25 e v2 21:27 no mesmo dia)
+
+
+def test_rad_filed_janelas_de_30_dias():
+    calls = []
+    def post(body):
+        calls.append((body['dataDe'], body['dataAte'], body['categoria'])); return {'d': {'temErro': False, 'dados': RAD_SAMPLE}}
+    bc.HOST_DELAY_S, old = 0, bc.HOST_DELAY_S
+    try: out = bc.rad_filed(2026, 3, D(2026, 11, 15), post=post)
+    finally: bc.HOST_DELAY_S = old
+    assert calls[0] == ('01/10/2026', '30/10/2026', 'EST_3') and calls[1][0] == '31/10/2026' and calls[-1][1] == '15/11/2026'
+    assert out['4170'][0] == D(2026, 10, 29)
+
+
+def test_fetch_ri_mz_id_fixo_nao_depende_da_pagina():
+    class F:
+        open = False
+        def __init__(self): self.urls = []
+        def get(self, url):
+            self.urls.append(url)
+            class R:
+                def json(self_): return [{'data': '11/04/2026', 'descricao': 'Release 3T26'}, {'data': '11/05/2026', 'descricao': 'Call de Resultados 3T26'}]
+            return R() if 'mziq' in url else None
+    f = F()
+    res, call, info = bc.fetch_ri({'platform': 'auto', 'page': 'https://ri.prio3.com.br/x/', 'mz_id': 'cecb3d3e-6bd6-4edd-b9b3-3cacde780cac'}, f, 2026, 3)
+    assert res['date'] == D(2026, 11, 4) and call['date'] == D(2026, 11, 5) and info['platform'] == 'mz'
+    assert all('mziq' in u for u in f.urls)                 # a página (Cloudflare) nem foi consultada

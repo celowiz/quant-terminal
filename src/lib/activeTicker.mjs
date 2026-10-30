@@ -51,3 +51,25 @@ export function writeStoredTicker(storage, ticker) {
 
 /** Rótulo limpo do ativo no campo de ticker: PETR4.SA → PETR4 (o valor real continua o ticker completo). */
 export const displayTicker = (ticker) => String(ticker || '').toUpperCase().replace(/\.SA$/, '')
+
+/** Ativo que a página /fn/ sem ticker renderiza (GP/GPC sem ativo pedem a escolha). */
+export const defaultTicker = (code) => (['GP', 'GPC'].includes(String(code || '').toUpperCase()) ? '' : 'PETR4.SA')
+
+/**
+ * Ticker mostrado na barra em /fn/ (sem ticker na URL): o guardado quando a função cobre;
+ * senão o padrão que a página realmente renderiza. `fallbackFrom` = o guardado não coberto
+ * (para o aviso), ou '' quando não houve troca.
+ */
+export function barTicker(code, stored, universe) {
+  const c = String(code || '').toUpperCase(), tk = String(stored || '').toUpperCase()
+  if (!acceptsTicker(c)) return { ticker: tk, fallbackFrom: '' }
+  if (inUniverse(c, tk, universe)) return { ticker: tk, fallbackFrom: '' }
+  const def = defaultTicker(c)
+  return { ticker: def, fallbackFrom: tk && tk !== def ? tk : '' }
+}
+
+/** Lista de busca da função: só o universo que ela cobre (DES → ações com CVM). */
+export function functionUniverse(code, universe) {
+  const own = FUNCTION_UNIVERSE[String(code || '').toUpperCase()]
+  return own ? universe.filter(u => own.includes(String(u).toUpperCase())) : universe
+}

@@ -18,6 +18,16 @@ def closes_frame(tickers, period='2y'):
         except Exception: pass
     return out, df
 
+def trim_tail(idx, cl, bench='^BVSP', min_frac=0.5):
+    """Corta do fim as datas em que menos de min_frac das ações tem fechamento. O Yahoo às vezes publica a barra do
+    dia do ^BVSP antes das ações (29/10/2026: índice com barra e todas as ações nulas), e a última data vazia deixava o
+    MRR em branco e o `Ret.` do PORT em −100%."""
+    comps = [s for t, s in cl.items() if t != bench]
+    if not comps: return idx
+    k = len(idx)
+    while k > 0 and sum(1 for s in comps if idx[k - 1] in s.index and pd.notna(s.get(idx[k - 1]))) < min_frac * len(comps): k -= 1
+    return idx[:k]
+
 def universe():
     q = base64.b64encode(json.dumps({"language": "pt-br", "pageNumber": 1, "pageSize": 120, "index": "IBOV", "segment": "2"}).encode()).decode()
     d = get_json(f'https://sistemaswebb3-listados.b3.com.br/indexProxy/indexCall/GetPortfolioDay/{q}')
@@ -27,6 +37,7 @@ def universe():
     cl, df = closes_frame(tick, '3y')
     idx = sorted(set().union(*[s.index for s in cl.values()]))
     idx = [i for i in idx if (cl['^BVSP'].index == i).any()] if '^BVSP' in cl else idx
+    idx = trim_tail(idx, cl)
     dates = [i.strftime('%Y-%m-%d') for i in idx]
     series, vols = {}, {}
     for t, s in cl.items():
