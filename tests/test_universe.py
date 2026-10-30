@@ -42,7 +42,8 @@ def test_tickers_json_minimo():
     assert sum('SMLL' in t.get('index', []) for t in T) >= 80
     assert sum(t['class'] == 'us_equity' for t in T) >= 30
     corp = {t['ticker'] for t in T if t.get('corp')}
-    assert set(bp.EQUITIES) <= corp and all(t['class'] == 'br_equity' for t in T if t.get('corp'))
+    # corp: ações BR (CVM) e, desde o P1-B, ações dos EUA (SEC companyfacts)
+    assert set(bp.EQUITIES) <= corp and all(t['class'] in ('br_equity', 'us_equity') for t in T if t.get('corp'))
 
 
 def test_universe_corta_barra_final_sem_acoes():
