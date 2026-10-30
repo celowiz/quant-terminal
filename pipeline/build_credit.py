@@ -224,7 +224,7 @@ def drsk():
             return {'period': per, 'st': st, 'lt': lt, 'dp': DP, 'sigma_e': float(sE.iloc[-1]), 'r': rr.iloc[-1], **m}
         cur = at(TODAY, r['mcap'], use_lag=False)
         if not cur:
-            skipped.append({'cod': cod, 'reason': 'loans & financing (CVM 2.01.04/2.02.01) zero or not filed, or no price history'}); continue
+            skipped.append({'cod': cod, 'reason': 'loans & financing (accounts 2.01.04/2.02.01) zero or not filed, or no price history'}); continue
         hist = []
         for me in pd.date_range(end=pd.Timestamp(TODAY), periods=37, freq='ME'):
             px = close[close.index <= me]

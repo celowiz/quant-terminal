@@ -240,7 +240,7 @@ export function DVDView({ ticker }: { ticker: string }) {
     const byY = new Map<string, number>(); divs.forEach(([t, a]) => byY.set(t.slice(0, 4), (byY.get(t.slice(0, 4)) || 0) + a))
     void px
     return (
-      <FnScreen code="DVD" ticker={ticker} title="Dividend / Split History" tabs={us ? undefined : ['Distribution history', 'CVM notices (IPE)']} tab={tab} setTab={setTab} source={srcOf(d)}
+      <FnScreen code="DVD" ticker={ticker} title="Dividend / Split History" tabs={us ? undefined : ['Distribution history', 'Company notices']} tab={tab} setTab={setTab} source={srcOf(d)}
         note={us ? 'Only the ex-date and amount per share are available here. Declaration, record and payment dates are in the company\'s press releases (often furnished on Form 8-K, see CF).' : 'Only the ex-date and gross amount per share are available here. Declaration/record/payment dates and the type (dividend vs JCP) are in the company notices (tab 2), linked to the original document.'}>
         {tab === 0 || us ? <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
           <Panel title={`Distributions (${rows.length})`}><Grid maxH={560} cols={[{ k: 'ex', label: 'Ex-date', fmt: dBRfull }, { k: 'amt', label: `Amount ${$}`, align: 'r', fmt: v => nf(v, 6), color: () => C.amber }, { k: 'px', label: 'Prev. price', align: 'r', fmt: (v: any) => nf(v) }, { k: 'y', label: 'Yield', align: 'r', fmt: v => pf(v, 2, false) }, { k: 'type', label: 'Type' }]} rows={rows} /></Panel>
