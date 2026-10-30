@@ -1,4 +1,5 @@
 'use client'
+import { lastValid } from '@/lib/dataFix.mjs'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useFit, FnScreen, Panel, Grid, Btns, Field, KV, Loading, Spark, C, nf, pf, big, dBR, dBRfull, clr, useJSON, retSince, isoMinus, inputCls, inputStyle, PALETTE } from '../../components/fn/kit'
 import FnChart from '../../components/fn/FnChart'
@@ -292,7 +293,7 @@ export function PORTView() {
     const yrs = rets.length / 252, ann = (Math.pow(val, 1 / yrs) - 1) * 100, cdiAnn = (Math.pow(cf, 1 / yrs) - 1) * 100
     const vol = std(rets) * Math.sqrt(252) * 100, reg = regress(ibr, rets)
     const ibAnn = (Math.pow(ib[ib.length - 1].value / 100, 1 / yrs) - 1) * 100
-    const contrib = pos.map((p, k) => { const c = cl[k]; return { ...p, wn: W[k] * 100, ret: (c[c.length - 1] / c[start] - 1) * 100, last: c[c.length - 1] } })
+    const contrib = pos.map((p, k) => { const c = cl[k], j = lastValid(c); return { ...p, wn: W[k] * 100, ret: j > start && c[start] != null ? (c[j] / c[start] - 1) * 100 : null, last: j >= 0 ? c[j] : null } })
     return { nav, ib, cdiNav, ann, cdiAnn, ibAnn, vol, sharpe: (ann - cdiAnn) / vol, mdd: maxDrawdown(nav.map(x => x.value)), beta: reg.beta, corr: reg.corr, from: dates[start], contrib, total: (val - 1) * 100 }
   }, [u, cdi.data, pos, reb])
   if (!u) return <FnScreen code="PORT"><Loading err={err} /></FnScreen>

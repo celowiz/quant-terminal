@@ -42,3 +42,13 @@ def test_tickers_json_minimo():
     assert sum('SMLL' in t.get('index', []) for t in T) >= 80
     assert sum(t['class'] == 'us_equity' for t in T) >= 30
     assert sorted(t['ticker'] for t in T if t.get('corp')) == sorted(bp.EQUITIES)
+
+
+def test_universe_corta_barra_final_sem_acoes():
+    import build_markets as bm
+    d = pd.to_datetime(['2026-10-27', '2026-10-28', '2026-10-29'])
+    cl = {'^BVSP': pd.Series([1, 2, 3], index=d), 'PETR4.SA': pd.Series([1, 2], index=d[:2]),
+          'VALE3.SA': pd.Series([1, 2, None], index=d), 'ITUB4.SA': pd.Series([1, 2, 3], index=d)}
+    assert list(bm.trim_tail(list(d), cl)) == list(d[:2])          # 1 de 3 ações na última data
+    cl['VALE3.SA'] = pd.Series([1, 2, 3], index=d)
+    assert list(bm.trim_tail(list(d), cl)) == list(d)              # 2 de 3: mantém

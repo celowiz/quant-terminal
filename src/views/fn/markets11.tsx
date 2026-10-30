@@ -1,6 +1,7 @@
 'use client'
 /** ECO (calendário econômico), GMM (movimentos macro globais), FXC (matriz de cruzamento), FXFC (projeções Focus de câmbio). Strings em inglês por tela. */
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { fetchIbgeLive } from '@/lib/ibgeLive'
 import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
 import { C, useJSON, FnScreen, Panel, Grid, Btns, Field, Spark } from '@/components/fn/kit'
@@ -11,14 +12,19 @@ const S_ECO = {
   title: 'Economic Calendar – Brazil & United States', country: 'Country', all: 'All', view: 'Show', key: 'Key only', allEv: 'All events', week: 'Week',
   weeks: [{ v: -1, l: 'Prev' }, { v: 0, l: 'This' }, { v: 1, l: 'Next' }, { v: 9, l: 'All' }],
   c: { time: 'Date / time', country: 'Ctry', event: 'Event', period: 'Period', survey: 'Survey', actual: 'Actual', prior: 'Prior', unit: 'Unit', agency: 'Agency' },
-  empty: 'No releases in this window.', approx: '≈ time approximate', count: 'events',
+  empty: 'No releases in this window.', live: 'Brazil (IBGE) loaded live from the IBGE API: the pipeline could not reach it.', liveNo: 'Brazil (IBGE) unavailable: the IBGE calendar API did not respond.', approx: '≈ time approximate', count: 'events',
 }
 const fmtV = (v: any, u?: string) => v == null ? '' : n(v, u === 'US$ bn' || u === 'US$ mn' || u === 'R$ bn' ? 2 : Math.abs(+v) >= 100 ? 1 : 2)
 export function ECOView() {
-  const { data: d, err } = useJSON<any>('eco.json')
+  const { data: d0, err } = useJSON<any>('eco.json')
   const [cty, setCty] = useState('All'), [key, setKey] = useState(false), [wk, setWk] = useState(0)
+  const [live, setLive] = useState<any[] | null | undefined>(undefined)
   const S = S_ECO
   const today = todaySP()
+  const noBR = !!d0 && !(d0.events as any[]).some(e => e.agency === 'IBGE')
+  // eco.json sem o IBGE (API fora para o Actions): completa a agenda do Brasil direto do navegador
+  useEffect(() => { if (noBR) fetchIbgeLive(d0.from, d0.to, today).then(setLive) }, [noBR]) // eslint-disable-line react-hooks/exhaustive-deps
+  const d = useMemo(() => d0 && live?.length ? { ...d0, events: [...d0.events, ...live] } : d0, [d0, live])
   const v = useMemo(() => {
     if (!d) return null
     // semana de referência: segunda-feira da semana do próximo dia útil
@@ -38,7 +44,7 @@ export function ECOView() {
         <Field label={S.country}><Btns opts={[{ v: 'All', l: S.all }, { v: 'BR', l: 'BR' }, { v: 'US', l: 'US' }]} value={cty} onChange={setCty} /></Field>
         <Field label={S.view}><Btns opts={[{ v: false, l: S.allEv }, { v: true, l: S.key }]} value={key} onChange={setKey} /></Field>
       </>}
-      source={d.source} note={<>{d.note} {S.approx}.</>}>
+      source={d.source} note={<>{d.note} {S.approx}.{noBR && live !== undefined ? <> {live?.length ? S.live : S.liveNo}</> : null}</>}>
       <Panel title={`${wk === 9 ? `${dUS(d.from)} – ${dUS(d.to)}` : `${dShort(v.a)} – ${dShort(v.b)}`} · ${v.ev.length} ${S.count}`}>
         {!v.ev.length ? <div className="p-4 text-[12px]" style={{ color: C.muted }}>{S.empty}</div> :
           <Grid maxH={640} rows={v.ev} rowStyle={(e: any) => { const day = e.time.slice(0, 10); const st: any = day === today ? { background: '#1a1405' } : {}; if (day !== last) { last = day; st.borderTop = `1px solid ${C.amberDim}` } return st }} cols={[

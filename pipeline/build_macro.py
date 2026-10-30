@@ -9,7 +9,7 @@ Cada etapa é independente e mantém o JSON anterior se a fonte falhar."""
 import io, re, sys, os, json, math, datetime as dt, urllib.parse, html as htmlmod
 from zoneinfo import ZoneInfo
 import pandas as pd
-from common import save, get, get_json, load_prev, clean, step, now_iso, today_brt, cached, OUT, TZ, fred_csv
+from common import save, get, get_json, load_prev, clean, step, now_iso, today_brt, cached, OUT, TZ, fred_csv, CACHE
 
 TODAY = today_brt()
 NY = ZoneInfo('America/New_York')
@@ -514,10 +514,46 @@ IBGE_EN = {'Índice de Preços ao Produtor': 'Producer prices (IPP)', 'Levantame
            'Pesquisas Trimestrais do Abate de Animais, do Leite, do Couro e da Produção de Ovos de Galinha': 'Quarterly livestock surveys (slaughter, milk, hides, eggs)',
            'Índice de Preços ao Produtor - Indústrias Extrativas e de Transformação': 'Producer prices (IPP) – mining & manufacturing'}
 
-def ibge_events(a, b):
-    u = f'https://servicodados.ibge.gov.br/api/v3/calendario/?qtd=500&de={a:%m-%d-%Y}&ate={b:%m-%d-%Y}'
-    d = get_json(u, tries=3)
-    return d.get('items', [])
+# Calendário do IBGE com disjuntor e cache semanal: desde out/2026 a API não aceita conexão dos runners do
+# GitHub Actions (ConnectTimeout em toda execução, ~7 min perdidos com 3 × 60 s × retries). Agora: 1 tentativa
+# com timeout curto; se falhar, usa os itens brutos guardados (até 7 dias) em QT_CACHE e em data/ibge_calendar.json
+# (restaurado do último site publicado), e o ECO recalcula realizado/anterior com o SIDRA do dia.
+# O navegador ainda completa a agenda direto na API (CORS aberto) quando o JSON publicado vier sem o Brasil.
+IBGE_CAL = 'ibge_calendar.json'
+IBGE_CACHE_DAYS = 7
+
+def _ibge_cache_read():
+    best = None
+    for p in (os.path.join(CACHE, IBGE_CAL), os.path.join(OUT, IBGE_CAL)):
+        try:
+            with open(p, encoding='utf-8') as f: c = json.load(f)
+            if c.get('items') and (best is None or c.get('fetched_at', '') > best.get('fetched_at', '')): best = c
+        except Exception: pass
+    return best
+
+def ibge_events(a, b, fetch=None):
+    """Itens do calendário do IBGE para [a, b]. Busca uma janela maior (a−7d, b+21d) para o cache cobrir a semana."""
+    fa, fb = a - dt.timedelta(days=7), b + dt.timedelta(days=21)
+    u = f'https://servicodados.ibge.gov.br/api/v3/calendario/?qtd=500&de={fa:%m-%d-%Y}&ate={fb:%m-%d-%Y}'
+    try:
+        d = fetch(u) if fetch else get(u, tries=1, timeout=(6, 20)).json()
+        items = d.get('items', [])
+        if not items: raise RuntimeError('calendário IBGE vazio')
+        c = {'fetched_at': now_iso(), 'from': fa.isoformat(), 'to': fb.isoformat(), 'source': u, 'items': items}
+        for p in (os.path.join(CACHE, IBGE_CAL), os.path.join(OUT, IBGE_CAL)):
+            try:
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, 'w', encoding='utf-8') as f: json.dump(c, f, ensure_ascii=False, separators=(',', ':'))
+            except Exception as e: print('ibge cache', e)
+        return items, None
+    except Exception as e:
+        c = _ibge_cache_read()
+        if not c: raise
+        age = (dt.datetime.now(TZ) - dt.datetime.fromisoformat(c['fetched_at'])).days
+        if age > IBGE_CACHE_DAYS or c.get('from', '9999') > a.isoformat() or c.get('to', '0000') < b.isoformat():
+            raise RuntimeError(f'{e!r}; cache do IBGE velho ({age} d) ou sem cobrir {a}..{b}')
+        print(f'eco ibge: API falhou ({e!r}); usando o cache de {c["fetched_at"]}')
+        return c['items'], c['fetched_at']
 
 def ref_key(y, m): return f'{y:04d}{m:02d}' if y and m else None
 
@@ -648,8 +684,11 @@ def eco():
                  '$filter': f"Indicador eq 'IPCA' and baseCalculo eq 0 and Data ge '{(a - dt.timedelta(days=60)).isoformat()}'", '$select': 'Data,DataReferencia,Mediana'}, quote_via=urllib.parse.quote))
             for r in get_json(u)['value']: focus_m.setdefault(r['DataReferencia'], []).append((r['Data'], r['Mediana']))
         except Exception as e: print('focus mensal', e)
-        br = ibge_rows(ibge_events(a, b), sidra, sgs433, focus_m)
+        items, cached_at = ibge_events(a, b)
+        lo, hi = a.isoformat(), b.isoformat()
+        br = [r for r in ibge_rows(items, sidra, sgs433, focus_m) if lo <= r['time'][:10] <= hi]
         rows += br; status['ibge'] = len(br)
+        if cached_at: status['ibge_cached_at'] = cached_at
     except Exception as e:
         print('eco ibge', e); status['ibge'] = 0
         old = [r for r in prev.get('events', []) if r.get('agency') == 'IBGE']

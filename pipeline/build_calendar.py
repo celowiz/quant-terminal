@@ -5,7 +5,8 @@ Fonte principal: o site de RI de cada empresa (checado todo dia). Fallback: CVM.
      ou o texto da página de agenda (ListaAgenda.aspx, tabelas "Eventos Futuros", páginas Next.js/WordPress).
   2. CVM (dados abertos): Calendário de Eventos Corporativos (IPE, PDF anual) → data PREVISTA do ITR/DFP;
      ITR/DFP entregue (DT_RECEB) → DIVULGADA.
-Status: expected (só o calendário anual da CVM) · confirmed (data na agenda do RI) · released (ITR/DFP entregue à CVM).
+Status: expected (só o calendário anual da CVM) · confirmed (data na agenda do RI) · released (ITR/DFP entregue à CVM:
+  dados abertos semanais + consulta pública do RAD em tempo real).
 Nada é inventado: sem data em nenhuma fonte, a linha sai com date=None ("—" na tela).
 Educativo; não é recomendação de investimento.
 """
@@ -276,6 +277,18 @@ def fetch_ri(src, f, y, q):
     info = {'platform': src['platform'], 'page': src['page'], 'error': None}
     if src['platform'] == 'blocked':
         info['error'] = 'site de RI bloqueia robôs (HTTP 403)'; return None, None, info
+    if src.get('mz_id'):
+        # id da agenda MZ fixado no ri_sources.json: consulta direto o JSON público (a página de agenda
+        # pode bloquear os runners do GitHub, ex.: PRIO atrás de Cloudflare, e aí nunca se descobria o id)
+        info['platform'] = 'mz'; info['mz_id'] = src['mz_id']
+        rj = f.get(MZ_API.format(id=src['mz_id'], lang=src.get('mz_lang', 'pt-br')))
+        events = []
+        if rj is not None:
+            try: events = parse_mz_events(rj.json(), src.get('mz_entity'))
+            except ValueError: events = []
+        res, call = pick(events, y, q)
+        if res is not None: return res, call, info
+        if rj is None: info['error'] = 'agenda MZ indisponível'; info['down'] = True; return None, None, info
     r = f.get(src['page'])
     if r is None:
         info['error'] = 'página de agenda indisponível'; info['down'] = True; return None, None, info
@@ -298,6 +311,46 @@ def fetch_ri(src, f, y, q):
 
 
 # ---------------- CVM ----------------
+RAD_LIST = 'https://www.rad.cvm.gov.br/ENET/frmConsultaExternaCVM.aspx/ListarDocumentos'
+RAD_DOC = 'https://www.rad.cvm.gov.br/ENET/frmGerenciaPaginaFRE.aspx?NumeroSequencialDocumento={seq}&CodigoTipoInstituicao=1'
+
+def parse_rad(dados, ref):
+    """Resposta do ListarDocumentos do RAD → {codigo_cvm: (data de entrega, link)} dos ITR/DFP com data de referência `ref`.
+    Registros separados por '&*', campos por '$&': código CVM ('00865-6'), nome, categoria, tipo, espécie,
+    '<spanOrder>AAAAMMDD</spanOrder> DD/MM/AAAA' (referência), entrega 'DD/MM/AAAA HH:MM', status, versão, ..."""
+    out = {}
+    for rec in (dados or '').split('&*'):
+        f = rec.split('$&')
+        if len(f) < 8: continue
+        strip = lambda x: re.sub(r'<[^>]+>', ' ', x)
+        mref = re.search(r'(\d\d)/(\d\d)/(\d{4})', strip(f[5])); ment = re.search(r'(\d\d)/(\d\d)/(\d{4})', strip(f[6]))
+        if not mref or not ment: continue
+        if dt.date(int(mref[3]), int(mref[2]), int(mref[1])) != ref: continue
+        code = str(int(re.sub(r'\D', '', f[0].split('-')[0]) or 0)) + re.sub(r'\D', '', f[0].split('-')[1] if '-' in f[0] else '')
+        day = dt.date(int(ment[3]), int(ment[2]), int(ment[1]))
+        seq = re.search(r'NumeroSequencialDocumento=(\d+)', rec)
+        link = RAD_DOC.format(seq=seq[1]) if seq else 'https://www.rad.cvm.gov.br/ENET/frmConsultaExternaCVM.aspx'
+        if code not in out or day < out[code][0]: out[code] = (day, link)
+    return out
+
+def rad_filed(y, q, today, post=None):
+    """ITR/DFP entregues no RAD da CVM (consulta pública, tempo real). Os dados abertos (dados.cvm.gov.br) só
+    são atualizados uma vez por semana, então sem isto a empresa que já divulgou seguia "expected" por dias."""
+    post = post or (lambda body: requests.post(RAD_LIST, json=body, headers={**UA, 'Content-Type': 'application/json; charset=utf-8'}, timeout=(10, 40)).json())
+    qe = quarter_end(y, q); out = {}
+    a = qe + dt.timedelta(days=1)
+    while a <= today:
+        b = min(today, a + dt.timedelta(days=29))
+        body = {'dataDe': a.strftime('%d/%m/%Y'), 'dataAte': b.strftime('%d/%m/%Y'), 'empresa': '', 'setorAtividade': '-1', 'categoriaEmissor': '-1',
+                'situacaoEmissor': '-1', 'tipoParticipante': '1', 'dataReferencia': '', 'categoria': 'EST_4' if q == 4 else 'EST_3', 'periodo': '2',
+                'horaIni': '', 'horaFim': '', 'palavraChave': '', 'ultimaDtRef': 'false', 'tipoEmpresa': '0', 'token': '', 'versaoCaptcha': ''}
+        d = post(body).get('d') or {}
+        if d.get('temErro'): raise RuntimeError(d.get('msgErro') or 'RAD erro')
+        for k, v in parse_rad(d.get('dados'), qe).items():
+            if k not in out or v[0] < out[k][0]: out[k] = v
+        a = b + dt.timedelta(days=1); time.sleep(HOST_DELAY_S)
+    return out
+
 def parse_cvm_calendar(text, q):
     """Data prevista do ITR (q=1..3) ou da DFP (q=4) no PDF do Calendário de Eventos Corporativos."""
     t = re.sub(r'\s+', ' ', text)
@@ -314,14 +367,16 @@ def _zip_csv(path, name):
     z = zipfile.ZipFile(path)
     return pd.read_csv(z.open(name), sep=';', encoding='latin1', dtype=str) if name in z.namelist() else pd.DataFrame()
 
-def cvm_data(cnpjs, y, q):
+def cvm_data(cnpjs, y, q, today=None):
     """{cnpj: {'planned': (date, link), 'filed': (date, link)}} — calendário anual (IPE) e ITR/DFP entregue."""
     import logging, pypdf
     logging.getLogger('pypdf').setLevel(logging.ERROR)
     out = {c: {} for c in cnpjs}
     cal_year = y + 1 if q == 4 else y
+    code_cnpj = {}
     try:
         ipe = _zip_csv(cached(f'{CVM}/IPE/DADOS/ipe_cia_aberta_{cal_year}.zip', f'ipe_cia_aberta_{cal_year}.zip', max_age_h=20), f'ipe_cia_aberta_{cal_year}.csv')
+        code_cnpj = {str(r.Codigo_CVM).strip(): r.CNPJ_Companhia for r in ipe[ipe.CNPJ_Companhia.isin(cnpjs)][['Codigo_CVM', 'CNPJ_Companhia']].drop_duplicates().itertuples()}
         cal = ipe[ipe.Categoria.str.contains('Calend', na=False) & ipe.CNPJ_Companhia.isin(cnpjs)].sort_values(['Data_Entrega', 'Versao'])
         fails = 0
         qe = quarter_end(y, q)
@@ -352,6 +407,13 @@ def cvm_data(cnpjs, y, q):
         for c, g in df.groupby('CNPJ_CIA'):
             r = g.iloc[0]; out[c]['filed'] = (dt.date.fromisoformat(r.DT_RECEB[:10]), r.LINK_DOC)
     except Exception as e: print('  itr', e)
+    try:
+        n = 0
+        for code, v in rad_filed(y, q, today or today_brt()).items():
+            c = code_cnpj.get(code)
+            if c and (not out[c].get('filed') or v[0] < out[c]['filed'][0]): out[c]['filed'] = v; n += 1
+        print(f'  RAD (tempo real): {n} entregas de {qlabel(y, q)} além dos dados abertos')
+    except Exception as e: print('  rad', type(e).__name__, e)
     return out
 
 
@@ -432,7 +494,7 @@ def main():
     unit_cnpj = {'TAEE11': 'TAEE3', 'KLBN11': 'KLBN3', 'ENGI11': 'ENGI3', 'IGTI11': 'IGTI3', 'SANB11': 'SANB3', 'BPAC11': 'BPAC3'}
     for t, alt in unit_cnpj.items():
         if t not in cn and alt in cn: cn[t] = cn[alt]
-    cvm = cvm_data(sorted(set(cn.values())), y, q)
+    cvm = cvm_data(sorted(set(cn.values())), y, q, today)
     prev = {r['ticker']: r for r in ((load_prev('calendar.json') or {}).get('rows') or []) if r.get('v') == 2}
     f = Fetcher(); seen = {}; rows = []
     print(f'  temporada {qlabel(y, q)}; {len(base)} empresas')

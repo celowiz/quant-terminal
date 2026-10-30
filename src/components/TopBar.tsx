@@ -9,7 +9,7 @@ import { t } from '../lib/i18n'
 import Header from './Header'
 import TickerSelector from './TickerSelector'
 import { listTickers, tickerMeta, go, href, pathParts } from '../lib/static'
-import { acceptsTicker, displayTicker, functionPath, inUniverse } from '../lib/activeTicker.mjs'
+import { acceptsTicker, barTicker, displayTicker, functionPath, functionUniverse, inUniverse } from '../lib/activeTicker.mjs'
 import { getActiveTicker, setActiveTicker, UNIVERSE } from '../lib/nav'
 import { navTicker, trackHelp } from '../lib/track'
 import { getHelp } from '../lib/help'
@@ -45,6 +45,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
 
   const [currentCodeFromPath, setCurrentCodeFromPath] = useState('')
   const [currentTickerFromPath, setCurrentTickerFromPath] = useState('')
+  const [fallbackFrom, setFallbackFrom] = useState('')
   
   // Atualizar título da página baseado na função
   const effectiveCode = functionInput || currentCodeFromPath
@@ -68,8 +69,19 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
       return
     }
     setCurrentCodeFromPath(code)
-    setCurrentTickerFromPath(urlTicker || stored)
+    if (urlTicker) { setCurrentTickerFromPath(urlTicker); return }
+    // o guardado não é coberto pela função (ex.: GOOGL no DES): a barra mostra o ativo que a
+    // página realmente renderiza e avisa; o guardado continua valendo para as outras funções
+    const b = barTicker(code, stored, UNIVERSE)
+    setCurrentTickerFromPath(b.ticker)
+    if (b.fallbackFrom) setFallbackFrom(b.fallbackFrom)
   }, [])
+
+  useEffect(() => {
+    if (!fallbackFrom) return
+    const id = window.setTimeout(() => setFallbackFrom(''), 8000)
+    return () => window.clearTimeout(id)
+  }, [fallbackFrom])
 
   useEffect(() => {
     // Initialize from URL (ou do ativo guardado)
@@ -87,7 +99,9 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
     const fetchTickers = async () => {
       try {
         const list = await listTickers()
-        const mapped = list.map(t => ({ ticker: t }))
+        // busca restrita ao universo da função (DES/FUND/... → só ações com dados da CVM)
+        const code = (pathParts()[0] || '').toUpperCase()
+        const mapped = functionUniverse(code, list).map(t => ({ ticker: t }))
         setTickers(mapped)
         // a lista só abre quando o usuário digita (antes abria sozinha ao carregar /fn/TICKER/)
       } catch (error) {
@@ -163,7 +177,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
         onFunctionEnter={handleFunctionEnter}
       />
       <div className="w-full flex items-stretch gap-0 px-0 py-0 max-lg:flex-1 max-lg:min-w-0">
-        <div className="py-0">
+        <div className="py-0 relative">
           <TickerSelector
             tickers={tickers}
             tickerSearch={tickerSearch}
@@ -178,16 +192,22 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
             disabled={isTickerDisabled()}
             disabledHint={t('hdr.tickerUnused')}
           />
+          {fallbackFrom && (
+            <div role="status" data-capture-hide className="absolute left-0 top-full z-40 mt-[2px] w-[min(460px,calc(100vw-128px))] px-2 py-1 bg-black border border-[#FFA028] text-[11px] text-[#FFA028] shadow-lg">
+              {t('hdr.fallback').replace('{t}', displayTicker(fallbackFrom)).replace('{fn}', currentCodeFromPath).replace('{d}', displayTicker(currentTickerFromPath))}
+              <button type="button" aria-label={t('help.close')} className="ml-2 text-[#8a8a8a] hover:text-white" onClick={() => setFallbackFrom('')}>×</button>
+            </div>
+          )}
         </div>
         <div className="flex-1 h-10 max-lg:h-11 max-lg:pr-3 border-0 flex items-center justify-end pr-4" style={{ backgroundImage: 'linear-gradient(to right, #8E0D0D, #4D0A0A)' }}>
 
           <button type="button" data-help-toggle aria-label={t('help.open')} title={t('help.open')} aria-haspopup="dialog" aria-expanded={showHelp} aria-controls="qt-help"
-            className={`p-1 mr-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA028] ${showHelp ? 'text-white' : 'text-[#FFA028] hover:text-white'}`}
+            className={`p-1 mr-2 max-lg:mr-1 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA028] ${showHelp ? 'text-white' : 'text-[#FFA028] hover:text-white'}`}
             onClick={() => { const v = !showHelp; setShowHelp(v); if (v) { setShowShare(false); toggleSettings(false); trackHelp(getHelp()?.code || (pathParts()[0] || '').toUpperCase() || 'HOME') } }}>
             <CircleHelp className="w-5 h-5" aria-hidden strokeWidth={2} />
           </button>
           <button type="button" data-share-toggle aria-label={t('share.open')} title={t('share.title')} aria-haspopup="menu" aria-expanded={showShare} aria-controls="qt-share"
-            className={`p-1 mr-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA028] ${showShare ? 'text-white' : 'text-[#FFA028] hover:text-white'}`}
+            className={`p-1 mr-2 max-lg:mr-1 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA028] ${showShare ? 'text-white' : 'text-[#FFA028] hover:text-white'}`}
             onClick={() => { setShowShare(!showShare); if (!showShare) toggleSettings(false) }}>
             <Share2 className="w-5 h-5" aria-hidden strokeWidth={2} />
           </button>

@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useMemo, useState } from 'react'
 import { getPrices, type Price, listTickers } from '../../lib/static'
-import { FnScreen, Panel, Grid, Btns, Field, KV, Loading, C, nf, pf, dBR, clr, short, isoMinus, inputCls, inputStyle, PALETTE, useJSON } from '../../components/fn/kit'
+import { FnScreen, Panel, Grid, Btns, Field, KV, Loading, C, nf, pf, dBR, clr, short, isoMinus, inputCls, inputStyle, PALETTE, useJSON, defaultBench, isBR } from '../../components/fn/kit'
 import FnChart, { type PaneDef } from '../../components/fn/FnChart'
 import XYChart from '../../components/fn/XYChart'
 import { macd, rsi, logret, rollStd, regress, weekly, monthlyReturns, quantile, mean, align, corr } from '../../lib/quant'
@@ -225,7 +225,7 @@ export function VOLView({ ticker }: { ticker: string }) {
 
 // ---------------- BETA ----------------
 export function BETAView({ ticker }: { ticker: string }) {
-  const [bench, setBench] = useState('^BVSP')
+  const [bench, setBench] = useState(() => defaultBench(ticker))
   const [freq, setFreq] = useState<'w' | 'd'>('w')
   const [yrs, setYrs] = useState(2)
   const [tab, setTab] = useState(0)
@@ -264,7 +264,7 @@ export function BETAView({ ticker }: { ticker: string }) {
   if (!calc) return <FnScreen code="BETA" ticker={ticker}><Loading err={err || b.err} /></FnScreen>
   return (
     <FnScreen code="BETA" ticker={ticker} title="Historical Beta / Correlation" tabs={['Beta (regression)', 'Correlation matrix']} tab={tab} setTab={setTab}
-      right={tab === 0 && <><Field label="Index"><select className={inputCls} style={inputStyle} value={bench} onChange={e => setBench(e.target.value)}>{['^BVSP', 'PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BRL=X'].map(t => <option key={t}>{t}</option>)}</select></Field><Btns opts={[{ v: 'd', l: 'Daily' }, { v: 'w', l: 'Weekly' }] as any} value={freq} onChange={setFreq as any} /><Btns opts={[{ v: 1, l: '1Y' }, { v: 2, l: '2Y' }, { v: 3, l: '3Y' }, { v: 5, l: '5Y' }] as any} value={yrs} onChange={setYrs as any} /></>}
+      right={tab === 0 && <><Field label="Index"><select className={inputCls} style={inputStyle} value={bench} onChange={e => setBench(e.target.value)}>{Array.from(new Set([bench, ...(isBR(ticker) ? ['^BVSP', 'PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BRL=X', '^GSPC'] : ['^GSPC', '^NDX', '^BVSP', 'BRL=X'])])).map(t => <option key={t}>{t}</option>)}</select></Field><Btns opts={[{ v: 'd', l: 'Daily' }, { v: 'w', l: 'Weekly' }] as any} value={freq} onChange={setFreq as any} /><Btns opts={[{ v: 1, l: '1Y' }, { v: 2, l: '2Y' }, { v: 3, l: '3Y' }, { v: 5, l: '5Y' }] as any} value={yrs} onChange={setYrs as any} /></>}
       source={tab === 0 ? SRC_PX : 'B3 (Ibovespa theoretical portfolio) + Yahoo Finance; correlation of daily returns, last year.'}
       note={tab === 0 ? 'OLS regression of the asset\'s returns (Y) on the index (X). Adjusted beta = 0.67 × raw + 0.33 (Blume adjustment, the same one used by commercial terminals). Default: weekly, 2 years.' : 'Top 12 Ibovespa components by weight + the index. Green = high correlation.'}>
       {tab === 0 ? (
@@ -295,7 +295,7 @@ export function BETAView({ ticker }: { ticker: string }) {
 
 // ---------------- GR ----------------
 export function GRView({ ticker }: { ticker: string }) {
-  const [other, setOther] = useState(ticker.startsWith('PETR4') ? 'VALE3.SA' : '^BVSP')
+  const [other, setOther] = useState(ticker.startsWith('PETR4') ? 'VALE3.SA' : defaultBench(ticker))
   const [period, setPeriod] = useState('2A')
   const [list, setList] = useState<string[]>([])
   useEffect(() => { listTickers().then(setList) }, [])
