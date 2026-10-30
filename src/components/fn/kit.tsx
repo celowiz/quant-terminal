@@ -8,6 +8,8 @@ import { FUNCTION_LIST } from '../../constants/functions'
 import { lang, numLocale } from '../../lib/settings'
 import { t } from '../../lib/i18n'
 import { trackPeriod } from '../../lib/track'
+import { setHelp } from '../../lib/help'
+import { en as tx } from '../../lib/enText'
 
 export const C = {
   bg: '#000000', panel: '#0d0d0d', panel2: '#151515', line: '#2a2a2a', text: '#e6e6e6', muted: '#8a8a8a',
@@ -114,7 +116,10 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
   right?: React.ReactNode; children: React.ReactNode; source?: React.ReactNode; note?: React.ReactNode
 }) {
   const fi = FUNCTION_LIST.find(f => f.code === code)
-  const desc = lang() === 'pt' && fi ? fi.pt : title || fi?.desc || code
+  const desc = lang() === 'pt' && fi ? fi.pt : tx(title) || fi?.desc || code
+  // metodologia/fonte vão para o modal "?" (TopBar); a tela fica livre para gráficos e tabelas
+  useEffect(() => { setHelp({ code, note, source }) }, [code, note, source])
+  useEffect(() => () => setHelp(null), [])
   return (
     <div className="w-full px-2 pb-3 lg:pb-1 -mt-4 sm:-mt-6 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col" style={{ fontFamily: MONO, color: C.text }}>
       {/* mobile (<1024px): 2 linhas — código+título / controles numa faixa com rolagem horizontal */}
@@ -127,29 +132,14 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
       {tabs && tabs.length > 0 && (
         <div className="flex flex-wrap gap-0 border-b shrink-0 fn-strip max-lg:flex-nowrap max-lg:overflow-x-auto" style={{ borderColor: C.line, background: '#050505' }}>
           {tabs.map((t, i) => (
-            <button key={t} onClick={() => setTab && setTab(i)} className="px-3 py-1 text-[12px] border-r max-lg:shrink-0 max-lg:whitespace-nowrap"
+            <button key={t} data-fn-tab onClick={() => setTab && setTab(i)} className="px-3 py-1 text-[12px] border-r max-lg:shrink-0 max-lg:whitespace-nowrap"
               style={{ borderColor: C.line, color: tab === i ? '#000' : C.amber, background: tab === i ? C.amber : 'transparent' }}>
-              <span style={{ color: tab === i ? '#000' : C.white }}>{i + 1})</span> {t}
+              <span style={{ color: tab === i ? '#000' : C.white }}>{i + 1})</span> {tx(t)}
             </button>
           ))}
         </div>
       )}
       <FitArea className="pt-2">{children}</FitArea>
-      {(source || note) && (
-        <div className="mt-2 lg:mt-1 text-[11px] leading-snug shrink-0 max-lg:hidden" style={{ color: C.muted }}>
-          {note && <div className="mb-1">{note}</div>}
-          {source && <div>{t('fn.source')}: {source}</div>}
-          <div>{t('fn.edu')}</div>
-        </div>
-      )}
-      {(source || note) && (
-        <details className="group mt-2 text-[11px] leading-snug lg:hidden" style={{ color: C.muted }}>
-          <summary className="cursor-pointer list-none select-none py-1 text-[12px] [&::-webkit-details-marker]:hidden" style={{ color: C.amber }}>{t('fn.sourceNotes')} <span className="inline-block transition-transform group-open:rotate-90">▸</span></summary>
-          {note && <div className="mb-1">{note}</div>}
-          {source && <div>{t('fn.source')}: {source}</div>}
-          <div>{t('fn.edu')}</div>
-        </details>
-      )}
     </div>
   )
 }
@@ -157,7 +147,7 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
 export function Panel({ title, children, className = '', right }: { title?: React.ReactNode; children: React.ReactNode; className?: string; right?: React.ReactNode }) {
   return (
     <div className={`border ${className}`} style={{ borderColor: C.line, background: C.panel }}>
-      {title && <div className="flex items-center px-2 py-[3px] text-[12px] font-bold border-b" style={{ color: C.amber, borderColor: C.line, background: C.panel2 }}>{title}<div className="ml-auto font-normal">{right}</div></div>}
+      {title && <div className="flex items-center px-2 py-[3px] text-[12px] font-bold border-b" style={{ color: C.amber, borderColor: C.line, background: C.panel2 }}>{tx(title)}<div className="ml-auto font-normal">{right}</div></div>}
       <div>{children}</div>
     </div>
   )
@@ -184,7 +174,7 @@ export function Grid<R = any>({ cols, rows, dense = true, onRow, maxH, rowStyle 
               {cols.map(c => (
                 <td key={c.k} className={`${dense ? 'px-2 py-[2px]' : 'px-3 py-1'} whitespace-nowrap border-b ${c.align === 'r' ? 'text-right' : c.align === 'c' ? 'text-center' : 'text-left'}`}
                   style={{ borderColor: '#1a1a1a', color: c.color ? c.color(r[c.k], r) : C.text, ['--rb' as any]: (rowStyle && (rowStyle(r, i)?.background as string)) || (i % 2 ? '#0a0a0a' : C.panel) }}>
-                  {c.w && c.align !== 'r' ? <div style={{ maxWidth: c.w, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.fmt ? c.fmt(r[c.k], r) : r[c.k] ?? '—'}</div> : c.fmt ? c.fmt(r[c.k], r) : r[c.k] ?? '—'}
+                  {c.w && c.align !== 'r' ? <div style={{ maxWidth: c.w, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.fmt ? tx(c.fmt(r[c.k], r)) : tx(r[c.k]) ?? '—'}</div> : c.fmt ? tx(c.fmt(r[c.k], r)) : tx(r[c.k]) ?? '—'}
                 </td>
               ))}
             </tr>
@@ -223,7 +213,7 @@ export function KV({ rows, cols = 1 }: { rows: [string, React.ReactNode, string?
     <div className="grid text-[12px]" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
       {rows.map(([k, v, c], i) => (
         <div key={i} className="flex justify-between gap-2 px-2 py-[2px] border-b" style={{ borderColor: '#1a1a1a' }}>
-          <span style={{ color: C.muted }}>{k}</span><span className="text-right" style={{ color: c || C.text }}>{v}</span>
+          <span style={{ color: C.muted }}>{k}</span><span className="text-right" style={{ color: c || C.text }}>{tx(v)}</span>
         </div>
       ))}
     </div>

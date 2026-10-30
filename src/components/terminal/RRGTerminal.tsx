@@ -1,4 +1,5 @@
 'use client'
+import { lang } from '@/lib/settings'
 /**
  * RRG estilo terminal: trilhas com pontos semanais (opacidade decrescente com a idade),
  * cabeça destacada com seta de direção, quadrantes coloridos, rótulos, tooltip e controles
@@ -113,7 +114,7 @@ export default function RRGTerminal() {
       {/* mobile: 2 linhas — título truncado / semana + fonte numa faixa rolável; desktop: linha única como antes */}
       <div className="flex items-center gap-4 flex-wrap px-3 py-1 border-b border-[#3a3a3a] text-[13px] max-lg:gap-x-2 max-lg:gap-y-[2px]">
         <span className="font-bold text-black bg-[#FFA028] px-2 max-lg:shrink-0">RRG</span>
-        <span className="text-[#d9d9d9] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate">Relative Rotation Graph · vs <b className="text-[#FFA028]">{label(bench)}</b> · semanal (sexta)</span>
+        <span className="text-[#d9d9d9] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate">Relative Rotation Graph · vs <b className="text-[#FFA028]">{label(bench)}</b> · {lang() === 'pt' ? 'semanal (sexta)' : 'weekly (Friday)'}</span>
         <div className="lg:contents max-lg:w-full max-lg:flex max-lg:items-center max-lg:gap-4 max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0 max-lg:text-[12px] fn-strip">
           <span className="text-[#8a8a8a]">{endDate ? `Week of ${fmtD(endDate)} · tail ${tail} wk` : ''}</span>
           <span className="ml-auto text-[#8a8a8a] text-[11px] max-lg:ml-0">Source: Yahoo Finance · educational use, not a recommendation</span>
@@ -137,11 +138,11 @@ export default function RRGTerminal() {
           <input type="range" min={1} max={26} value={tail} onChange={e => setTail(+e.target.value)} className="accent-[#FFA028] w-28" />
           <b className="text-[#FFA028] w-5">{tail}</b>
         </label>
-        <div className="flex gap-[2px]">{[4, 8, 12, 26].map(n => <button key={n} className={btn(tail === n)} onClick={() => setTail(n)}>{n}S</button>)}</div>
+        <div className="flex gap-[2px]">{[4, 8, 12, 26].map(n => <button key={n} className={btn(tail === n)} onClick={() => setTail(n)}>{n}{lang() === 'pt' ? 'S' : 'W'}</button>)}</div>
         <label className="flex items-center gap-2">Date
           <input type="range" min={0} max={maxOff} value={maxOff - endOff} onChange={e => { setPlaying(false); setEndOff(maxOff - +e.target.value) }} className="accent-[#FFA028] w-36" />
         </label>
-        <button className={btn(playing)} onClick={() => { if (!playing && endOff === 0) setEndOff(Math.min(maxOff, 26)); setPlaying(p => !p) }}>{playing ? '❚❚ Pausar' : '▶ Animar'}</button>
+        <button className={btn(playing)} onClick={() => { if (!playing && endOff === 0) setEndOff(Math.min(maxOff, 26)); setPlaying(p => !p) }}>{playing ? (lang() === 'pt' ? '❚❚ Pausar' : '❚❚ Pause') : (lang() === 'pt' ? '▶ Animar' : '▶ Play')}</button>
       </div>
 
       <div className="flex w-full max-lg:flex-col">

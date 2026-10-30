@@ -4,6 +4,7 @@ import { useFit, FnScreen, Panel, Grid, Btns, Field, KV, Loading, Spark, C, nf, 
 import FnChart from '../../components/fn/FnChart'
 import XYChart from '../../components/fn/XYChart'
 import { href } from '../../lib/static'
+import { en } from '../../lib/enText'
 import { mean, std, maxDrawdown, regress } from '../../lib/quant'
 
 const lastIdx = (a: (number | null)[]) => { let i = a.length - 1; while (i >= 0 && a[i] == null) i--; return i }
@@ -87,7 +88,7 @@ export function ECONView() {
           <Panel title={`${s?.name} (${s?.unit}) — ${s?.source || ''}`}><FnChart height={300} panes={[{ series: [{ kind: s?.freq === 'M' && /variação|saldo/.test(s?.name) ? 'hist' : 'line', data: (s?.points || []).map((p: any) => ({ time: p[0], value: p[1], color: p[1] >= 0 ? C.amber : C.down })), color: C.amber, title: (s?.name || '').split(' – ')[0].slice(0, 18), decimals: 2 }] }]} /></Panel>
           <Panel title={`Focus — medians (${dBR(focus[0]?.date)})`}>
             <table className="w-full text-[12px]"><thead><tr><th className="px-2 py-1 text-left font-normal" style={{ color: C.amber }}>Indicator</th>{fYears.map(y => <th key={y} className="px-2 py-1 text-right font-normal" style={{ color: C.amber }}>{y}</th>)}</tr></thead>
-              <tbody>{fInd.map(ind => <tr key={ind} className="border-t" style={{ borderColor: '#1a1a1a' }}><td className="px-2 py-[2px]">{ind}</td>{fYears.map(y => { const f = focus.find(x => x.indicator === ind && x.year === y); return <td key={y} className="px-2 py-[2px] text-right">{f ? nf(f.median, 2) : '—'}</td> })}</tr>)}</tbody></table>
+              <tbody>{fInd.map(ind => <tr key={ind} className="border-t" style={{ borderColor: '#1a1a1a' }}><td className="px-2 py-[2px]">{en(ind)}</td>{fYears.map(y => { const f = focus.find(x => x.indicator === ind && x.year === y); return <td key={y} className="px-2 py-[2px] text-right">{f ? nf(f.median, 2) : '—'}</td> })}</tr>)}</tbody></table>
           </Panel>
         </div>
       </div>
@@ -177,7 +178,7 @@ function HeatMap({ rows, scale }: { rows: any[]; scale: number }) {
           const items = squarify(rows.filter((r: any) => r.sector === sr.s).map((r: any) => ({ ...r, v: r.weight })), { x: sr.x + 1, y: sr.y + 16, w: sr.w - 2, h: sr.h - 17 })
           return <g key={sr.s}>
             <rect x={sr.x} y={sr.y} width={sr.w} height={sr.h} fill="#000" stroke="#000" />
-            <text x={sr.x + 4} y={sr.y + 12} fontSize={11} fill={C.amber}>{sr.s} {nf(sr.v, 1)}%</text>
+            <text x={sr.x + 4} y={sr.y + 12} fontSize={11} fill={C.amber}>{en(sr.s)} {nf(sr.v, 1)}%</text>
             {items.map((it: any) => <g key={it.cod} onClick={active ? undefined : () => setTip(it)} style={active ? undefined : { cursor: 'pointer' }}><title>{`${it.cod} ${it.name}\n${pf(it.chg)} | weight ${nf(it.weight, 2)}% | R$ ${nf(it.last)}`}</title>
               <rect x={it.x} y={it.y} width={Math.max(0, it.w - 1)} height={Math.max(0, it.h - 1)} fill={heatColor(it.chg, scale)} stroke={!active && tip?.cod === it.cod ? C.amber : undefined} strokeWidth={!active && tip?.cod === it.cod ? 2 : undefined} />
               {it.w > 38 && it.h > 22 && <><text x={it.x + it.w / 2} y={it.y + it.h / 2 - 1} textAnchor="middle" fontSize={Math.min(16, Math.max(9, it.w / 6))} fill="#fff" fontWeight={700}>{it.cod}</text><text x={it.x + it.w / 2} y={it.y + it.h / 2 + 12} textAnchor="middle" fontSize={Math.min(13, Math.max(8, it.w / 7))} fill="#fff">{pf(it.chg, 1)}</text></>}
@@ -249,7 +250,7 @@ export function ANBView() {
   const colors: Record<string, string> = { 'Renda Fixa': C.blue, 'Ações': C.amber, 'Multimercados': C.purple, 'Cambial': C.cyan, 'FIDC': C.up, 'FMP-FGTS': '#B0BEC5', 'Participações (FIP)': '#FF7AB6', 'Não classificado': '#555' }
   const total = d.rows.find((r: any) => /total/i.test(r.class_name))
   return (
-    <FnScreen code="ANB" title="Fund flows by class (net flows)" right={<><span style={{ color: C.muted }}>Ref. date {d.data_ref} · {d.unit}</span><Btns opts={[{ v: 'd', l: 'Daily' }, { v: 'm', l: 'Monthly' }] as any} value={view} onChange={setView as any} /></>}
+    <FnScreen code="ANB" title="Fund flows by class (net flows)" right={<><span style={{ color: C.muted }}>Ref. date {d.data_ref} · {en(d.unit)}</span><Btns opts={[{ v: 'd', l: 'Daily' }, { v: 'm', l: 'Monthly' }] as any} value={view} onChange={setView as any} /></>}
       source={<>{d.source}</>} note="Net flows = subscriptions − redemptions from the CVM daily fund report, aggregated by CVM registry class (RCVM 175). Own methodology, not the ANBIMA bulletin (whose terms forbid automation). Funds of funds are included alongside target funds, so AUM is double-counted.">
       <Grid rowStyle={(r: any) => /total/i.test(r.class_name) ? { background: '#151515', fontWeight: 700 } : undefined} cols={[{ k: 'class_name', label: 'Class', color: () => C.amber }, ...(['day', 'month', 'year', 'twelve_months'] as const).map(k => ({ k, label: { day: 'Day', month: 'Month', year: 'Year', twelve_months: '12 months' }[k], align: 'r' as const, fmt: (v: number) => nf(v, 0), color: clr })), { k: 'pl_bi', label: 'AUM (R$ bn)', align: 'r' as const, fmt: (v: number) => nf(v, 1) }]} rows={d.rows} />
       <div className="mt-2"><Panel title={`${view === 'd' ? 'Daily' : 'Monthly'} net flows by class (R$ mn)`}>

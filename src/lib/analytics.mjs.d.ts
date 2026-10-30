@@ -21,6 +21,7 @@ export function buildTickerSelectParams(a: { ticker: string; functionCode?: stri
 export function buildSettingsChangeParams(setting: SettingName, value?: string): Params | null
 export function buildOutboundParams(href: string, currentHost: string): Params | null
 export function buildChartInteractionParams(a: { functionCode: string; period: string | number }): Params
+export function buildHelpOpenParams(a: { functionCode: string }): Params
 export function buildShareParams(a: { functionCode: string; ticker?: string; method: ShareMethod }): Params | null
 export function ensureGtagStub(win?: any): void
 export function initGoogleAnalytics(win?: any): boolean

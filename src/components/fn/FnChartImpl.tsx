@@ -48,7 +48,7 @@ export default function FnChartImpl({ panes, height = 420, log = false, intraday
         else if (s.kind === 'hist') ser = chart.addSeries(HistogramSeries, { ...common, color: s.color || C.blue }, pi)
         else if (s.kind === 'area') ser = chart.addSeries(AreaSeries, { ...common, lineColor: s.color || C.white, lineWidth: 2, topColor: 'rgba(47,123,255,0.28)', bottomColor: 'rgba(47,123,255,0.02)' }, pi)
         else if (s.kind === 'baseline') ser = chart.addSeries(BaselineSeries, { ...common, baseValue: { type: 'price', price: s.base ?? 0 }, topLineColor: C.up, bottomLineColor: C.down, topFillColor1: 'rgba(61,220,132,0.25)', topFillColor2: 'rgba(61,220,132,0.02)', bottomFillColor1: 'rgba(255,77,77,0.02)', bottomFillColor2: 'rgba(255,77,77,0.25)' }, pi)
-        else ser = chart.addSeries(CandlestickSeries, { ...common, upColor: 'rgba(0,0,0,0)', borderUpColor: C.white, wickUpColor: C.white, downColor: C.blue, borderDownColor: C.blue, wickDownColor: C.blue }, pi)
+        else ser = chart.addSeries(CandlestickSeries, { ...common, upColor: C.white, borderUpColor: C.white, wickUpColor: C.white, downColor: C.blue, borderDownColor: C.blue, wickDownColor: C.blue }, pi)
         {
           // dados reais podem vir fora de ordem/duplicados (ex.: SGS mensal+diário) → ordena, remove duplicatas e nulos
           const m = new Map<any, any>()

@@ -1,6 +1,6 @@
 /** Atalhos de GA4 para os componentes (client-side; no-op no servidor). */
 import {
-  buildChartInteractionParams, buildSettingsChangeParams, buildShareParams, parseRoute, rememberNavIntent, trackEvent,
+  buildChartInteractionParams, buildHelpOpenParams, buildSettingsChangeParams, buildShareParams, parseRoute, rememberNavIntent, trackEvent,
   type FunctionSource, type SettingName, type ShareMethod,
 } from './analytics.mjs'
 import { BASE_PATH } from './static'
@@ -27,3 +27,5 @@ export const trackShare = (method: ShareMethod) => {
   const r = currentRoute()
   trackEvent('share', buildShareParams({ functionCode: r.functionCode, ticker: r.ticker, method }))
 }
+export const trackHelp = (functionCode?: string) =>
+  trackEvent('help_open', buildHelpOpenParams({ functionCode: functionCode || currentRoute().functionCode }))

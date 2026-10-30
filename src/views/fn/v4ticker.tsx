@@ -1,6 +1,7 @@
 'use client'
 /** Funções por ticker da v4: COMP, HS, HRA, GIP, RV, HP, TRA, HDS, FA, MRR. */
 import React, { useEffect, useMemo, useState } from 'react'
+import { en } from '@/lib/enText'
 import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
 import { C, PALETTE, nf, pf, big, dBR, dBRfull, clr, short, useJSON, FnScreen, Panel, Grid, Btns, perLabel, Field, inputCls, inputStyle, KV, Loading, NA, isEquity, corpPath } from '@/components/fn/kit'
@@ -313,7 +314,7 @@ export function HDSView({ ticker }: { ticker: string }) {
         ]} />
         <Panel title="% of total capital"><HBars rows={calc.top.map((r: any) => ({ label: r.name.replace(/ - .*$/, '').slice(0, 26), v: r.pct, color: r.controller === 'S' ? C.amber : /^Outros/.test(r.name) ? '#666' : C.blue }))} fmt={x => pf(x, 2, false)} /></Panel>
       </div> : <Grid maxH={620} rows={calc.tree} cols={[
-        { k: 'name', label: 'Entity (level)', fmt: (x, r: any) => <span style={{ paddingLeft: r.lv * 16 }}>{r.lv ? '└ ' : ''}{x}</span>, color: (_, r: any) => r.lv === 0 ? C.amber : C.white },
+        { k: 'name', label: 'Entity (level)', fmt: (x, r: any) => <span style={{ paddingLeft: r.lv * 16 }}>{r.lv ? '└ ' : ''}{en(x)}</span>, color: (_, r: any) => r.lv === 0 ? C.amber : C.white },
         { k: 'controller', label: 'Controlling', align: 'c', fmt: x => yn(x) }, { k: 'pct_on', label: '% ON', align: 'r', fmt: x => pf(x, 2, false) }, { k: 'pct_pn', label: '% PN', align: 'r', fmt: x => pf(x, 2, false) }, { k: 'pct', label: '% Total', align: 'r', fmt: x => pf(x, 2, false) },
       ]} />}
     </FnScreen>
@@ -335,11 +336,11 @@ export function FAView({ ticker }: { ticker: string }) {
       right={<><Btns opts={[{ v: false, l: 'Yearly' }, { v: true, l: 'Quarterly' }]} value={q} onChange={setQ} /><Field label="Detail"><Btns opts={[{ v: 1, l: '1' }, { v: 2, l: '2' }, { v: 3, l: '3' }]} value={depth} onChange={setDepth} /></Field></>}
       source={f.source} note={<>{f.note} Values in R$ millions, consolidated. Income-statement/cash-flow quarters derived from the cumulative ITR figures (Q4 = annual − 9 months); balance sheet = position at period end. Click an account to chart it.</>}>
       <Grid maxH={470} onRow={(r: any) => setSel(r.code)} rowStyle={(r: any) => r.code === cur?.code ? { background: '#2a1d08' } : r.level === 1 ? { background: '#141414' } : undefined} rows={rows.map(r => ({ ...r, ...Object.fromEntries(r.vals.map((v: number | null, i: number) => [`p${i}`, v])), yoy: q ? (r.vals[n - 1] != null && r.vals[n - 5] ? (r.vals[n - 1] / Math.abs(r.vals[n - 5]) - Math.sign(r.vals[n - 5])) * 100 : null) : (r.vals[n - 1] != null && r.vals[n - 2] ? (r.vals[n - 1] / Math.abs(r.vals[n - 2]) - Math.sign(r.vals[n - 2])) * 100 : null) }))} cols={[
-        { k: 'code', label: 'Account', color: () => C.muted }, { k: 'name', label: 'Description', fmt: (x, r: any) => <span style={{ paddingLeft: (r.level - 1) * 12, fontWeight: r.level === 1 ? 700 : 400 }}>{x}</span>, color: (_, r: any) => r.level === 1 ? C.amber : C.text },
+        { k: 'code', label: 'Account', color: () => C.muted }, { k: 'name', label: 'Description', fmt: (x, r: any) => <span style={{ paddingLeft: (r.level - 1) * 12, fontWeight: r.level === 1 ? 700 : 400 }}>{en(x)}</span>, color: (_, r: any) => r.level === 1 ? C.amber : C.text },
         ...periods.map((p, i) => ({ k: `p${i}`, label: fiscalLabel(p, q), align: 'r' as const, fmt: (x: any) => x == null ? '—' : nf(x / 1e6, 0), color: (x: any) => x < 0 ? C.down : C.text })),
         { k: 'yoy', label: q ? 'Δ a/a' : 'Δ annual', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) },
       ]} />
-      {cur && <Panel title={`${cur.code} ${cur.name} (R$ mi)`} className="mt-2"><FnChart height={200} panes={[{ series: [{ kind: 'hist', data: periods.map((p, i) => ({ time: p, value: cur.vals[i] == null ? 0 : cur.vals[i] / 1e6, color: (cur.vals[i] ?? 0) >= 0 ? C.amber : C.down })), title: cur.name.slice(0, 30), decimals: 0 }] }]} /></Panel>}
+      {cur && <Panel title={`${cur.code} ${en(cur.name)} (${en('R$ mi')})`} className="mt-2"><FnChart height={200} panes={[{ series: [{ kind: 'hist', data: periods.map((p, i) => ({ time: p, value: cur.vals[i] == null ? 0 : cur.vals[i] / 1e6, color: (cur.vals[i] ?? 0) >= 0 ? C.amber : C.down })), title: cur.name.slice(0, 30), decimals: 0 }] }]} /></Panel>}
     </FnScreen>
   )
 }
