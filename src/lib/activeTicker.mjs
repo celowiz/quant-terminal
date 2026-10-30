@@ -4,7 +4,7 @@
 /** Funções que aceitam ativo (têm rota /fn/[ticker] gerada a partir de data/tickers.json). */
 export const TICKER_FUNCTIONS = [
   'GP', 'GPC', 'GIP', 'GR', 'MACD', 'RSI', 'SEAG', 'SEAH',
-  'DES', 'CN', 'CF', 'FUND', 'FA', 'VAL', 'RV', 'HDS', 'OMON',
+  'DES', 'CN', 'CF', 'FUND', 'FA', 'VAL', 'RV', 'HDS', 'OMON', 'OVME', 'EVTS',
   'HP', 'TRA', 'COMP', 'DY', 'DVD', 'SPLIT', 'BETA', 'VOL', 'HS', 'HRA', 'MRR',
 ]
 
@@ -13,7 +13,7 @@ const EQUITIES = ['PETR4.SA', 'PETR3.SA', 'VALE3.SA', 'ITUB4.SA', 'ITUB3.SA', 'B
 /** Dataset por ativo que cada função restrita precisa (pipeline: corp/, holders/, fa/, options/, intraday/). */
 export const FUNCTION_DATASET = {
   DES: 'corp', CN: 'corp', CF: 'corp', FUND: 'corp', VAL: 'corp', DY: 'corp', DVD: 'corp', SPLIT: 'corp', TRA: 'corp',
-  HDS: 'holders', FA: 'fa', OMON: 'options', GIP: 'intraday',
+  HDS: 'holders', FA: 'fa', OMON: 'options', OVME: 'options', EVTS: 'corp', GIP: 'intraday',
 }
 const STATIC_UNIVERSE = {
   corp: EQUITIES, holders: EQUITIES, fa: EQUITIES, options: EQUITIES, intraday: [...EQUITIES, '^BVSP'],
