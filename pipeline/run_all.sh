@@ -33,6 +33,7 @@ run extra    build_extra.py      # GIP intradiário, GLCO futuros, ECFC Focus, E
 run macro    build_macro.py      # WB, FOMC, WIRP, TAYL, ECO, FXFC, FXC, GMM (Tesouro Transparente, BoE, FRED, Fed, BCB, IBGE, BLS/BEA/Census, Yahoo)
 run credit   build_credit.py     # YAS (Tesouro Transparente + DI1), DRSK (CVM BPP + Yahoo), ECTR (Comex Stat) — depois de rates/extra
 run options  build_options.py    # B3 COTAHIST diário (opções) + gregas Black-Scholes
+run fns1     build_fns1.py      # BEIR (Tesouro Transparente), USMM (NY Fed), CBR (BIS), CRYP (CoinGecko, alternative.me, DefiLlama)
 run news     build_news.py       # RSS de licença aberta (Agência Brasil, BCB, CVM, SEC, Fed, RFB)
 run anb      build_anb.py        # CVM Informe Diário de fundos → captação líquida por classe
 run coverage build_coverage.py   # tickers.json: quais ativos têm DES/FUND/HDS/FA/OMON/GIP (arquivos por ticker gerados acima)
