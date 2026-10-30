@@ -34,7 +34,7 @@ def parse(content):
         n = lambda a, b, dv=100: int(f(a, b)) / dv
         rows.append({'date': f(3, 10), 'codbdi': f(11, 12), 'code': f(13, 24).strip(), 'tpmerc': f(25, 27), 'nomres': f(28, 39).strip(), 'especi': f(40, 49).strip(),
                      'open': n(57, 69), 'high': n(70, 82), 'low': n(83, 95), 'avg': n(96, 108), 'last': n(109, 121), 'bid': n(122, 134), 'ask': n(135, 147),
-                     'trades': int(f(148, 152)), 'qty': int(f(153, 170)), 'vol': n(171, 188), 'strike': n(189, 201), 'exp': f(203, 210), 'fatcot': int(f(211, 217))})
+                     'trades': int(f(148, 152)), 'qty': int(f(153, 170)), 'vol': n(171, 188), 'strike': n(189, 201), 'exp': f(203, 210), 'fatcot': int(f(211, 217)), 'isin': f(231, 242).strip()})
     return rows
 
 def official_closes(rows):

@@ -77,6 +77,9 @@ export const FUNCTION_LIST: FunctionItem[] = [
   { code: 'OVME', desc: 'Option Valuation (Black-Scholes)', pt: 'Calculadora de opções', cat: 'tools' },
   { code: 'COT', desc: 'Commitments of Traders (CFTC)', pt: 'Posições em futuros (CFTC COT)', cat: 'fxcmd' },
   { code: '13F', desc: '13F Manager Holdings (SEC)', pt: 'Carteiras de gestores dos EUA (13F)', cat: 'equity' },
+  { code: 'FIIM', desc: 'REIT (FII) Monitor: yield, P/NAV, holders', pt: 'Monitor de FIIs: DY, P/VP, PL e cotistas', cat: 'equity' },
+  { code: 'FNDS', desc: 'Fund Rankings: returns, flows, AUM, drawdown', pt: 'Ranking de fundos: cota, captação, PL e drawdown', cat: 'monitors' },
+  { code: 'BKS', desc: 'Bank Monitor: Basel ratio, credit, earnings', pt: 'Painel de bancos: Basileia, crédito e resultado', cat: 'macro' },
 ]
 
 /** nome da função no idioma atual */

@@ -37,6 +37,7 @@ run fns1     build_fns1.py      # BEIR (Tesouro Transparente), USMM (NY Fed), CB
 run fns2     build_fns2.py      # COT (CFTC Commitments of Traders), 13F (SEC EDGAR, carteiras de gestores)
 run news     build_news.py       # RSS de licença aberta (Agência Brasil, BCB, CVM, SEC, Fed, RFB)
 run anb      build_anb.py        # CVM Informe Diário de fundos → captação líquida por classe
+run fns3     build_fns3.py      # FIIM (CVM informe mensal de FII + COTAHIST), FNDS (CVM informe diário), BKS (BCB IF.data)
 run coverage build_coverage.py   # tickers.json: quais ativos têm DES/FUND/HDS/FA/OMON/GIP (arquivos por ticker gerados acima)
 run alerts   build_alerts.py     # avalia alerts.yaml → alerts.json + $QT_ALERTS_MD se disparar (por último: usa os preços novos)
 
