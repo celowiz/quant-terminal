@@ -66,6 +66,10 @@ export const FUNCTION_LIST: FunctionItem[] = [
   { code: 'GMM', desc: 'Global Macro Movers', pt: 'Movimentos macro globais', cat: 'monitors' },
   { code: 'FXC', desc: 'Currency Cross Rates', pt: 'Matriz de câmbio cruzado', cat: 'fxcmd' },
   { code: 'FXFC', desc: 'FX Forecasts (Focus)', pt: 'Projeções de câmbio (Focus)', cat: 'fxcmd' },
+  { code: 'BEIR', desc: 'Breakeven Inflation (BR)', pt: 'Inflação implícita (BR)', cat: 'rates' },
+  { code: 'USMM', desc: 'US Money Market (SOFR/EFFR)', pt: 'Mercado monetário dos EUA (SOFR/EFFR)', cat: 'rates' },
+  { code: 'CBR', desc: 'Central Bank Rates', pt: 'Juros dos bancos centrais', cat: 'macro' },
+  { code: 'CRYP', desc: 'Crypto Monitor', pt: 'Monitor de criptomoedas', cat: 'fxcmd' },
   { code: 'DRSK', desc: 'Default Risk (Merton DD)', pt: 'Risco de default (DD de Merton)', cat: 'equity' },
 ]
 
