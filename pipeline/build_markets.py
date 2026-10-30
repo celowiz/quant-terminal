@@ -188,19 +188,35 @@ def econ():
 def wfi():
     curve_ids = ['DGS1MO', 'DGS3MO', 'DGS6MO', 'DGS1', 'DGS2', 'DGS3', 'DGS5', 'DGS7', 'DGS10', 'DGS20', 'DGS30']
     tenors = [1/12, .25, .5, 1, 2, 3, 5, 7, 10, 20, 30]
-    f = fred(curve_ids, (TODAY - dt.timedelta(days=800)).isoformat()).ffill().dropna()
+    from build_macro import treasury_yields, UST_CURVE, UST_SOURCE, oecd_lt, OECD_SRC
+    start = (TODAY - dt.timedelta(days=800)).isoformat()
+    # fonte primária: CSV do próprio Tesouro dos EUA (sai no fim do mesmo dia); FRED (H.15, 1 dia depois) só se falhar
+    try:
+        t = treasury_yields(start, UST_CURVE)
+        if len(t) < len(curve_ids): raise RuntimeError(f'Treasury: só {len(t)} vértices')
+        f = pd.DataFrame(t)[curve_ids].ffill().dropna(); us_src = UST_SOURCE
+    except Exception as e:
+        print('wfi treasury', e); f = fred(curve_ids, start).ffill().dropna(); us_src = 'FRED – US Treasury constant maturity (H.15)'
     def at(d):
         r = f[f.index <= d].iloc[-1]; return {'date': f[f.index <= d].index[-1].date().isoformat(), 'y': [clean(r[i], 3) for i in curve_ids]}
     last = f.index[-1]
-    us = {'tenors': tenors, 'labels': ['1M', '3M', '6M', '1A', '2A', '3A', '5A', '7A', '10A', '20A', '30A'],
+    us = {'tenors': tenors, 'labels': ['1M', '3M', '6M', '1Y', '2Y', '3Y', '5Y', '7Y', '10Y', '20Y', '30Y'], 'source': us_src,
           'now': at(last), 'w1': at(last - pd.Timedelta(days=7)), 'm1': at(last - pd.Timedelta(days=30)), 'y1': at(last - pd.Timedelta(days=365))}
-    gov = [('DE', 'Alemanha'), ('GB', 'Reino Unido'), ('JP', 'Japão'), ('FR', 'França'), ('IT', 'Itália'), ('ES', 'Espanha'), ('CA', 'Canadá'),
-           ('AU', 'Austrália'), ('CH', 'Suíça'), ('KR', 'Coreia do Sul'), ('MX', 'México'), ('ZA', 'África do Sul')]
+    gov = [('DE', 'Germany'), ('GB', 'United Kingdom'), ('JP', 'Japan'), ('FR', 'France'), ('IT', 'Italy'), ('ES', 'Spain'), ('CA', 'Canada'),
+           ('AU', 'Australia'), ('CH', 'Switzerland'), ('KR', 'South Korea'), ('MX', 'Mexico'), ('CO', 'Colombia'), ('ZA', 'South Africa')]
+    s0 = TODAY - dt.timedelta(days=4000)
+    # OCDE: API SDMX da própria OCDE (primária); FRED (IRLTLT01*) por país só se a OCDE não tiver a série ou estiver mais atrasada
+    try: o = oecd_lt([c for c, _ in gov] + ['US'], s0.isoformat()[:7])
+    except Exception as e: print('wfi OECD SDMX', e); o = {}
     ids = [f'IRLTLT01{c}M156N' for c, _ in gov]
-    g = fred(ids, (TODAY - dt.timedelta(days=4000)).isoformat())
-    sov = [{'country': c, 'name': n, 'id': i, 'points': [[d.date().isoformat(), clean(v, 3)] for d, v in g[i].dropna().items()]} for (c, n), i in zip(gov, ids) if i in g]
-    us10 = fred(['DGS10'], (TODAY - dt.timedelta(days=4000)).isoformat())['DGS10'].dropna().resample('ME').mean()
-    sov.insert(0, {'country': 'US', 'name': 'Estados Unidos', 'id': 'DGS10 (média mensal)', 'points': [[d.date().isoformat(), clean(v, 3)] for d, v in us10.items()]})
+    g = fred([i for (c, _), i in zip(gov, ids) if c not in o], s0.isoformat())
+    sov = []
+    for (c, n), i in zip(gov, ids):
+        s, sid = (o[c], f'OECD IRLT ({c})') if c in o else (g.get(i), i)
+        if s is not None and len(s): sov.append({'country': c, 'name': n, 'id': sid, 'points': [[d.date().isoformat(), clean(v, 3)] for d, v in s.dropna().items()]})
+    us10 = o.get('US')
+    if us10 is None: us10 = fred(['DGS10'], s0.isoformat())['DGS10'].dropna().resample('MS').mean()
+    sov.insert(0, {'country': 'US', 'name': 'United States', 'id': 'OECD IRLT (US)' if 'US' in o else 'DGS10 (monthly average)', 'points': [[d.date().isoformat(), clean(v, 3)] for d, v in us10.items()]})
     idx_ids = [('BAMLCC0A0CMTRIV', 'ICE BofA US Corporate', 'US IG'), ('BAMLHYH0A0HYM2TRIV', 'ICE BofA US High Yield', 'US HY'),
                ('BAMLEMCBPITRIV', 'ICE BofA Emerging Markets Corporate Plus', 'EM Corp'), ('BAMLHE00EHYITRIV', 'ICE BofA Euro High Yield', 'EUR HY'),
                ('BAMLEMHBHYCRPITRIV', 'ICE BofA High Yield EM Corporate Plus', 'EM HY'), ('BAMLCC0A1AAATRIV', 'ICE BofA AAA US Corporate', 'US AAA')]
@@ -216,7 +232,7 @@ def wfi():
     except Exception as e: print('br', e)
     if not {'selic', 'cdi_aa'} <= br.keys():  # mantém o valor anterior se o BCB falhar
         br = {**((load_prev('wfi.json') or {}).get('br') or {}), **br}
-    save('wfi.json', {'generated_at': now_iso(), 'source': 'FRED (US Treasury constant maturity, OCDE long-term rates, índices ICE BofA total return e OAS); BCB SGS (Selic/CDI)',
+    save('wfi.json', {'generated_at': now_iso(), 'source': f'{us_src}; OECD SDMX API (10-year sovereigns, monthly); FRED (ICE BofA total return indices and OAS); BCB SGS (Selic/CDI)',
                       'us_curve': us, 'sovereign10y': sov, 'indexes': indexes, 'spreads': spreads, 'br': br})
 
 if __name__ == '__main__':

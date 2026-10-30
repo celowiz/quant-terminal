@@ -246,6 +246,10 @@ const S_WB = {
   c: { name: 'Country', yld: 'Yield', d1: '1D', w1: '1W', m1: '1M', m3: '3M', ytd: 'YTD', y1: '1Y', rng: '3M range', spark: '3M', date: 'Date', freq: 'Freq' },
   chg: 'Changes in bp', chart: 'Yield history', detail: 'Details', src: 'Source', br: 'Brazil local curve history (pipeline snapshots)',
 }
+/** selo de frequência: D = série diária (BC/Tesouro), M = média mensal da OCDE */
+const FreqBadge = ({ f }: { f: string }) => (
+  <span title={f === 'M' ? 'Monthly average (OECD)' : 'Daily'} className="inline-block px-[3px] text-[9px] leading-[12px] border rounded-sm"
+    style={{ color: f === 'M' ? C.yellow : C.muted, borderColor: f === 'M' ? C.yellow : '#444' }}>{f === 'M' ? 'M' : 'D'}</span>)
 export function WBView() {
   const { data: d, err } = useJSON<any>('wb.json')
   const [ten, setTen] = useState('10Y'), [reg, setReg] = useState('All'), [sel, setSel] = useState('US')
@@ -265,25 +269,24 @@ export function WBView() {
         <Panel title={`${ten} · ${S.chg}`}>
           <Grid maxH={600} rows={rows} onRow={(x: any) => setSel(x.cc)} rowStyle={(x: any) => x.cc === sel ? { background: '#1f2a44' } : undefined} cols={[
             { k: 'region', label: S.region, color: () => C.muted },
-            { k: 'name', label: S.c.name, color: () => C.amber },
+            { k: 'name', label: S.c.name, color: () => C.amber, fmt: (x: any, r: any) => <span className="inline-flex items-center gap-1">{x}<FreqBadge f={r.freq} /></span> },
             { k: 'yld', label: S.c.yld, align: 'r', fmt: x => n(x, 3), color: () => C.white },
             ...(['d1', 'w1', 'm1', 'm3', 'ytd', 'y1'] as const).map(k => ({ k, label: S.c[k], align: 'r' as const, fmt: (x: any) => bps(x, 0), color: (x: any) => cl(x) })),
             { k: 'rng', label: S.c.rng, align: 'c', fmt: (_, x: any) => rngBar(x) },
             { k: 'spark', label: S.c.spark, fmt: x => <Spark data={x || []} w={70} h={14} /> },
-            { k: 'date', label: S.c.date, fmt: x => dUS(x) },
-            { k: 'freq', label: S.c.freq, align: 'c', fmt: x => x === 'M' ? 'M' : 'D', color: (x: any) => x === 'M' ? C.yellow : C.muted },
+            { k: 'date', label: S.c.date, fmt: (x: any, r: any) => r.freq === 'M' ? mLab(x) : dUS(x) },
           ]} />
         </Panel>
         <div className="min-w-0">
           {s ? <>
-            <Panel title={`${s.name} – ${S.chart} (%)`}>
+            <Panel title={<span className="inline-flex items-center gap-1">{`${s.name} – ${S.chart} (%)`}<FreqBadge f={Object.values(s.tenors as any).some((x: any) => x.freq === 'D') ? 'D' : 'M'} /></span>}>
               <FnChart height={300} panes={[{ series: Object.entries(s.tenors).map(([t, x]: any, i) => ({ kind: 'line' as const, data: (x.series || []).map((p: any) => ({ time: p[0], value: p[1] })), color: [C.amber, C.cyan, C.white, C.purple][i % 4], title: t, decimals: 3 })) }]} />
             </Panel>
             <Panel title={S.detail} className="mt-2">
               <Grid rows={Object.entries(s.tenors).map(([t, x]: any) => ({ t, ...x }))} cols={[
                 { k: 't', label: S.tenor, color: () => C.amber }, { k: 'yld', label: S.c.yld, align: 'r', fmt: x => n(x, 3), color: () => C.white },
                 ...(['d1', 'w1', 'm1', 'ytd', 'y1'] as const).map(k => ({ k, label: S.c[k], align: 'r' as const, fmt: (x: any) => bps(x, 0), color: (x: any) => cl(x) })),
-                { k: 'avg3m', label: '3M avg', align: 'r', fmt: x => n(x, 3) }, { k: 'date', label: S.c.date, fmt: x => dUS(x) },
+                { k: 'avg3m', label: '3M avg', align: 'r', fmt: x => n(x, 3) }, { k: 'date', label: S.c.date, fmt: (x: any, r: any) => r.freq === 'M' ? mLab(x) : dUS(x) },
               ]} />
               <div className="p-2 text-[11px]" style={{ color: C.muted }}>{S.src}: {s.source}</div>
             </Panel>

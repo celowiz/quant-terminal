@@ -225,3 +225,23 @@ def test_ibge_events_cache_semanal(tmp_path, monkeypatch):
     (tmp_path / 'cache' / bm.IBGE_CAL).write_text(json.dumps(c)); (tmp_path / 'out' / bm.IBGE_CAL).unlink()
     with pytest.raises(RuntimeError):   # cache com mais de 7 dias
         bm.ibge_events(a, b, fetch=down)
+
+
+def test_parse_oecd_sdmx_csv_colombia():
+    txt = ('STRUCTURE,STRUCTURE_ID,ACTION,REF_AREA,FREQ,MEASURE,UNIT_MEASURE,ACTIVITY,ADJUSTMENT,TRANSFORMATION,TIME_HORIZ,METHODOLOGY,TIME_PERIOD,OBS_VALUE,OBS_STATUS,UNIT_MULT,DECIMALS,BASE_PER\n'
+           'DATAFLOW,OECD.SDD.STES:DSD_STES@DF_FINMARK(4.0),I,COL,M,IRLT,PA,_Z,_Z,_Z,_Z,N,2026-09,12.73,A,0,2,\n'
+           'DATAFLOW,OECD.SDD.STES:DSD_STES@DF_FINMARK(4.0),I,COL,M,IRLT,PA,_Z,_Z,_Z,_Z,N,2026-08,12.9,A,0,2,\n'
+           'DATAFLOW,OECD.SDD.STES:DSD_STES@DF_FINMARK(4.0),I,MEX,M,IRLT,PA,_Z,_Z,_Z,_Z,N,2026-09,,M,0,2,\n'
+           'DATAFLOW,OECD.SDD.STES:DSD_STES@DF_FINMARK(4.0),I,XXX,M,IRLT,PA,_Z,_Z,_Z,_Z,N,2026-09,1.0,A,0,2,\n')
+    o = bm.parse_oecd_csv(txt)
+    assert set(o) == {'CO'}                     # vazio (MEX) e país desconhecido ficam de fora
+    assert o['CO'].index[-1].strftime('%Y-%m-%d') == '2026-09-01' and o['CO'].iloc[-1] == 12.73 and len(o['CO']) == 2
+
+
+def test_parse_treasury_full_curve():
+    txt = ('Date,"1 Mo","1.5 Month","2 Mo","3 Mo","4 Mo","6 Mo","1 Yr","2 Yr","3 Yr","5 Yr","7 Yr","10 Yr","20 Yr","30 Yr"\n'
+           '10/29/2026,4.06,4.08,4.17,4.18,4.21,4.28,4.42,4.61,4.73,4.78,4.87,4.98,5.35,5.32\n'
+           '10/28/2026,4.07,4.10,4.16,4.18,4.22,4.32,4.47,4.67,4.80,4.85,4.95,5.05,5.41,5.37\n')
+    c = bm.parse_treasury_csv(txt, bm.UST_CURVE)
+    assert list(c) == list(bm.UST_CURVE) and c['DGS10'].iloc[-1] == 4.98 and c['DGS1MO'].index[-1].day == 29
+    assert set(bm.parse_treasury_csv(txt)) == {'DGS2', 'DGS5', 'DGS10', 'DGS30'}

@@ -31,19 +31,26 @@ def fred(ids, start='2000-01-01'):
 
 # Fontes alternativas sem chave quando o FRED não responde (as mesmas séries, direto da fonte primária).
 UST_COLS = {'DGS2': '2 Yr', 'DGS5': '5 Yr', 'DGS10': '10 Yr', 'DGS30': '30 Yr'}
+# curva completa (mesmos vértices das séries DGS* do FRED/H.15)
+UST_CURVE = {'DGS1MO': '1 Mo', 'DGS3MO': '3 Mo', 'DGS6MO': '6 Mo', 'DGS1': '1 Yr', 'DGS2': '2 Yr', 'DGS3': '3 Yr', 'DGS5': '5 Yr',
+             'DGS7': '7 Yr', 'DGS10': '10 Yr', 'DGS20': '20 Yr', 'DGS30': '30 Yr'}
+UST_SOURCE = 'U.S. Department of the Treasury – Daily Treasury Par Yield Curve Rates (home.treasury.gov)'
 
-def parse_treasury_csv(txt):
+def parse_treasury_csv(txt, cols=UST_COLS):
     """CSV 'Daily Treasury Par Yield Curve Rates' (home.treasury.gov) → {DGSn: Series}."""
     df = pd.read_csv(io.StringIO(txt))
     idx = pd.to_datetime(df['Date'], format='%m/%d/%Y')
-    return {k: pd.Series(pd.to_numeric(df[c], errors='coerce').values, index=idx).dropna().sort_index() for k, c in UST_COLS.items() if c in df}
+    return {k: pd.Series(pd.to_numeric(df[c], errors='coerce').values, index=idx).dropna().sort_index() for k, c in cols.items() if c in df}
 
-def treasury_yields(start):
+def treasury_yields(start, cols=UST_COLS):
+    """Curva do Tesouro dos EUA direto da fonte (um CSV por ano; anos fechados ficam em cache por 1 semana)."""
     out = {}
     for y in range(int(start[:4]), TODAY.year + 1):
-        txt = get(f'https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{y}/all'
-                  f'?type=daily_treasury_yield_curve&field_tdr_date_value={y}&page&_format=csv').text
-        for k, v in parse_treasury_csv(txt).items(): out[k] = pd.concat([out[k], v]) if k in out else v
+        url = (f'https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{y}/all'
+               f'?type=daily_treasury_yield_curve&field_tdr_date_value={y}&page&_format=csv')
+        txt = open(cached(url, f'ust_curve_{y}.csv', max_age_h=168 if y < TODAY.year else 2), encoding='utf-8-sig').read()
+        if not txt.lstrip().startswith('Date'): raise RuntimeError(f'Treasury {y}: resposta não é o CSV esperado')
+        for k, v in parse_treasury_csv(txt, cols).items(): out[k] = pd.concat([out[k], v]) if k in out else v
     return {k: v[~v.index.duplicated()].sort_index().loc[pd.Timestamp(start):] for k, v in out.items()}
 
 def parse_nyfed_effr(d):
@@ -124,6 +131,28 @@ OECD = [('FR', 'France', 'IRLTLT01FRM156N'), ('IT', 'Italy', 'IRLTLT01ITM156N'),
 REGION = {'US': 'Americas', 'CA': 'Americas', 'BR': 'Americas', 'MX': 'Americas', 'CL': 'Americas', 'CO': 'Americas',
           'JP': 'Asia/Pacific', 'AU': 'Asia/Pacific', 'NZ': 'Asia/Pacific', 'KR': 'Asia/Pacific', 'IN': 'Asia/Pacific'}
 
+ISO3 = {'FR': 'FRA', 'IT': 'ITA', 'ES': 'ESP', 'NL': 'NLD', 'PT': 'PRT', 'GR': 'GRC', 'BE': 'BEL', 'AT': 'AUT', 'IE': 'IRL', 'SE': 'SWE', 'CH': 'CHE',
+        'NO': 'NOR', 'DK': 'DNK', 'PL': 'POL', 'CZ': 'CZE', 'HU': 'HUN', 'MX': 'MEX', 'CL': 'CHL', 'CO': 'COL', 'ZA': 'ZAF', 'KR': 'KOR', 'NZ': 'NZL',
+        'IL': 'ISR', 'IN': 'IND', 'DE': 'DEU', 'GB': 'GBR', 'JP': 'JPN', 'CA': 'CAN', 'AU': 'AUS', 'US': 'USA'}
+OECD_SRC = 'OECD Data Explorer – SDMX API (DF_FINMARK, IRLT: long-term interest rates, monthly average)'
+
+def parse_oecd_csv(txt):
+    """CSV SDMX da OCDE (format=csvfile) → {ISO2: Series mensal (1º dia do mês)}."""
+    df = pd.read_csv(io.StringIO(txt))
+    inv = {v: k for k, v in ISO3.items()}
+    out = {}
+    for a, g in df[df['MEASURE'] == 'IRLT'].groupby('REF_AREA'):
+        if a not in inv: continue
+        s = pd.Series(pd.to_numeric(g['OBS_VALUE'], errors='coerce').values, index=pd.to_datetime(g['TIME_PERIOD'], format='%Y-%m')).dropna().sort_index()
+        if len(s): out[inv[a]] = s[~s.index.duplicated(keep='last')]
+    return out
+
+def oecd_lt(ccs, start_month):
+    keys = '+'.join(ISO3[c] for c in ccs if c in ISO3)
+    r = get(f'https://sdmx.oecd.org/public/rest/data/OECD.SDD.STES,DSD_STES@DF_FINMARK,4.0/{keys}.M.IRLT.PA.....'
+            f'?startPeriod={start_month}&dimensionAtObservation=AllDimensions&format=csvfile', timeout=120)
+    return parse_oecd_csv(r.text)
+
 def series_stats(s, freq):
     """s: pd.Series diária ou mensal (índice datetime). Variações em pb."""
     s = s.dropna()
@@ -151,10 +180,10 @@ def wb():
             if st: st['series'] = pts(s.dropna()[s.dropna().index >= pd.Timestamp(TODAY - dt.timedelta(days=400))]); ten[t] = st
         if ten: countries.append({'cc': cc, 'name': name, 'region': REGION.get(cc, 'EMEA'), 'source': src, 'tenors': ten})
     # EUA (FRED, diário)
-    f = fred(['DGS2', 'DGS5', 'DGS10', 'DGS30'], start); us_src = 'FRED – US Treasury constant maturity (H.15)'
-    if len(f) < 4:
-        try: f = treasury_yields(start); us_src = 'U.S. Department of the Treasury – Daily Treasury Par Yield Curve Rates (home.treasury.gov)'
-        except Exception as e: print('wb US treasury', e)
+    # fonte primária (Tesouro, publica no fim do mesmo dia); o FRED (H.15) repete os mesmos números com 1 dia de atraso
+    try: f = treasury_yields(start); us_src = UST_SOURCE
+    except Exception as e: print('wb US treasury', e); f = {}
+    if len(f) < 4: f = fred(['DGS2', 'DGS5', 'DGS10', 'DGS30'], start); us_src = 'FRED – US Treasury constant maturity (H.15)'
     add('US', 'United States', us_src, {'2Y': f.get('DGS2'), '5Y': f.get('DGS5'), '10Y': f.get('DGS10'), '30Y': f.get('DGS30')}, 'D')
     # Canadá (BoC Valet)
     try:
@@ -214,17 +243,24 @@ def wb():
         ser = {t: pd.Series({pd.Timestamp(d): v.get(t) for d, v in acc.items()}, dtype=float) for t in ('2Y', '5Y', '10Y')}
         add('BR', 'Brazil (local, BRL)', 'Tesouro Direto (Tesouro Transparente) – fixed-rate LTN/NTN-F rates, linearly interpolated by maturity', ser, 'D')
     except Exception as e: print('wb BR', e)
-    # Demais países: OECD (FRED), mensal
-    try:
-        f = fred([i for _, _, i in OECD], (TODAY - dt.timedelta(days=900)).isoformat())
-        for cc, name, i in OECD:
-            if i in f: add(cc, name, f'OECD Main Economic Indicators via FRED ({i}) – long-term government bond yield, monthly average', {'10Y': f[i]}, 'M')
-    except Exception as e: print('wb OECD', e)
+    # Demais países: OCDE, mensal. A API SDMX da própria OCDE é a fonte primária (o espelho do FRED atrasa e
+    # parou de atualizar alguns países, ex.: Colômbia); fica a série mais recente das duas.
+    s0 = (TODAY - dt.timedelta(days=900)).isoformat()
+    try: o = oecd_lt([cc for cc, _, _ in OECD], s0[:7])
+    except Exception as e: print('wb OECD SDMX', e); o = {}
+    try: f = fred([i for cc, _, i in OECD if cc not in o], s0)   # FRED só para quem a OCDE não devolveu
+    except Exception as e: print('wb OECD FRED', e); f = {}
+    for cc, name, i in OECD:
+        a, b = o.get(cc), f.get(i)
+        if a is not None and len(a) and (b is None or not len(b) or a.index[-1] >= b.index[-1]): s, src = a, OECD_SRC
+        elif b is not None and len(b): s, src = b, f'OECD Main Economic Indicators via FRED ({i}) – long-term government bond yield, monthly average'
+        else: continue
+        add(cc, name, src, {'10Y': s}, 'M')
     if len(countries) < 5: raise RuntimeError(f'só {len(countries)} países')
     save('wb.json', {'generated_at': now_iso(), 'tenors': TENORS, 'countries': countries, 
-                     'note': 'Daily series where the central bank / treasury publishes them; OECD rows are monthly averages (1D/1W blank). '
+                     'note': 'D = daily series published by the central bank / treasury; M = OECD monthly average (1D/1W blank; the latest month is published with a lag of a few weeks). '
                              'Brazil = local-currency fixed-rate curve from Tesouro Direto rates (retail platform; may lag a few days), not USD bonds.',
-                     'source': 'FRED / US Treasury, Bank of Canada, Deutsche Bundesbank, Bank of England, MoF Japan, RBA, Tesouro Transparente, OECD (via FRED)'})
+                     'source': 'US Treasury (FRED fallback), Bank of Canada, Deutsche Bundesbank, Bank of England, MoF Japan, RBA, Tesouro Transparente, OECD SDMX API (FRED fallback)'})
 
 # =====================================================================================
 # FOMC / Copom – datas e decisões
@@ -904,7 +940,7 @@ def gmm():
     if sum(len(g['tiles']) for g in groups) < 10: raise RuntimeError('poucos ativos para GMM')
     save('gmm.json', {'generated_at': now_iso(), 'groups': groups,
                       'note': 'Price moves in %, yield moves in basis points. Delayed daily closes. FX quoted as USD per unit for EUR, GBP, AUD; units per USD otherwise.',
-                      'source': 'Yahoo Finance via yfinance (indices, FX, commodity futures – world.json, fx.json, futures.json); sovereign yields from wb.json (FRED, BoC, Bundesbank, BoE, MoF Japan, RBA, Tesouro Transparente)'})
+                      'source': 'Yahoo Finance via yfinance (indices, FX, commodity futures – world.json, fx.json, futures.json); sovereign yields from wb.json (US Treasury, BoC, Bundesbank, BoE, MoF Japan, RBA, Tesouro Transparente, OECD)'})
 
 STEPS = {'wb': wb, 'fomc': fomc, 'wirp': wirp, 'tayl': tayl, 'eco': eco, 'fxfc': fxfc, 'fxc': fxc, 'gmm': gmm}
 if __name__ == '__main__':
