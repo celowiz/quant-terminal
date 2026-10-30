@@ -114,21 +114,19 @@ function Cards({ rows, size, sel, onPick, onMore, all, gap = 4 }: { rows: CalRow
 /** colunas por dia: até 6 empresas → 1; 7–12 → 2; mais → 3 */
 export const dayCols = (n: number) => (n <= 6 ? 1 : n <= 12 ? 2 : 3)
 
-/** card fluido do dia: preenche a célula; horizontal (logo + ticker + nome) quando largo, vertical quando estreito.
+/** card fluido do dia: preenche a célula; sempre vertical (logo grande + ticker embaixo, sem nome) em 1, 2 ou 3 colunas.
  *  plain = exportação/captura: borda neutra, sem indicação de status. */
 function DayCard({ r, w, h, sel, onPick, plain }: { r: CalRow; w: number; h: number; sel?: boolean; onPick?: (r: CalRow) => void; plain?: boolean }) {
   const st = plain ? C.line : r.status ? ST_COLOR[r.status] : C.line
-  const horiz = w >= h * 2.1
-  const logo = Math.max(20, Math.floor(horiz ? Math.min(h - 10, w * 0.32, 88) : Math.min(h - Math.max(14, h * 0.2) - 10, w - 12, 88)))
-  const fs = Math.max(10, Math.min(18, Math.round(logo * (horiz ? 0.3 : 0.26))))
+  const logo = Math.max(20, Math.floor(Math.min(h - Math.max(14, h * 0.2) - 10, w - 12, 88)))
+  const fs = Math.max(10, Math.min(18, Math.round(logo * 0.26)))
   return (
     <button type="button" data-cal-card="" onClick={() => onPick && onPick(r)} title={`${r.ticker} · ${r.name}${plain ? '' : ' · ' + (r.status ? t(`cal.st.${r.status}` as any) : '—')}`}
-      className={`flex ${horiz ? 'flex-row justify-start px-2 gap-2' : 'flex-col justify-center gap-[3px]'} items-center border hover:bg-[#1a1205] min-w-0 overflow-hidden`}
+      className={`flex flex-col justify-center gap-[3px] items-center border hover:bg-[#1a1205] min-w-0 overflow-hidden`}
       style={{ width: '100%', height: h, borderColor: sel ? C.white : st, borderStyle: !plain && r.status === 'expected' ? 'dashed' : 'solid', background: sel ? '#1a1205' : '#080808' }}>
       <Logo r={r} size={logo} />
-      <span className={`min-w-0 flex flex-col ${horiz ? 'items-start' : 'items-center'} leading-tight`}>
+      <span className="min-w-0 flex flex-col items-center leading-tight">
         <span className="font-bold" style={{ fontSize: fs, color: !plain && r.status === 'released' ? C.up : C.white }}>{r.ticker}</span>
-        {horiz && <span className="truncate max-w-full" style={{ fontSize: Math.max(10, fs - 4), color: C.muted }}>{r.name}</span>}
       </span>
     </button>
   )
@@ -190,7 +188,7 @@ function WeekBoard({ mon, byDate, sel, onPick, exporting }: { mon: string; byDat
         {days.map(d => (
           <div key={d} className="border" style={{ borderColor: d === today ? C.amber : C.line }}>
             {head(d)}
-            {list(d).length > 0 && <div className="p-2"><DayCards rows={list(d)} sel={sel} onPick={onPick} fixedH={dayCols(list(d).length) === 1 ? 56 : 78} /></div>}
+            {list(d).length > 0 && <div className="p-2"><DayCards rows={list(d)} sel={sel} onPick={onPick} fixedH={78} /></div>}
           </div>
         ))}
       </div>
