@@ -10,8 +10,8 @@ CLASSES = {'br_equity', 'us_equity', 'index', 'etf', 'commodity', 'crypto', 'fx'
 def test_build_universe_classes_e_indices():
     U = bp.build_universe([('PETR4', 'PETROBRAS PN'), ('WEGE3', 'WEG ON')], [('WEGE3', 'WEG ON'), ('LWSA3', 'LOCAWEB ON')])
     assert U['WEGE3.SA']['index'] == ['IBOV', 'SMLL'] and U['LWSA3.SA']['index'] == ['SMLL']
-    assert U['PETR4.SA']['corp'] is True and 'corp' not in U['WEGE3.SA']
-    assert U['ITUB4.SA']['corp'] is True            # EQUITIES ficam mesmo fora do índice
+    assert 'ITUB4.SA' in U and not U['ITUB4.SA'].get('index')   # núcleo EQUITIES fica mesmo fora do índice
+    assert 'corp' not in U['PETR4.SA']                         # cobertura vem dos arquivos (mark_coverage), não de lista fixa
     assert {m['class'] for m in U.values()} == CLASSES
     assert U['TIO=F']['close_only'] and U['TIO=F']['unit'] == 'USD/t' and 'ref' in U['TIO=F']
     assert U['I0.DCE']['unit'] == 'CNY/t' and U['I0.DCE']['currency'] == 'CNY'
@@ -41,7 +41,8 @@ def test_tickers_json_minimo():
     assert sum('IBOV' in t.get('index', []) for t in T) >= 60
     assert sum('SMLL' in t.get('index', []) for t in T) >= 80
     assert sum(t['class'] == 'us_equity' for t in T) >= 30
-    assert sorted(t['ticker'] for t in T if t.get('corp')) == sorted(bp.EQUITIES)
+    corp = {t['ticker'] for t in T if t.get('corp')}
+    assert set(bp.EQUITIES) <= corp and all(t['class'] == 'br_equity' for t in T if t.get('corp'))
 
 
 def test_universe_corta_barra_final_sem_acoes():
@@ -52,3 +53,15 @@ def test_universe_corta_barra_final_sem_acoes():
     assert list(bm.trim_tail(list(d), cl)) == list(d[:2])          # 1 de 3 ações na última data
     cl['VALE3.SA'] = pd.Series([1, 2, 3], index=d)
     assert list(bm.trim_tail(list(d), cl)) == list(d)              # 2 de 3: mantém
+
+
+def test_mark_coverage_pelos_arquivos(tmp_path, monkeypatch):
+    import common
+    monkeypatch.setattr(common, 'OUT', str(tmp_path))
+    for d, k in (('corp', 'WEGE3'), ('holders', 'WEGE3'), ('options', 'PETR4'), ('intraday', 'IDX_BVSP')):
+        (tmp_path / d).mkdir(exist_ok=True); (tmp_path / d / f'{k}.json').write_text('{}')
+    U = {'WEGE3.SA': {'corp': True}, 'PETR4.SA': {'corp': True}, '^BVSP': {}, 'AAPL': {}}
+    common.mark_coverage(U)
+    assert U['WEGE3.SA'] == {'cov': ['corp', 'holders'], 'corp': True}
+    assert U['PETR4.SA'] == {'cov': ['options']}        # flag antiga sem arquivo é removida
+    assert U['^BVSP'] == {'cov': ['intraday']} and U['AAPL'] == {}

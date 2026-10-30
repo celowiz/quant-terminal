@@ -2,6 +2,7 @@
 // e publicado junto com o site (GitHub Pages). Sem servidor em runtime.
 import { RRGResponse, RRGFormData, RRGAssetData, RRGPoint } from '@/types/rrg'
 import { cleanUniverse } from './dataFix.mjs'
+import { recordRef } from './refDates'
 
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || ''
 export const href = (path: string) => `${BASE_PATH}${path.startsWith('/') ? path : '/' + path}`
@@ -22,7 +23,7 @@ export function getJSON<T = any>(path: string): Promise<T> {
       return r.json()
     }).then(d => path === 'universe.json' ? cleanUniverse(d) : d))
   }
-  return cache.get(path)!
+  return cache.get(path)!.then(d => { recordRef(path, d); return d })
 }
 
 // Mesma transformação que o backend usava para nomes de tabela
@@ -32,7 +33,7 @@ export type AssetClass = 'br_equity' | 'us_equity' | 'index' | 'etf' | 'commodit
 export type TickerMeta = {
   ticker: string; key: string; name: string; first: string; last: string; n: number
   class?: AssetClass; currency?: string; unit?: string; index?: string[]; corp?: boolean
-  link?: string; ref?: string; close_only?: boolean
+  link?: string; ref?: string; close_only?: boolean; official?: string; cov?: string[]
 }
 export type TickersFile = { generated_at: string; source: string; tickers: TickerMeta[] }
 export type Price = { time: string; open: number; high: number; low: number; close: number; volume: number }

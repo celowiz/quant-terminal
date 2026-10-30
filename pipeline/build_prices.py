@@ -5,11 +5,13 @@ Universo (dinâmico onde há fonte oficial):
   - Ações EUA (~30 maiores por valor de mercado), índices, ETFs, commodities, cripto e moedas: listas fixas abaixo.
   - Minério de ferro: Dalian (DCE, contínuo I0, CNY/t) via K-line diário público da Sina Finance;
     Singapura (SGX 62% Fe, USD/t) via Yahoo TIO=F (só fechamento: o Yahoo não publica OHLC intradiário dele).
-Fontes: B3 (carteiras), Yahoo Finance via yfinance (lotes + retry + circuit breaker), Sina Finance (DCE).
+Barra final das ações BR: fechamento oficial do COTAHIST diário da B3 (substitui barra incompleta ou acrescenta o pregão que faltar).
+Fontes: B3 (carteiras, COTAHIST), Yahoo Finance via yfinance (lotes + retry + circuit breaker), Sina Finance (DCE).
 Se uma fonte cair, o arquivo anterior do ticker é mantido (load_prev) e o ticker continua no tickers.json."""
 import base64, json, os, re, time
 import pandas as pd, requests, yfinance as yf
-from common import OUT, now_iso, get_json, EQUITIES
+from common import OUT, now_iso, get_json, save, mark_coverage, EQUITIES
+from cotahist import latest_cotahist, parse, official_closes, apply_official
 
 MIN_TICKERS = 200          # o teste e o pipeline falham abaixo disso (proteção contra universo truncado)
 BATCH = 40                 # tickers por chamada ao Yahoo
@@ -66,7 +68,6 @@ def build_universe(ibov, smll):
     for t, n in FX.items(): U[t] = {'name': n, 'class': 'fx'}
     t, n, unit = DCE; U[t] = {'name': n, 'class': 'commodity', 'currency': 'CNY', 'unit': unit}
     for t, m in U.items():
-        if t in EQUITIES: m['corp'] = True
         if t in LINKS: m['link'] = LINKS[t]
         if t in REFS: m['ref'] = REFS[t]
         if t == 'TIO=F': m['close_only'] = True
@@ -120,6 +121,18 @@ def sina_dce(symbol='I0'):
     return [{'time': r['d'], 'open': _r(r['o']), 'high': _r(r['h']), 'low': _r(r['l']), 'close': _r(r['c']), 'volume': int(float(r['v']))}
             for r in data if r['d'] >= cut and float(r['c']) > 0]
 
+def official_bars():
+    """Fechamento oficial do último pregão (B3 COTAHIST) → ({código: barra}, info). Falha da B3 não derruba os preços."""
+    try:
+        day, content, url = latest_cotahist()
+        off = official_closes(parse(content))
+        info = {'date': day.isoformat(), 'url': url, 'source': 'B3 COTAHIST diário (mercado à vista, lote padrão)', 'n': len(off)}
+        save('official_close.json', {**info, 'generated_at': now_iso(), 'closes': off})
+        return off, info
+    except Exception as e:
+        print(f'  COTAHIST indisponível ({type(e).__name__}: {e}); última barra BR fica a do Yahoo')
+        return {}, None
+
 def _prev_rows(t):
     try: return json.load(open(f'{OUT}/prices/{key(t)}.json'))
     except Exception: return None
@@ -139,20 +152,29 @@ def main():
     data = yahoo_batches([t for t in U if t != DCE[0]])
     try: data[DCE[0]] = sina_dce('I0')
     except Exception as e: print(f'  Sina DCE indisponível ({type(e).__name__})')
-    meta, kept = [], []
+    off, off_info = official_bars()
+    meta, kept, patched = [], [], {'replaced': 0, 'appended': 0}
     for t, m in U.items():
         rows = data.get(t)
-        if rows: json.dump(rows, open(f'{OUT}/prices/{key(t)}.json', 'w'), separators=(',', ':'))
-        else:
+        if not rows:
             rows = _prev_rows(t)
             if not rows: print('  sem dados:', t); continue
             kept.append(t)
-        meta.append({'ticker': t, 'key': key(t), **m, 'first': rows[0]['time'], 'last': rows[-1]['time'], 'n': len(rows)})
+        mo = {}
+        if t.endswith('.SA') and t[:-3] in off:
+            rows, how = apply_official(rows, off[t[:-3]])
+            if how: patched[how] += 1
+            if rows[-1]['time'] == off[t[:-3]]['time']: mo['official'] = rows[-1]['time']
+        json.dump(rows, open(f'{OUT}/prices/{key(t)}.json', 'w'), separators=(',', ':'))
+        meta.append({'ticker': t, 'key': key(t), **m, 'first': rows[0]['time'], 'last': rows[-1]['time'], 'n': len(rows), **mo})
+    if off_info: print(f"  COTAHIST {off_info['date']}: {patched['replaced']} barras finais substituídas, {patched['appended']} acrescentadas")
     if kept: print(f'  {len(kept)} tickers mantidos do arquivo anterior: {", ".join(kept[:20])}')
     if len(meta) < MIN_TICKERS: raise RuntimeError(f'universo com {len(meta)} tickers (< {MIN_TICKERS}); tickers.json anterior mantido')
+    mark_coverage({m['ticker']: m for m in meta})   # cobertura da execução anterior; o build_coverage atualiza no fim
     counts = pd.Series([m['class'] for m in meta]).value_counts().to_dict()
     print('  por classe:', counts)
-    json.dump({'generated_at': now_iso(), 'source': 'B3 (carteiras IBOV/SMLL); Yahoo Finance via yfinance (OHLC ajustado); Sina Finance (DCE)',
+    src = 'B3 (carteiras IBOV/SMLL; COTAHIST diário = fechamento oficial da última barra BR); Yahoo Finance via yfinance (OHLC ajustado); Sina Finance (DCE)'
+    json.dump({'generated_at': now_iso(), 'source': src, **({'official_close': off_info} if off_info else {}),
                'counts': counts, 'tickers': meta}, open(f'{OUT}/tickers.json', 'w'), ensure_ascii=False, separators=(',', ':'))
 
 if __name__ == '__main__':

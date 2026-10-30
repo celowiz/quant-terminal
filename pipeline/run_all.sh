@@ -34,6 +34,7 @@ run credit   build_credit.py     # YAS (Tesouro Transparente + DI1), DRSK (CVM B
 run options  build_options.py    # B3 COTAHIST diário (opções) + gregas Black-Scholes
 run news     build_news.py       # RSS de licença aberta (Agência Brasil, BCB, CVM, SEC, Fed, RFB)
 run anb      build_anb.py        # CVM Informe Diário de fundos → captação líquida por classe
+run coverage build_coverage.py   # tickers.json: quais ativos têm DES/FUND/HDS/FA/OMON/GIP (arquivos por ticker gerados acima)
 run alerts   build_alerts.py     # avalia alerts.yaml → alerts.json + $QT_ALERTS_MD se disparar (por último: usa os preços novos)
 
 echo "Saída: $QT_DATA_OUT"

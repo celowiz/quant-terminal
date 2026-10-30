@@ -1,7 +1,7 @@
 'use client'
 /** Kit de UI das funções do terminal (estilo terminal financeiro: fundo preto, âmbar, tabelas densas, monoespaçada).
  *  Referências de design por função: /REFERENCIAS.md */
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { flushSync } from 'react-dom'
 import { getJSON, href, tickerKey } from '../../lib/static'
 import { FUNCTION_LIST } from '../../constants/functions'
@@ -9,7 +9,10 @@ import { lang, numLocale } from '../../lib/settings'
 import { t } from '../../lib/i18n'
 import { trackPeriod } from '../../lib/track'
 import { setHelp } from '../../lib/help'
+import { refScope, getRefs, subscribeRefs, latestRef } from '../../lib/refDates'
 import { en as tx } from '../../lib/enText'
+import '../../lib/coverage'
+import { covers, FUNCTION_UNIVERSE } from '../../lib/activeTicker.mjs'
 
 export const C = {
   bg: '#000000', panel: '#0d0d0d', panel2: '#151515', line: '#2a2a2a', text: '#e6e6e6', muted: '#8a8a8a',
@@ -48,8 +51,12 @@ export function useJSON<T = any>(path: string | null) {
   }, [path])
   return { data, err }
 }
+/** Núcleo mostrado primeiro nas sugestões (a cobertura real vem do tickers.json → `cov`). */
 export const EQUITIES = ['PETR4.SA', 'PETR3.SA', 'VALE3.SA', 'ITUB4.SA', 'ITUB3.SA', 'B3SA3.SA']
-export const isEquity = (t: string) => EQUITIES.includes(t.toUpperCase())
+/** Ação com dados corporativos (CVM: corp/<ticker>.json) */
+export const isEquity = (t: string) => covers('DES', t)
+/** O ativo tem o dataset da função (HDS → holders, FA → fa, OMON → options, GIP → intraday) */
+export const hasData = (code: string, t: string) => covers(code, t)
 /** Benchmark padrão por mercado: ações e índices BR → Ibovespa; Ibovespa → dólar (BRL=X); S&P 500 → Nasdaq-100;
  *  demais (ações e ETFs dos EUA, índices externos, cripto, commodities) → S&P 500. Usado em GR, BETA, HS e HRA. */
 export function defaultBench(t: string) {
@@ -121,15 +128,18 @@ export function FitArea({ children, className = '' }: { children: React.ReactNod
 }
 
 // ---------- layout ----------
-export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, children, source, note }: {
+export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, children, source, note, asOf }: {
   code: string; ticker?: string; title?: string; tabs?: string[]; tab?: number; setTab?: (i: number) => void
   right?: React.ReactNode; children: React.ReactNode; source?: React.ReactNode; note?: React.ReactNode
+  /** data de referência da tela quando não é a do último arquivo carregado (ex.: trimestre do balanço) */
+  asOf?: string | null
 }) {
   const fi = FUNCTION_LIST.find(f => f.code === code)
   const desc = lang() === 'pt' && fi ? fi.pt : tx(title) || fi?.desc || code
   // metodologia/fonte vão para o modal "?" (TopBar); a tela fica livre para gráficos e tabelas
   useEffect(() => { setHelp({ code, note, source }) }, [code, note, source])
   useEffect(() => () => setHelp(null), [])
+  refScope(`${code}|${ticker || ''}`)
   return (
     <div className="w-full px-2 pb-3 lg:pb-1 -mt-4 sm:-mt-6 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col" style={{ fontFamily: MONO, color: C.text }}>
       {/* mobile (<1024px): 2 linhas — código+título / controles numa faixa com rolagem horizontal */}
@@ -137,6 +147,7 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
         {ticker && <span className="px-2 py-1 text-[13px] font-bold max-lg:shrink-0" style={{ background: C.amber, color: '#000' }}>{short(ticker)}</span>}
         <span className="px-2 py-1 text-[13px] font-bold max-lg:shrink-0" style={{ color: C.amber }}>{code}</span>
         <span className="px-2 py-1 text-[13px] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate" style={{ color: C.text }} title={desc}>{desc}</span>
+        <AsOfChip asOf={asOf} />
         <div className={`ml-auto flex items-center gap-2 pr-2 text-[12px] fn-strip max-lg:ml-0 max-lg:w-full max-lg:pl-2 max-lg:py-1 max-lg:border-t max-lg:border-[#2a2a2a] max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0 ${right ? '' : 'max-lg:hidden'}`}>{right}</div>
       </div>
       {tabs && tabs.length > 0 && (
@@ -154,10 +165,23 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
   )
 }
 
-export function Panel({ title, children, className = '', right }: { title?: React.ReactNode; children: React.ReactNode; className?: string; right?: React.ReactNode }) {
+/** Data de referência mais recente dos dados da tela (lib/refDates); vazia até o primeiro JSON carregar. */
+function AsOfChip({ asOf }: { asOf?: string | null }) {
+  const refs = useSyncExternalStore(subscribeRefs, getRefs, () => [])
+  const r = asOf ? { date: asOf, official: false } : latestRef(refs)
+  if (!r) return null
+  return (
+    <span data-asof className="px-2 py-1 text-[11px] whitespace-nowrap max-lg:order-1 lg:order-none" style={{ color: C.muted }} title={t('ref.tip')}>
+      {t('ref.asof')} <span style={{ color: C.white }}>{dBR(r.date)}</span>{r.official ? <span style={{ color: C.up }} title={t('ref.official')}> ●</span> : null}
+    </span>
+  )
+}
+
+/** Painel com título; `asOf` = data de referência própria do painel (ex.: trimestre do balanço, data-base do FRE). */
+export function Panel({ title, children, className = '', right, asOf }: { title?: React.ReactNode; children: React.ReactNode; className?: string; right?: React.ReactNode; asOf?: string | null }) {
   return (
     <div className={`border ${className}`} style={{ borderColor: C.line, background: C.panel }}>
-      {title && <div className="flex items-center px-2 py-[3px] text-[12px] font-bold border-b" style={{ color: C.amber, borderColor: C.line, background: C.panel2 }}>{tx(title)}<div className="ml-auto font-normal">{right}</div></div>}
+      {title && <div className="flex items-center px-2 py-[3px] text-[12px] font-bold border-b" style={{ color: C.amber, borderColor: C.line, background: C.panel2 }}>{tx(title)}<div className="ml-auto font-normal flex items-center gap-2">{right}{asOf ? <span className="text-[11px]" style={{ color: C.muted }}>{t('ref.asof')} {dBR(asOf)}</span> : null}</div></div>}
       <div>{children}</div>
     </div>
   )
@@ -233,11 +257,16 @@ export function KV({ rows, cols = 1 }: { rows: [string, React.ReactNode, string?
 export function Loading({ err }: { err?: string | null }) {
   return <div className="p-4 text-[12px]" style={{ fontFamily: MONO, color: err ? C.down : C.muted }}>{err ? `${t('fn.error')}: ${err}` : t('fn.loading')}</div>
 }
+function naList(code: string) {
+  const all = FUNCTION_UNIVERSE[code.toUpperCase()] || EQUITIES
+  const sample = [...EQUITIES.filter(t => all.includes(t)), ...all.filter(t => !EQUITIES.includes(t)).sort()].slice(0, 12)
+  return { n: all.length, sample }
+}
 export function NA({ ticker, what, code }: { ticker: string; what: string; code: string }) {
   return (
     <div className="p-6 text-[13px]" style={{ fontFamily: MONO, color: C.muted }}>
       N/A — {what} not available for <span style={{ color: C.amber }}>{short(ticker)}</span>.
-      <div className="mt-2">Stocks with corporate data: {EQUITIES.map(t => <a key={t} className="mr-2 underline" style={{ color: C.amber }} href={href(`/${code.toLowerCase()}/${t}/`)}>{short(t)}</a>)}</div>
+      <div className="mt-2">{naList(code).n} assets covered, e.g.: {naList(code).sample.map(t => <a key={t} className="mr-2 underline" style={{ color: C.amber }} href={href(`/${code.toLowerCase()}/${t}/`)}>{short(t)}</a>)}</div>
     </div>
   )
 }

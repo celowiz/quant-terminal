@@ -1,5 +1,6 @@
 // Universo de ativos por função, derivado de data/tickers.json (gerado pelo pipeline).
 import tickers from '../../public/data/tickers.json'
+import './coverage'
 import { FUNCTION_UNIVERSE } from './activeTicker.mjs'
 import type { TickerMeta } from './static'
 
