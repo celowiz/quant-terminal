@@ -2,6 +2,25 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { t } from '../lib/i18n'
 import { useDesktop } from './fn/kit'
+import { TICKERS } from '../lib/universe'
+
+const META = new Map(TICKERS.map(m => [m.ticker.toUpperCase(), m]))
+export const CLASS_ORDER = ['br_equity', 'us_equity', 'index', 'etf', 'commodity', 'crypto', 'fx'] as const
+const MAX_RESULTS = 60
+const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+
+/** busca por código ou nome; prefixo do código primeiro; resultado ordenado por classe */
+export function searchTickers<T extends { ticker: string }>(list: T[], query: string): T[] {
+  const q = norm(query.trim())
+  if (!q) return []
+  const scored = list.map(r => {
+    const tk = r.ticker.toUpperCase(), name = norm(META.get(tk)?.name || '')
+    const score = tk.startsWith(q) ? 0 : tk.includes(q) ? 1 : name.includes(q) ? 2 : -1
+    return { r, score, cls: CLASS_ORDER.indexOf((META.get(tk)?.class || 'fx') as typeof CLASS_ORDER[number]) }
+  }).filter(x => x.score >= 0)
+  scored.sort((a, b) => a.cls - b.cls || a.score - b.score || a.r.ticker.localeCompare(b.r.ticker))
+  return scored.slice(0, MAX_RESULTS).map(x => x.r)
+}
 
 type TickerRecord = { ticker: string }
 
@@ -39,6 +58,7 @@ export default function TickerSelector({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const desk = useDesktop()
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1)
+  const [searching, setSearching] = useState(false)
 
   useEffect(() => {
     const handleDocMouseDown = (e: MouseEvent) => {
@@ -46,6 +66,7 @@ export default function TickerSelector({
       if (!containerRef.current.contains(e.target as Node)) {
         setFilteredTickers([])
         setHighlightedIndex(-1)
+        setSearching(false)
       }
     }
     document.addEventListener('mousedown', handleDocMouseDown)
@@ -56,7 +77,8 @@ export default function TickerSelector({
     if (disabled) return
     const value = e.target.value.toUpperCase()
     setTickerSearch(value)
-    const next = tickers.filter(t => t.ticker.toUpperCase().includes(value))
+    setSearching(true)
+    const next = searchTickers(tickers, value)
     setFilteredTickers(next)
     setHighlightedIndex(next.length > 0 ? 0 : -1)
   }
@@ -87,6 +109,7 @@ export default function TickerSelector({
 		setTickerSearch(ticker)
 		setFilteredTickers([])
 		setHighlightedIndex(-1)
+		setSearching(false)
 		if (inputRef.current) inputRef.current.blur()
 		if (onTickerSelect) onTickerSelect(ticker)
 	}
@@ -114,19 +137,33 @@ export default function TickerSelector({
 				<span className="max-lg:hidden px-2 text-[11px] italic text-gray-400 whitespace-nowrap" title={disabledHint}>{disabledHint}</span>
 			)}
 			{!disabled && tickerSearch && filteredTickers.length > 0 && (
-				<div className="function-autocomplete-list absolute left-0 top-full mt-1 z-50 w-full max-h-72 overflow-auto bg-black border border-[#3a3a3a]">
-					{filteredTickers.slice(0, 10).map((t, idx) => (
-						<div
-							key={t.ticker}
-							className="px-2 py-1 cursor-pointer font-bold"
-							onMouseEnter={() => setHighlightedIndex(idx)}
-							onMouseDown={() => handleTickerSelect(t.ticker)}
-							style={idx === highlightedIndex ? { background: '#FFA028', color: '#000' } : { color: '#FFA028' }}
-						>
-							{t.ticker}
-						</div>
-					))}
+				<div className="function-autocomplete-list ticker-results absolute left-0 top-full mt-1 z-50 w-[340px] max-lg:w-[calc(100vw-128px)] max-h-80 overflow-auto bg-black border border-[#3a3a3a]" role="listbox">
+					{filteredTickers.map((r, idx) => {
+						const m = META.get(r.ticker.toUpperCase())
+						const prev = idx > 0 ? META.get(filteredTickers[idx - 1].ticker.toUpperCase())?.class : undefined
+						return (
+							<React.Fragment key={r.ticker}>
+								{m?.class && m.class !== prev && (
+									<div className="px-2 pt-2 pb-[2px] text-[10px] uppercase tracking-wider text-[#8a8a8a] border-t border-[#222] first:border-t-0">{t(`cls.${m.class}`)}</div>
+								)}
+								<div
+									role="option"
+									aria-selected={idx === highlightedIndex}
+									className="px-2 py-1 cursor-pointer flex gap-2 items-baseline"
+									onMouseEnter={() => setHighlightedIndex(idx)}
+									onMouseDown={() => handleTickerSelect(r.ticker)}
+									style={idx === highlightedIndex ? { background: '#FFA028', color: '#000' } : { color: '#FFA028' }}
+								>
+									<span className="font-bold shrink-0">{r.ticker}</span>
+									{m?.name && <span className="truncate text-[11px] opacity-80">{m.name}</span>}
+								</div>
+							</React.Fragment>
+						)
+					})}
 				</div>
+			)}
+			{!disabled && tickerSearch && filteredTickers.length === 0 && searching && (
+				<div className="absolute left-0 top-full mt-1 z-50 w-[240px] px-2 py-1 bg-black border border-[#3a3a3a] text-[12px] text-[#8a8a8a]">{t('hdr.noMatch')}</div>
 			)}
 			{selectedTicker && tickerName && (
 				<div className="ticker-name-label absolute left-full ml-2 whitespace-nowrap pointer-events-none font-bold flex items-center gap-2 max-lg:max-w-[calc(100vw-120px-96px-84px)] md:max-lg:max-w-[calc(100vw-220px-96px-84px)] max-lg:overflow-hidden max-lg:text-[12px]">

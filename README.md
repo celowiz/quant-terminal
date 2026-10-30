@@ -152,3 +152,23 @@ legacy/           código original (backend FastAPI/Prefect + frontend React), m
 ---
 
 Criado e desenvolvido por Marcelo Wizenberg. © 2025 Marcelo Wizenberg. Todos os direitos reservados.
+
+## Universo de ativos e funções
+
+`public/data/tickers.json` (versionado; regenerado por `pipeline/build_prices.py` a cada deploy) traz cada ativo com
+`class` (`br_equity`, `us_equity`, `index`, `etf`, `commodity`, `crypto`, `fx`), `index` (`IBOV`/`SMLL`, das carteiras
+teóricas do dia da B3), `currency`/`unit` e, quando há, `link` (bolsa) e `ref` (referência). Mínimo garantido: 200 ativos
+(o pipeline falha e mantém o arquivo anterior se vier menos).
+
+| Funções | Universo |
+|---|---|
+| GP, GPC, GR, MACD, RSI, SEAG, SEAH, HP, COMP, BETA, VOL, HS, HRA, MRR | todos os ativos (só preço) |
+| DES, CN, CF, FUND, FA, VAL, DY, DVD, SPLIT, OMON, TRA, HDS | só ações BR com dados CVM/B3 (`corp: true`) |
+| GIP | ações com intradiário + ^BVSP |
+| RV | limitado aos dados do screener |
+
+Fundamentos de ações dos EUA **não** são incluídos: não há fonte gratuita e confiável integrada (SEC/EDGAR exigiria
+outro pipeline). Ações dos EUA aparecem só nas funções de preço.
+
+Minério de ferro: Dalian (DCE, contínuo I0, CNY/t, OHLCV diário) e Singapura (SGX 62% Fe, USD/t). A série de Singapura
+só tem fechamento (sem máxima/mínima reais) e é sinalizada como tal na tela.

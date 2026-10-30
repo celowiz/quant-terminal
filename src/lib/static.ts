@@ -27,7 +27,12 @@ export function getJSON<T = any>(path: string): Promise<T> {
 // Mesma transformação que o backend usava para nomes de tabela
 export const tickerKey = (t: string) => t.toUpperCase().replace(/^\^/, 'IDX_').replace(/\.SA$/, '').replace(/[.=-]/g, '_')
 
-export type TickerMeta = { ticker: string; key: string; name: string; first: string; last: string; n: number }
+export type AssetClass = 'br_equity' | 'us_equity' | 'index' | 'etf' | 'commodity' | 'crypto' | 'fx'
+export type TickerMeta = {
+  ticker: string; key: string; name: string; first: string; last: string; n: number
+  class?: AssetClass; currency?: string; unit?: string; index?: string[]; corp?: boolean
+  link?: string; ref?: string; close_only?: boolean
+}
 export type TickersFile = { generated_at: string; source: string; tickers: TickerMeta[] }
 export type Price = { time: string; open: number; high: number; low: number; close: number; volume: number }
 
