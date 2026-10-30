@@ -71,6 +71,9 @@ export const FUNCTION_LIST: FunctionItem[] = [
   { code: 'CBR', desc: 'Central Bank Rates', pt: 'Juros dos bancos centrais', cat: 'macro' },
   { code: 'CRYP', desc: 'Crypto Monitor', pt: 'Monitor de criptomoedas', cat: 'fxcmd' },
   { code: 'DRSK', desc: 'Default Risk (Merton DD)', pt: 'Risco de default (DD de Merton)', cat: 'equity' },
+  { code: 'MEMB', desc: 'Index Members (Ibovespa)', pt: 'Composição do Ibovespa', cat: 'equity' },
+  { code: 'EVTS', desc: 'Events on Chart', pt: 'Eventos no gráfico', cat: 'company' },
+  { code: 'OVME', desc: 'Option Valuation (Black-Scholes)', pt: 'Calculadora de opções', cat: 'tools' },
 ]
 
 /** nome da função no idioma atual */

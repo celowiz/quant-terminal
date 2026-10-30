@@ -28,11 +28,23 @@ def trim_tail(idx, cl, bench='^BVSP', min_frac=0.5):
     while k > 0 and sum(1 for s in comps if idx[k - 1] in s.index and pd.notna(s.get(idx[k - 1]))) < min_frac * len(comps): k -= 1
     return idx[:k]
 
+def br_num(x):
+    """'1.460.506.056' / '3,039' / '13.999.429,66674930' (formato pt-BR da B3) → float; vazio → None."""
+    x = (x or '').strip()
+    return float(x.replace('.', '').replace(',', '.')) if x else None
+
+def parse_portfolio(d):
+    """Resposta de GetPortfolioDay (carteira do dia do Ibovespa) → (componentes, cabeçalho). `qty` = quantidade teórica
+    de cada ação; `reductor` = redutor do índice (pontos = Σ qty·preço / redutor)."""
+    comp = [{'cod': r['cod'], 'name': r['asset'].strip(), 'type': ' '.join(r['type'].split()), 'sector': r['segment'].split('/')[0].strip(),
+             'subsector': r['segment'].strip(), 'weight': br_num(r['part']), 'qty': br_num(r.get('theoricalQty'))} for r in d['results']]
+    h = d.get('header') or {}
+    return comp, {'date': h.get('date'), 'reductor': br_num(h.get('reductor')), 'theoretical_qty': br_num(h.get('theoricalQty'))}
+
 def universe():
     q = base64.b64encode(json.dumps({"language": "pt-br", "pageNumber": 1, "pageSize": 120, "index": "IBOV", "segment": "2"}).encode()).decode()
     d = get_json(f'https://sistemaswebb3-listados.b3.com.br/indexProxy/indexCall/GetPortfolioDay/{q}')
-    comp = [{'cod': r['cod'], 'name': r['asset'].strip(), 'type': ' '.join(r['type'].split()), 'sector': r['segment'].split('/')[0].strip(),
-             'subsector': r['segment'].strip(), 'weight': float(r['part'].replace('.', '').replace(',', '.'))} for r in d['results']]
+    comp, head = parse_portfolio(d)
     tick = [c['cod'] + '.SA' for c in comp] + ['^BVSP']
     cl, df = closes_frame(tick, '3y')
     idx = sorted(set().union(*[s.index for s in cl.values()]))
@@ -49,7 +61,7 @@ def universe():
         except Exception: pass
     comp = [c for c in comp if c['cod'] in series]
     save('universe.json', {'generated_at': now_iso(), 'source': 'B3 – carteira teórica do Ibovespa (pesos e setores); Yahoo Finance via yfinance (fechamento ajustado)',
-                           'date_portfolio': d['header']['date'], 'components': comp, 'dates': dates, 'close': series, 'fin_volume_30d': vols})
+                           'date_portfolio': head['date'], 'reductor': head['reductor'], 'theoretical_qty': head['theoretical_qty'], 'components': comp, 'dates': dates, 'close': series, 'fin_volume_30d': vols})
 
 WORLD = [
     ('Américas', [('^GSPC', 'S&P 500', 'US'), ('^DJI', 'Dow Jones Industrial', 'US'), ('^IXIC', 'Nasdaq Composite', 'US'), ('^RUT', 'Russell 2000', 'US'),

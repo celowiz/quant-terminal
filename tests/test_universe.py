@@ -66,3 +66,15 @@ def test_mark_coverage_pelos_arquivos(tmp_path, monkeypatch):
     assert U['WEGE3.SA'] == {'cov': ['corp', 'holders'], 'corp': True}
     assert U['PETR4.SA'] == {'cov': ['options']}        # flag antiga sem arquivo é removida
     assert U['^BVSP'] == {'cov': ['intraday']} and U['AAPL'] == {}
+
+
+def test_parse_portfolio_b3_qtd_teorica_e_redutor():
+    import pytest
+    import build_markets as bm
+    d = {'header': {'date': '30/10/26', 'part': '100,000', 'reductor': '13.999.429,66674930', 'theoricalQty': '93.803.750.400'},
+         'results': [{'segment': 'Bens Indls / Máqs e Equips', 'cod': 'WEGE3', 'asset': 'WEG ', 'type': 'ON      NM', 'part': '3,039', 'theoricalQty': '1.460.506.056'},
+                     {'segment': 'Financeiro / Bancos', 'cod': 'ITUB4', 'asset': 'ITAUUNIBANCO', 'type': 'PN  N1', 'part': '8,1', 'theoricalQty': ''}]}
+    comp, head = bm.parse_portfolio(d)
+    assert comp[0] == {'cod': 'WEGE3', 'name': 'WEG', 'type': 'ON NM', 'sector': 'Bens Indls', 'subsector': 'Bens Indls / Máqs e Equips', 'weight': 3.039, 'qty': 1460506056.0}
+    assert comp[1]['qty'] is None and comp[1]['weight'] == 8.1
+    assert head == {'date': '30/10/26', 'reductor': pytest.approx(13999429.6667493), 'theoretical_qty': 93803750400.0}

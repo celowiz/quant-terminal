@@ -219,6 +219,30 @@ export const HELP: Record<string, HelpDoc> = {
       { tex: R`\text{vs ATH} = \frac{P_t}{P_{max}} - 1`, en: 'Distance from the all-time high.', pt: 'Distância da máxima histórica.' },
     ],
   },
+  MEMB: {
+    en: 'Members of the Ibovespa from B3\'s official portfolio of the day: weight, sector and theoretical quantity of each stock. The index level is the sum of theoretical quantity × price divided by a reductor that B3 adjusts so that rebalances and corporate events do not move the index. From that, each stock\'s contribution in index points over a period is its quantity times its price change. The portfolio is rebalanced every four months (January, May, September). Effective N tells how many equal-weight stocks would give the same concentration.',
+    pt: 'Ações do Ibovespa pela carteira oficial do dia da B3: peso, setor e quantidade teórica de cada ação. O nível do índice é a soma de quantidade teórica × preço dividida por um redutor que a B3 ajusta para que rebalanceamentos e eventos societários não mexam no índice. Daí, a contribuição de cada ação em pontos num período é a quantidade vezes a variação do preço. A carteira é rebalanceada a cada quatro meses (janeiro, maio, setembro). O N efetivo diz quantas ações de peso igual dariam a mesma concentração.',
+    formulas: [
+      { tex: R`I_t = \frac{\sum_i Q_i\,P_{i,t}}{R},\qquad w_i = \frac{Q_i P_{i,t}}{\sum_j Q_j P_{j,t}}`, en: 'Index level from theoretical quantities Q and the reductor R; weight of each member.', pt: 'Nível do índice pelas quantidades teóricas Q e o redutor R; peso de cada ação.' },
+      { tex: R`\text{contrib}_i = \frac{Q_i\,(P_{i,t} - P_{i,t-k})}{R},\qquad \sum_i \text{contrib}_i \approx I_t - I_{t-k}`, en: 'Contribution in index points (exact while quantities are unchanged).', pt: 'Contribuição em pontos do índice (exata enquanto as quantidades não mudam).' },
+      { tex: R`N_{ef} = \frac{1}{\sum_i w_i^2}`, en: 'Effective number of stocks (inverse Herfindahl).', pt: 'Número efetivo de ações (inverso do Herfindahl).' },
+    ],
+  },
+  OVME: {
+    en: 'Option valuation with Black-Scholes-Merton. Pick a listed series to load the end-of-day market inputs (spot, strike, business days to expiry, CDI as a continuous rate, implied vol and last premium), then change any field to run scenarios. The calculator returns the theoretical price, the greeks, the implied volatility that matches a premium (found by bisection) and checks put-call parity. The charts show value against the underlying today and at expiry, and the volatility smile of the expiry. The model assumes European exercise, constant volatility and rates, and lognormal prices.',
+    pt: 'Precificação de opções por Black-Scholes-Merton. Escolha uma série listada para carregar os dados de fechamento (spot, strike, dias úteis até o vencimento, CDI como juro contínuo, vol implícita e último prêmio) e altere qualquer campo para simular cenários. A calculadora mostra o preço teórico, as gregas, a vol implícita que reproduz um prêmio (por bisseção) e confere a paridade put-call. Os gráficos mostram o valor contra o ativo hoje e no vencimento, e o smile de volatilidade do vencimento. O modelo supõe exercício europeu, vol e juros constantes e preços lognormais.',
+    formulas: [
+      { tex: R`C = S e^{-qT} N(d_1) - K e^{-rT} N(d_2),\quad P = K e^{-rT} N(-d_2) - S e^{-qT} N(-d_1)`, en: 'Call and put prices (q = dividend yield).', pt: 'Preços de call e put (q = dividend yield).' },
+      { tex: R`d_{1,2} = \frac{\ln(S/K) + (r - q \pm \sigma^2/2)\,T}{\sigma\sqrt{T}},\qquad T = \frac{n_{du}}{252}`, en: 'T = business days (n_du) / 252, the B3 convention.', pt: 'T em dias úteis / 252, como nas convenções da B3.' },
+      { tex: R`\Delta_C = e^{-qT}N(d_1),\quad \Gamma = \frac{e^{-qT}\,\varphi(d_1)}{S\sigma\sqrt{T}},\quad \nu = S e^{-qT}\varphi(d_1)\sqrt{T}`, en: 'Delta, gamma and vega (shown per 1 percentage point of vol).', pt: 'Delta, gama e vega (mostrado por 1 ponto percentual de vol).' },
+      { tex: R`C - P = S e^{-qT} - K e^{-rT}`, en: 'Put-call parity.', pt: 'Paridade put-call.' },
+    ],
+  },
+  EVTS: {
+    en: 'Corporate events drawn on the price chart: results releases, material facts (or other 8-K filings for US companies), dividend ex-dates and splits, plus the next expected results date from CAL. Each event links to the original filing. The day % column shows the close-to-close move on the event day, a quick way to see how the market reacted (it mixes the event with everything else that happened that day).',
+    pt: 'Eventos corporativos desenhados sobre o gráfico de preço: divulgação de resultados, fatos relevantes (ou outros 8-K nas empresas dos EUA), datas ex de proventos e desdobramentos, além da próxima data esperada de resultados do CAL. Cada evento leva ao documento original. A coluna dia % mostra a variação de fechamento a fechamento no dia do evento, um jeito rápido de ver a reação do mercado (ela mistura o evento com tudo o mais que aconteceu no dia).',
+    formulas: [{ tex: R`r_{evento} = \frac{P_{t}}{P_{t-1}} - 1`, en: 'Reaction on the first trading day on or after the event (adjusted closes).', pt: 'Reação no primeiro pregão na data do evento ou depois (fechamentos ajustados).' }],
+  },
   EQS: {
     en: 'Equity screener over Ibovespa stocks. Fundamentals: last 12 months (sum of 4 quarters) from each company\'s latest ITR/DFP; equity and debt from the latest balance sheet.',
     pt: 'Screener de ações do Ibovespa. Fundamentos: últimos 12 meses (soma de 4 trimestres) do ITR/DFP mais recente; patrimônio e dívida do último balanço.',
