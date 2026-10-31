@@ -10,6 +10,7 @@ import { en } from '../../lib/enText'
 import { lang } from '../../lib/settings'
 import { fmtDayMonth, fmtMonth, brToIso } from '../../lib/dates'
 import { mean, std, maxDrawdown, regress } from '../../lib/quant'
+import { safeUrl, readStoredJSON, validPortfolio, validLocalAlerts } from '../../lib/safe.mjs'
 
 const lastIdx = (a: (number | null)[]) => { let i = a.length - 1; while (i >= 0 && a[i] == null) i--; return i }
 const prevVal = (a: (number | null)[], i: number) => { let j = i - 1; while (j >= 0 && a[j] == null) j--; return j >= 0 ? a[j] : null }
@@ -241,7 +242,7 @@ export function NEWSView() {
     <FnScreen code="NEWS" title="Top News — headlines" right={<Field label="Search"><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
       source={<>Open-license RSS feeds: {Array.from(new Set(d.items.map((n: any) => `${n.source.split('–')[0].trim()} (${n.license})`))).join(', ')}. Headline + link only (no text reproduced).</>} note="No paid news agency. Time = feed publication time, converted to Brasília time.">
       <div className="flex flex-wrap gap-0 pb-2">{srcs.map(s => <button key={s} onClick={() => setSrc(s)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: src === s ? C.amber : 'transparent', color: src === s ? tc('#000') : C.amber }}>{s}</button>)}</div>
-      <Grid maxH={700} cols={[{ k: 'date', label: 'Time', w: '110px', fmt: (v: string) => `${fmtDayMonth(v)} ${v.slice(11, 16)}` }, { k: 'source', label: 'Source', w: '220px', color: () => C.amber, fmt: (v: string) => v.length > 30 ? v.slice(0, 29) + '…' : v }, { k: 'title', label: 'Headline', fmt: (v: string, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: C.text }}>{v}</a> }]} rows={rows} />
+      <Grid maxH={700} cols={[{ k: 'date', label: 'Time', w: '110px', fmt: (v: string) => `${fmtDayMonth(v)} ${v.slice(11, 16)}` }, { k: 'source', label: 'Source', w: '220px', color: () => C.amber, fmt: (v: string) => v.length > 30 ? v.slice(0, 29) + '…' : v }, { k: 'title', label: 'Headline', fmt: (v: string, r: any) => <a href={safeUrl(r.link)} target="_blank" rel="noopener noreferrer" style={{ color: C.text }}>{v}</a> }]} rows={rows} />
     </FnScreen>
   )
 }
@@ -275,7 +276,7 @@ export function PORTView() {
   const cdi = useJSON<any>('cdi.json')
   const [pos, setPos] = useState<{ cod: string; w: number }[]>(DEF_PORT)
   const [add, setAdd] = useState('WEGE3'), [reb, setReb] = useState<'d' | 'm' | 'n'>('m')
-  useEffect(() => { try { const s = localStorage.getItem('qt_port'); if (s) setPos(JSON.parse(s)) } catch { } }, [])
+  useEffect(() => { setPos(readStoredJSON(window.localStorage, 'qt_port', validPortfolio, DEF_PORT)) }, [])
   useEffect(() => { try { localStorage.setItem('qt_port', JSON.stringify(pos)) } catch { } }, [pos])
   const calc = useMemo(() => {
     if (!u || !pos.length) return null
@@ -328,7 +329,7 @@ export function ALERTView() {
   const [loc, setLoc] = useState<LA[]>([])
   const [f, setF] = useState<LA>({ id: '', ticker: 'PETR4.SA', op: 'above', value: 60 })
   const [px, setPx] = useState<Record<string, { last: number; date: string }>>({})
-  useEffect(() => { try { setLoc(JSON.parse(localStorage.getItem('qt_alerts') || '[]')) } catch { } }, [])
+  useEffect(() => { setLoc(readStoredJSON(window.localStorage, 'qt_alerts', validLocalAlerts, [])) }, [])
   useEffect(() => { try { localStorage.setItem('qt_alerts', JSON.stringify(loc)) } catch { } }, [loc])
   useEffect(() => { if (d) setPx(Object.fromEntries(d.rules.map((r: any) => [r.ticker, { last: r.last, date: r.date }]))) }, [d])
   useEffect(() => { import('../../lib/static').then(m => loc.forEach(a => !px[a.ticker] && m.getPrices(a.ticker).then(p => { const l = p[p.length - 1]; setPx(o => ({ ...o, [a.ticker]: { last: l.close, date: l.time } })) }).catch(() => { }))) }, [loc]) // eslint-disable-line

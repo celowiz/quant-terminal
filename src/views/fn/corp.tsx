@@ -9,6 +9,7 @@ import { L, regLabel, regValue, sectorEN, fyEnd, isoDate } from './desLabels'
 import { DESClassView } from './desClasses'
 import { DESMarket, marketMeta } from './desMarket'
 import { MARKET_CLASSES } from '../../lib/activeTicker.mjs'
+import { safeUrl } from '../../lib/safe.mjs'
 
 const SRC_CVM = 'CVM Open Data (DFP/ITR, FCA, IPE) + Yahoo Finance (profile, raw price, distributions). Scripts: tools/pipeline/build_corp.py.'
 const SRC_SEC = 'SEC EDGAR (XBRL companyfacts, submissions) + Yahoo Finance (profile, raw price, distributions). Script: pipeline/build_sec.py.'
@@ -249,7 +250,7 @@ export function DVDView({ ticker }: { ticker: string }) {
         {tab === 0 || us ? <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
           <Panel title={`Distributions (${rows.length})`}><Grid maxH={560} cols={[{ k: 'ex', label: 'Ex-date', fmt: dBRfull }, { k: 'amt', label: `Amount ${$}`, align: 'r', fmt: v => nf(v, 6), color: () => C.amber }, { k: 'px', label: 'Prev. price', align: 'r', fmt: (v: any) => nf(v) }, { k: 'y', label: 'Yield', align: 'r', fmt: v => pf(v, 2, false) }, { k: 'type', label: 'Type' }]} rows={rows} /></Panel>
           <Panel title={`Total per year (${$}/share)`}><FnChart height={560} panes={[{ series: [{ kind: 'hist', data: Array.from(byY.entries()).sort().map(([y, v]) => ({ time: `${y}-12-31`, value: v })), color: C.amber, title: `${$}/share`, decimals: 3 }] }]} /></Panel>
-        </div> : <Panel title="Dividend notices / meetings"><Grid maxH={600} cols={[{ k: 'date', label: 'Date', fmt: dBRfull }, { k: 'cat', label: 'Category' }, { k: 'subject', label: 'Subject', fmt: (v, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: C.cyan }}>{v || r.type}</a> }]} rows={relat} /></Panel>}
+        </div> : <Panel title="Dividend notices / meetings"><Grid maxH={600} cols={[{ k: 'date', label: 'Date', fmt: dBRfull }, { k: 'cat', label: 'Category' }, { k: 'subject', label: 'Subject', fmt: (v, r: any) => <a href={safeUrl(r.link)} target="_blank" rel="noopener noreferrer" style={{ color: C.cyan }}>{v || r.type}</a> }]} rows={relat} /></Panel>}
       </FnScreen>)
   })()}</Guard>
 }
@@ -287,7 +288,7 @@ export function CFView({ ticker }: { ticker: string }) {
         source={isUS(d) ? 'SEC EDGAR – submissions API (10-K, 10-Q, 8-K, proxy statements…), links to the original document on sec.gov.' : 'CVM Open Data – IPE (periodic and ad-hoc filings), links to RAD/ENET.'}
         note={isUS(d) ? `10-K = annual report, 10-Q = quarterly report, 8-K = current report (subject = official Form 8-K item titles), DEF 14A = proxy statement. Latest ${d.filings.length} filings${d.cad?.PREDECESSOR ? `, including the predecessor registrant ${d.cad.PREDECESSOR}` : ''}.` : 'Brazilian equivalent of 10-K/10-Q/8-K: DFP/ITR, Material Facts, Notices, Minutes. Latest 400 documents.'}>
         <div className="flex flex-wrap gap-0 pb-2">{cats.map(c => <button key={c} onClick={() => setCat(c)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: cat === c ? C.amber : 'transparent', color: cat === c ? tc('#000') : C.amber }}>{c.length > 34 ? c.slice(0, 32) + '…' : c}</button>)}</div>
-        <Grid maxH={640} cols={[{ k: 'date', label: 'Date', fmt: dBRfull, w: '90px' }, { k: 'cat', label: 'Category', color: () => C.amber, w: '230px' }, { k: 'type', label: 'Type', color: () => C.muted, w: '220px' }, { k: 'subject', label: 'Subject / document', fmt: (v, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: C.text }}>{v || r.type || r.cat}</a> }, { k: 'version', label: 'V', align: 'r', w: '30px' }]} rows={rows} />
+        <Grid maxH={640} cols={[{ k: 'date', label: 'Date', fmt: dBRfull, w: '90px' }, { k: 'cat', label: 'Category', color: () => C.amber, w: '230px' }, { k: 'type', label: 'Type', color: () => C.muted, w: '220px' }, { k: 'subject', label: 'Subject / document', fmt: (v, r: any) => <a href={safeUrl(r.link)} target="_blank" rel="noopener noreferrer" style={{ color: C.text }}>{v || r.type || r.cat}</a> }, { k: 'version', label: 'V', align: 'r', w: '30px' }]} rows={rows} />
       </FnScreen>)
   })()}</Guard>
 }
@@ -306,7 +307,7 @@ export function CNView({ ticker }: { ticker: string }) {
     return (
       <FnScreen code="CN" ticker={ticker} title="Company News" source={us ? 'SEC EDGAR – Form 8-K current reports + open-license RSS filtered by company name.' : 'CVM IPE (Material Facts, Market Notices, Notices) + open-license RSS (Agência Brasil, CC BY 4.0) filtered by company name.'}
         note={us ? 'No paid news-agency feed: the stream is the company\'s official regulatory news (Form 8-K, official item titles). Earnings releases (item 2.02) highlighted.' : 'No paid news-agency feed: the stream is the company\'s official regulatory news. Material Facts highlighted.'}>
-        <Grid maxH={700} rowStyle={(r: any) => r.hot ? { background: tc('#1a1205') } : undefined} cols={[{ k: 'date', label: 'Date', fmt: dBR, w: '70px' }, { k: 'src', label: 'Type', w: '90px', color: (_, r: any) => r.hot ? C.down : C.amber }, { k: 'title', label: 'Headline', fmt: (v, r: any) => <a href={r.link} target="_blank" rel="noreferrer" style={{ color: r.hot ? C.white : C.text, fontWeight: r.hot ? 700 : 400 }}>{v}</a> }]} rows={rows} />
+        <Grid maxH={700} rowStyle={(r: any) => r.hot ? { background: tc('#1a1205') } : undefined} cols={[{ k: 'date', label: 'Date', fmt: dBR, w: '70px' }, { k: 'src', label: 'Type', w: '90px', color: (_, r: any) => r.hot ? C.down : C.amber }, { k: 'title', label: 'Headline', fmt: (v, r: any) => <a href={safeUrl(r.link)} target="_blank" rel="noopener noreferrer" style={{ color: r.hot ? C.white : C.text, fontWeight: r.hot ? 700 : 400 }}>{v}</a> }]} rows={rows} />
       </FnScreen>)
   })()}</Guard>
 }

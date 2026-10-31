@@ -7,6 +7,7 @@ import { usePrices } from './tech'
 import { href, tickerKey } from '../../lib/static'
 import { L, fyEnd, isoDate } from './desLabels'
 import { lang } from '../../lib/settings'
+import { safeSite } from '../../lib/safe.mjs'
 
 const pt = () => lang() === 'pt'
 const D = (v?: string | null) => v ? isoDate(v) : '—'
@@ -35,7 +36,7 @@ const CVM_EN: Record<string, string> = {
 }
 const ev = (v?: string | null) => !v ? '—' : pt() ? (v === 'N' ? 'Não' : v === 'S' ? 'Sim' : v) : CVM_EN[v] || v
 const refEN = (v?: string | null) => !v || pt() ? S(v) : v.replace(/^(\d)º Trimestre\/(\d{4})$/, 'Q$1 $2').replace(/^(\d)º Semestre\/(\d{4})$/, 'H$1 $2')
-const site = (v?: string | null) => !v ? '—' : <a className="underline" style={{ color: C.amber }} href={/^https?:/.test(v) ? v : `https://${v}`} target="_blank" rel="noreferrer">{v.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>
+const site = (v?: string | null) => !v || !safeSite(v) ? (v || '—') : <a className="underline" style={{ color: C.amber }} href={safeSite(v)} target="_blank" rel="noopener noreferrer">{v.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>
 
 /** Painel de preço de 1 ano (comum a todas as classes) */
 function PricePanel({ ticker, ccy, extra = [] }: { ticker: string; ccy: string; extra?: [string, React.ReactNode, string?][] }) {

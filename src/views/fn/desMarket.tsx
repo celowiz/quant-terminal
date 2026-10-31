@@ -9,6 +9,7 @@ import { L } from './desLabels'
 import { TICKERS } from '../../lib/universe'
 import { marketStats } from '../../lib/marketStats.mjs'
 import type { TickerMeta } from '../../lib/static'
+import { safeUrl } from '../../lib/safe.mjs'
 
 const CLASS: Record<string, [string, string]> = {
   index: ['Index', 'Índice'], fx: ['Currency pair', 'Par de moedas'], commodity: ['Commodity', 'Commodity'], crypto: ['Crypto asset', 'Criptoativo'],
@@ -57,7 +58,7 @@ export function DESMarket({ ticker }: { ticker: string }) {
         <div className="grid gap-2 content-start">
           <Panel title={L('Profile', 'Perfil')}>
             <KV rows={[[L('Ticker', 'Ticker'), short(ticker), C.amber], [L('Name', 'Nome'), m.name], [L('Asset class', 'Classe'), m.class ? L(...CLASS[m.class]) : '—'],
-              [L('Quote', 'Cotação'), quote(m)], ...(m.link ? [[L('Exchange page', 'Página na bolsa'), <a key="l" className="underline" style={{ color: C.amber }} href={m.link} target="_blank" rel="noreferrer">{m.link.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>]] as [string, React.ReactNode][] : []),
+              [L('Quote', 'Cotação'), quote(m)], ...(safeUrl(m.link) ? [[L('Exchange page', 'Página na bolsa'), <a key="l" className="underline" style={{ color: C.amber }} href={safeUrl(m.link)} target="_blank" rel="noopener noreferrer">{(m.link || "").replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>]] as [string, React.ReactNode][] : []),
               [L('Daily data', 'Dados diários'), co ? L('Close only', 'Só fechamento') : L('Open, high, low, close', 'Abertura, máxima, mínima, fechamento')],
               [L('History since', 'Histórico desde'), dBR(rows[0].time)], [L('Sessions', 'Pregões'), nf(rows.length, 0)]]} />
           </Panel>

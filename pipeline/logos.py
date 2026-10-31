@@ -36,6 +36,17 @@ def _px(path):
     return struct.unpack('>I', h[16:20])[0] if h[:8] == b'\x89PNG\r\n\x1a\n' else None
 
 
+MAX_LOGO_BYTES = 512 * 1024
+
+
+def _safe_png(path):
+    """Arquivo regular (sem symlink), até 512 KB e com assinatura PNG: nada de SVG/HTML disfarçado vindo do repositório externo."""
+    try:
+        if os.path.islink(path) or not os.path.isfile(path) or os.path.getsize(path) > MAX_LOGO_BYTES: return False
+        with open(path, 'rb') as f: return f.read(8) == b'\x89PNG\r\n\x1a\n'
+    except OSError: return False
+
+
 def sync(repo_dir, universe):
     """Copia TICKER.png para public/logos e reescreve o manifest. universe: [(ticker, empresa)]."""
     files = {f[:-4] for f in os.listdir(repo_dir) if f.endswith('.png')}
@@ -47,7 +58,10 @@ def sync(repo_dir, universe):
     for t, name in universe:
         src, how = resolve(t, files)
         if not src: miss.append(t); continue
-        dst = os.path.join(LOGOS, t + '.png'); shutil.copyfile(os.path.join(repo_dir, src + '.png'), dst)
+        if not re.fullmatch(r'[A-Z0-9]{1,12}', t): miss.append(t); continue
+        sp = os.path.join(repo_dir, src + '.png')
+        if not _safe_png(sp): miss.append(t); continue
+        dst = os.path.join(LOGOS, t + '.png'); shutil.copyfile(sp, dst)
         e = {'ticker': t, 'company': name, 'file': t + '.png', 'source': REPO, 'source_file': src + '.png', 'match': how,
              'commit': commit, 'px': _px(dst), 'sha256': hashlib.sha256(open(dst, 'rb').read()).hexdigest()[:16]}
         out.append(e)

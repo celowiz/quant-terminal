@@ -35,6 +35,8 @@ def news():
                 title = html.unescape(re.sub('<[^>]+>', '', text(it, 'title')))
                 link = text(it, 'link') or next((c.get('href') for c in it if c.tag.split('}')[-1] == 'link'), '')
                 date = parse_date(text(it, 'pubDate') or text(it, 'updated') or text(it, 'published') or text(it, 'date'))
+                link = (link or '').strip()
+                if not re.match(r'^https?://[^\s/]+', link, re.I): link = ''  # só http(s): nada de javascript:/data: no href
                 if title and link: items.append({'source': name, 'license': lic, 'title': title[:220], 'link': link, 'date': date})
             print(' ', name, 'ok')
         except Exception as e: print(' ', name, 'falhou', e)
