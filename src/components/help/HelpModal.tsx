@@ -13,7 +13,9 @@ import { en } from '@/lib/enText'
 import { lang } from '@/lib/settings'
 import { t } from '@/lib/i18n'
 
-const tex = (s: string) => { try { return katex.renderToString(s, { displayMode: true, throwOnError: false, output: 'html' }) } catch { return s } }
+// tex vem só de helpContent (estático); trust:false bloqueia \href/\url/\includegraphics e o catch devolve texto escapado
+const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
+const tex = (s: string) => { try { return katex.renderToString(s, { displayMode: true, throwOnError: false, output: 'html', trust: false, maxExpand: 1000 }) } catch { return esc(s) } }
 /** Traduz strings também dentro de fragmentos/elementos (notas e fontes às vezes chegam como JSX). */
 const tr = (n: React.ReactNode): React.ReactNode => {
   if (typeof n === 'string') return en(n)

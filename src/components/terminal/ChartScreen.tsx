@@ -9,6 +9,7 @@ import { t } from '../../lib/i18n'
 import { getPrices, tickerMeta, go, type Price } from '../../lib/static'
 import { trackPeriod } from '../../lib/track'
 import { T, MONO } from './PriceChart'
+import { safeUrl } from '../../lib/safe.mjs'
 
 const PriceChart = dynamic(() => import('./PriceChart'), { ssr: false })
 
@@ -145,8 +146,8 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
         <span className="text-[#8a8a8a]">C <b className="text-[#d9d9d9] font-normal">{nf(obs?.close, dec)}</b></span>
         <span className="text-[#8a8a8a]">Vol <b className="text-[#d9d9d9] font-normal">{obs?.volume ? vf(obs.volume) : '—'}</b></span>
         {meta?.close_only && <span className="text-[#8a8a8a] italic" data-close-only="">{t('asset.closeOnly')}</span>}
-        {meta?.link && <a className="text-[#8a8a8a] underline hover:text-[#FFA028]" href={meta.link} target="_blank" rel="noopener noreferrer">{t('asset.official')}</a>}
-        {meta?.ref && <a className="text-[#8a8a8a] underline hover:text-[#FFA028]" href={meta.ref} target="_blank" rel="noopener noreferrer">{t('asset.reference')}</a>}
+        {safeUrl(meta?.link) && <a className="text-[#8a8a8a] underline hover:text-[#FFA028]" href={safeUrl(meta?.link)} target="_blank" rel="noopener noreferrer">{t('asset.official')}</a>}
+        {safeUrl(meta?.ref) && <a className="text-[#8a8a8a] underline hover:text-[#FFA028]" href={safeUrl(meta?.ref)} target="_blank" rel="noopener noreferrer">{t('asset.reference')}</a>}
         <span className="ml-auto text-[#FFA028] text-[12px]">{mode === 'candle' ? 'GPC · Candle Chart' : 'GP · Line Chart'}</span>
       </div>
       {/* Barra de ferramentas */}

@@ -12,6 +12,7 @@ import { n, sn, pc, cl, dUS, bigE, Kpis, Loading2 } from './fn11util'
 import { usePrices } from './tech'
 import { tickerKey } from '@/lib/static'
 import { lang } from '@/lib/settings'
+import { safeUrl } from '../../lib/safe.mjs'
 
 const L = (en: string, pt: string) => (lang() === 'pt' ? pt : en)
 const isoAgo = (iso: string, days: number) => new Date(Date.parse(iso.slice(0, 10) + 'T12:00:00Z') - days * 864e5).toISOString().slice(0, 10)
@@ -294,7 +295,7 @@ export function EVTSView({ ticker }: { ticker: string }) {
           <Grid maxH={590} rows={shown.map(e => ({ ...e, r: e.kind === 'N' ? null : react(e) }))} cols={[
             { k: 'date', label: L('Date', 'Data'), fmt: (v: any) => dUS(v) },
             { k: 'kind', label: '', fmt: (v: any) => <b style={{ color: KIND[v as Ev['kind']].color }}>{v}</b> },
-            { k: 'text', label: L('Event', 'Evento'), fmt: (v: any, r: any) => r.link ? <a href={r.link} target="_blank" rel="noreferrer" style={{ color: C.cyan }}>{v || '—'}</a> : v },
+            { k: 'text', label: L('Event', 'Evento'), fmt: (v: any, r: any) => safeUrl(r.link) ? <a href={safeUrl(r.link)} target="_blank" rel="noopener noreferrer" style={{ color: C.cyan }}>{v || '—'}</a> : v },
             { k: 'r', label: L('Day %', 'Dia %'), align: 'r', fmt: (v: any) => pc(v, 1), color: (v: any) => cl(v) },
           ]} />
         </Panel>

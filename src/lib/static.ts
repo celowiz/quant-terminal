@@ -3,6 +3,7 @@
 import { RRGResponse, RRGFormData, RRGAssetData, RRGPoint } from '@/types/rrg'
 import { cleanUniverse } from './dataFix.mjs'
 import { recordRef } from './refDates'
+import { safeDecode } from './safe.mjs'
 
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || ''
 export const href = (path: string) => `${BASE_PATH}${path.startsWith('/') ? path : '/' + path}`
@@ -12,7 +13,7 @@ export const pathParts = (): string[] => {
   if (typeof window === 'undefined') return []
   let p = window.location.pathname
   if (BASE_PATH && p.startsWith(BASE_PATH)) p = p.slice(BASE_PATH.length)
-  return p.split('/').filter(Boolean).map(decodeURIComponent)
+  return p.split('/').filter(Boolean).map(safeDecode)
 }
 
 const cache = new Map<string, Promise<any>>()

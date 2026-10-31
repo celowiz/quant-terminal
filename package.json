@@ -15,10 +15,10 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/csp.mjs out",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --test src/lib/analytics.test.mjs src/lib/activeTicker.test.mjs src/lib/dataFix.test.mjs src/lib/command.test.mjs src/lib/bsm.test.mjs src/lib/theme.test.mjs src/lib/launchpad.test.mjs src/lib/j3.test.mjs src/lib/marketStats.test.mjs"
+    "test": "node --test src/lib/analytics.test.mjs src/lib/activeTicker.test.mjs src/lib/dataFix.test.mjs src/lib/command.test.mjs src/lib/bsm.test.mjs src/lib/theme.test.mjs src/lib/launchpad.test.mjs src/lib/j3.test.mjs src/lib/marketStats.test.mjs src/lib/safe.test.mjs scripts/csp.test.mjs"
   },
   "type": "module",
   "devDependencies": {

@@ -10,6 +10,7 @@ import { fmtDayMonth, fmtQuarter } from '../../lib/dates'
 import { href } from '../../lib/static'
 import { trackShare } from '../../lib/track'
 import { toast } from '../../components/ShareMenu'
+import { safeUrl, safeLogo } from '../../lib/safe.mjs'
 
 type Link = { date: string | null; link?: string | null; time?: string | null }
 export type CalRow = {
@@ -46,11 +47,12 @@ const hue = (s: string) => s.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0
 export function Logo({ r, size = 20 }: { r: CalRow; size?: number }) {
   const [bad, setBad] = useState(false)
   const box: React.CSSProperties = { width: size, height: size, minWidth: size, borderRadius: Math.round(size * 0.18) }
-  if (!r.logo || bad)
+  const logo = safeLogo(r.logo)
+  if (!logo || bad)
     return <span aria-hidden className="inline-flex items-center justify-center font-bold"
       style={{ ...box, background: `hsl(${hue(r.ticker)} 45% 28%)`, color: tc('#fff'), fontSize: Math.max(8, Math.round(size * 0.3)) }}>{r.ticker.slice(0, 4)}</span>
   return <span className="inline-flex items-center justify-center overflow-hidden" style={box}>
-    <img src={href('/' + r.logo)} alt="" width={size} height={size} onError={() => setBad(true)} style={{ width: size, height: size, objectFit: 'contain' }} />
+    <img src={href('/' + logo)} alt="" width={size} height={size} onError={() => setBad(true)} style={{ width: size, height: size, objectFit: 'contain' }} />
   </span>
 }
 export function Status({ s }: { s: CalRow['status'] }) {
@@ -58,7 +60,7 @@ export function Status({ s }: { s: CalRow['status'] }) {
   return <span className="px-1 text-[10px] font-bold uppercase border whitespace-nowrap" style={{ color: ST_COLOR[s], borderColor: ST_COLOR[s], borderStyle: s === 'expected' ? 'dashed' : 'solid' }}>{t(`cal.st.${s}` as any)}</span>
 }
 const A = ({ to, children }: { to?: string | null; children: React.ReactNode }) =>
-  to ? <a href={to} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-white" style={{ color: C.cyan }}>{children}</a> : <span style={{ color: C.muted }}>—</span>
+  safeUrl(to) ? <a href={safeUrl(to)} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-white" style={{ color: C.cyan }}>{children}</a> : <span style={{ color: C.muted }}>—</span>
 const timeTxt = (r: CalRow) => {
   const tm = r.timing ? t(r.timing === 'bmo' ? 'cal.bmo' : 'cal.amc') : null
   return [r.time, tm].filter(Boolean).join(' · ') || '—'

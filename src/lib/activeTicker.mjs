@@ -1,3 +1,4 @@
+import { isTicker } from './safe.mjs'
 // Ativo corrente global ("sticky ticker"): sobrevive à troca de função.
 // Módulo puro (.mjs) para ser testado com `node --test` sem bundler.
 
@@ -83,10 +84,10 @@ export function functionPath(code, ticker, universe) {
 }
 
 export function readStoredTicker(storage) {
-  try { return (storage?.getItem(STORAGE_KEY) || '').toUpperCase() } catch { return '' }
+  try { const v = (storage?.getItem(STORAGE_KEY) || '').toUpperCase(); return isTicker(v) ? v : '' } catch { return '' }
 }
 export function writeStoredTicker(storage, ticker) {
-  try { if (ticker) storage?.setItem(STORAGE_KEY, String(ticker).toUpperCase()) } catch { /* modo privado */ }
+  try { const v = String(ticker || '').toUpperCase(); if (isTicker(v)) storage?.setItem(STORAGE_KEY, v) } catch { /* modo privado */ }
 }
 
 /** Rótulo limpo do ativo no campo de ticker: PETR4.SA → PETR4 (o valor real continua o ticker completo). */
