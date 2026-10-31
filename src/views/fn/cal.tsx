@@ -25,6 +25,14 @@ const ST_COLOR: Record<string, string> = { expected: C.muted, confirmed: C.amber
 
 // ---------- datas (strings ISO, sem fuso) ----------
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+/** 'hoje' sempre no fuso de São Paulo (B3), igual no build e no navegador */
+const todayBRT = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
+/** build e 1º render do cliente usam o dia do build (sem mismatch de hidratação); depois do mount, o dia real */
+function useToday() {
+  const [d, setD] = useState(() => process.env.NEXT_PUBLIC_BUILD_DAY || todayBRT())
+  useEffect(() => { setD(todayBRT()) }, [])
+  return d
+}
 const parse = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d) }
 const addDays = (s: string, n: number) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d) }
 /** segunda-feira da semana; sábado/domingo pulam para a semana seguinte */
@@ -179,11 +187,10 @@ function Detail({ r }: { r: CalRow | null }) {
 }
 
 // ---------- semana: uma coluna por dia (seg–sex) ----------
-function WeekBoard({ mon, byDate, sel, onPick, exporting }: { mon: string; byDate: Map<string, CalRow[]>; sel: string | null; onPick: (r: CalRow) => void; exporting: boolean }) {
+function WeekBoard({ mon, today, byDate, sel, onPick, exporting }: { mon: string; today: string; byDate: Map<string, CalRow[]>; sel: string | null; onPick: (r: CalRow) => void; exporting: boolean }) {
   const desk = useDesktop()
   const bodyH = useFitH(600, 220)
   const days = [0, 1, 2, 3, 4].map(i => addDays(mon, i))
-  const today = iso(new Date())
   const list = (d: string) => (byDate.get(d) || []).slice().sort(byTicker)
   const head = (d: string) => (
     <div className="px-2 py-1 font-bold flex justify-between items-baseline" style={{ background: d === today && !exporting ? C.amber : C.panel2, color: d === today && !exporting ? tc('#000') : C.amber, fontSize: exporting ? 16 : 12 }}>
@@ -216,14 +223,13 @@ function WeekBoard({ mon, byDate, sel, onPick, exporting }: { mon: string; byDat
 }
 
 // ---------- mês (seg–sex) ----------
-function MonthView({ month, byDate, onDay }: { month: string; byDate: Map<string, CalRow[]>; onDay: (d: string) => void }) {
+function MonthView({ month, today, byDate, onDay }: { month: string; today: string; byDate: Map<string, CalRow[]>; onDay: (d: string) => void }) {
   const cellH = useFitH(112, 56)
   const first = month + '-01', wd = parse(first).getDay()
   // semana que contém o dia 1 (se cair no fim de semana, começa na segunda seguinte)
   const s0 = wd >= 1 && wd <= 5 ? addDays(first, 1 - wd) : mondayOf(first)
   const weeks: string[][] = []
   for (let w = s0; w.slice(0, 7) <= month; w = addDays(w, 7)) weeks.push([0, 1, 2, 3, 4].map(i => addDays(w, i)))
-  const today = iso(new Date())
   return (
     <div className="grid" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', border: `1px solid ${C.line}` }}>
       {weeks[0]?.map((d, i) => <div key={'h' + d} className={`px-2 py-1 text-[12px] font-bold text-center ${i ? 'border-l' : ''}`} style={{ borderColor: C.line, background: C.panel2, color: C.amber }}>{dayName(d).toUpperCase()}</div>)}
@@ -263,7 +269,8 @@ export function CALView() {
     for (const r of data?.rows || []) if (r.date) m.set(r.date, [...(m.get(r.date) || []), r])
     return m
   }, [data])
-  const curMon = mon ?? mondayOf(iso(new Date()))
+  const today = useToday()
+  const curMon = mon ?? mondayOf(today)
   const curMonth = month ?? curMon.slice(0, 7)
   // carregando: mesmas abas e faixa de controles da tela final (altura igual) + área reservada → sem deslocamento no mobile
   if (!data) return <FnScreen code="CAL" tabs={[t('cal.tabWeek'), t('cal.tabMonth'), t('cal.tabList')]} tab={tab} setTab={setTab}
@@ -332,7 +339,7 @@ export function CALView() {
           <div className="flex gap-2 max-lg:flex-col">
             <div ref={board} className="relative flex-1 min-w-0" style={exporting ? { width: 1600, minWidth: 1600, background: tc('#000'), padding: 20 } : undefined}>
               {exporting && <div className="flex items-baseline justify-between mb-3"><span className="text-[24px] font-bold" style={{ color: C.amber }}>{t('cal.title')} · {data.quarter}</span><span className="text-[18px] font-bold" style={{ color: C.white }}>{weekLabel(curMon)}</span></div>}
-              <WeekBoard mon={curMon} byDate={byDate} sel={sel?.ticker ?? null} onPick={pick} exporting={exporting} />
+              <WeekBoard mon={curMon} today={today} byDate={byDate} sel={sel?.ticker ?? null} onPick={pick} exporting={exporting} />
               {!nWeek && <div className="text-[12px] mt-1" style={{ color: C.muted }}>{t('cal.noEvents')}</div>}
               {!exporting && undated.length > 0 && (
                 <div className="mt-2 border flex items-center gap-2 p-1 max-lg:flex-col max-lg:items-start" style={{ borderColor: C.line }}>
@@ -361,7 +368,7 @@ export function CALView() {
             </div>
           </div>
         )}
-        {tab === 1 && <MonthView month={curMonth} byDate={byDate} onDay={d => { setMon(mondayOf(d)); setTab(0) }} />}
+        {tab === 1 && <MonthView month={curMonth} today={today} byDate={byDate} onDay={d => { setMon(mondayOf(d)); setTab(0) }} />}
         {tab === 2 && <Grid<CalRow> cols={cols} rows={list} maxH={560} />}
       </div>
     </FnScreen>
