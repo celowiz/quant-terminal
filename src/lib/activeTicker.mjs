@@ -22,8 +22,10 @@ const STATIC_UNIVERSE = {
 }
 /** Universos restritos por função; as demais aceitam todo o data/tickers.json. Preenchido por registerCoverage. */
 export const FUNCTION_UNIVERSE = {}
-/** Datasets extras que também abrem a função: DES cobre ações (corp) e FIIs, BDRs e ETFs (des/). */
-export const EXTRA_DATASETS = { DES: ['des'] }
+/** Datasets extras que também abrem a função: DES cobre ações (corp), FIIs, BDRs e ETFs (des/) e os ativos de mercado (market). */
+export const EXTRA_DATASETS = { DES: ['des', 'market'] }
+/** Classes cujo DES é montado só com a série de preços e o cadastro do tickers.json (índices, moedas, commodities, cripto). */
+export const MARKET_CLASSES = ['index', 'fx', 'commodity', 'crypto']
 function fill(byDataset) {
   for (const [fn, ds] of Object.entries(FUNCTION_DATASET)) {
     const u = [...(byDataset[ds] || [])]
@@ -42,8 +44,9 @@ export function registerCoverage(tickers) {
   let any = false
   for (const t of tickers || []) {
     for (const ds of t.cov || []) { (by[ds] ||= []).push(String(t.ticker).toUpperCase()); any = true }
+    if (MARKET_CLASSES.includes(t.class)) (by.market ||= []).push(String(t.ticker).toUpperCase())
   }
-  if (!any) { fill(STATIC_UNIVERSE); return STATIC_UNIVERSE }
+  if (!any) { const st = { ...STATIC_UNIVERSE, market: by.market || [] }; fill(st); return st }
   fill(by)
   return by
 }

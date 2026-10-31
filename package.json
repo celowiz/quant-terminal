@@ -19,7 +19,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --test src/lib/analytics.test.mjs src/lib/activeTicker.test.mjs src/lib/dataFix.test.mjs src/lib/command.test.mjs src/lib/bsm.test.mjs src/lib/theme.test.mjs src/lib/launchpad.test.mjs src/lib/j3.test.mjs"
+    "test": "node --test src/lib/analytics.test.mjs src/lib/activeTicker.test.mjs src/lib/dataFix.test.mjs src/lib/command.test.mjs src/lib/bsm.test.mjs src/lib/theme.test.mjs src/lib/launchpad.test.mjs src/lib/j3.test.mjs src/lib/marketStats.test.mjs"
   },
   "type": "module",
   "devDependencies": {
