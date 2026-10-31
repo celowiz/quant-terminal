@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Keep the pre-4.3 default sans stack so the Tailwind upgrade does not change fonts */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
 /* Global font variable (kept for future use) */
 :root {
   --bb-font: sans-serif;
