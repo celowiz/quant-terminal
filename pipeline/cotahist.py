@@ -87,33 +87,33 @@ def suspect(rows, i, tol=0.10):
             or not (r['low'] <= r['open'] <= r['high']) or not (r['low'] <= r['close'] <= r['high']))
 
 def _rescaled(row, ref):
-    """O/H/L de ref levados à escala do fechamento de row (série ajustada); None se as escalas não batem."""
+    """O/H/L oficiais (ref) levados à escala do fechamento ajustado de row; None se as escalas não batem
+    ou se o resultado não é uma barra coerente (sem forçar valores)."""
     if not ref or not ref.get('close') or ref['close'] <= 0: return None
     k = row['close'] / ref['close']
     if not 0.85 < k < 1.15: return None
     out = dict(row)
     for f in ('open', 'high', 'low'): out[f] = float(f'{ref[f] * k:.6g}')
+    eps = 1e-5 * row['close']   # só arredondamento
+    if not (out['low'] - eps <= min(out['open'], out['close']) and max(out['open'], out['close']) <= out['high'] + eps): return None
     out['high'], out['low'] = max(out['high'], out['open'], out['close']), min(out['low'], out['open'], out['close'])
     return out
 
-def repair_bad_bars(rows, prev=None, official=None, recent=20):
-    """Corrige O/H/L de barras suspeitas sem inventar valores:
-    1) barra já corrigida numa execução anterior (mesma data, fechamento igual) é mantida;
-    2) nas últimas `recent` barras, usa o O/H/L oficial do COTAHIST daquele pregão (official(data) → barra ou None).
-    Barra sem referência fica como está. Devolve (rows, [datas corrigidas])."""
-    if not rows: return rows, []
-    pm = {r['time']: r for r in (prev or [])}
-    out, fixed = [dict(r) for r in rows], []
+def repair_bad_bars(rows, ledger=None, official=None, recent=20):
+    """Corrige O/H/L de barras suspeitas apenas com valores oficiais do mesmo pregão (COTAHIST):
+    1) ledger {data: barra oficial} de correções anteriores (persistido entre execuções);
+    2) nas últimas `recent` barras, official(data) → barra oficial ou None.
+    Sem referência oficial a barra fica exatamente como veio. Devolve (rows, [datas corrigidas], {data: barra oficial usada})."""
+    if not rows: return rows, [], {}
+    ledger = ledger or {}
+    out, fixed, used = [dict(r) for r in rows], [], {}
     for i in range(1, len(out)):
         if not suspect(out, i): continue
-        cand = None
-        p = pm.get(out[i]['time'])
-        if p and abs(p['close'] / out[i]['close'] - 1) < 0.005:
-            c = _rescaled(out[i], p)
-            if c and not suspect(out[:i] + [c], i): cand = c
-        if cand is None and official and i >= len(out) - recent:
-            c = _rescaled(out[i], official(out[i]['time']))
-            if c and not suspect(out[:i] + [c], i): cand = c
-        if cand:
-            out[i] = cand; fixed.append(out[i]['time'])
-    return out, fixed
+        d = out[i]['time']
+        ref = ledger.get(d)
+        if ref is None and official and i >= len(out) - recent: ref = official(d)
+        c = _rescaled(out[i], ref)
+        if c and not suspect(out[:i] + [c], i) and c != out[i]:
+            out[i] = c; fixed.append(d)
+            used[d] = {k: ref[k] for k in ('open', 'high', 'low', 'close')}
+    return out, fixed, used
