@@ -7,6 +7,8 @@ import { usePrices } from './tech'
 import { getJSON, tickerKey } from '../../lib/static'
 import { L, regLabel, regValue, sectorEN, fyEnd, isoDate } from './desLabels'
 import { DESClassView } from './desClasses'
+import { DESMarket, marketMeta } from './desMarket'
+import { MARKET_CLASSES } from '../../lib/activeTicker.mjs'
 
 const SRC_CVM = 'CVM Open Data (DFP/ITR, FCA, IPE) + Yahoo Finance (profile, raw price, distributions). Scripts: tools/pipeline/build_corp.py.'
 const SRC_SEC = 'SEC EDGAR (XBRL companyfacts, submissions) + Yahoo Finance (profile, raw price, distributions). Script: pipeline/build_sec.py.'
@@ -47,8 +49,10 @@ function valuation(d: any) {
 }
 
 // ---------------- DES ----------------
-/** DES: ações → perfil corporativo; FIIs, ETFs e BDRs → layout da classe (desClasses). */
+/** DES: ações → perfil corporativo; FIIs, ETFs e BDRs → layout da classe (desClasses); índices, moedas, commodities e cripto → desMarket. */
 export function DESView({ ticker }: { ticker: string }) {
+  const mk = marketMeta(ticker)
+  if (mk && MARKET_CLASSES.includes(mk.class || '')) return <DESMarket ticker={ticker} />
   return !isEquity(ticker) && hasData('DES', ticker) ? <DESClassView ticker={ticker} /> : <DESCorp ticker={ticker} />
 }
 function DESCorp({ ticker }: { ticker: string }) {

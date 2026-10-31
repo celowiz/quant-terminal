@@ -2,5 +2,5 @@
 import tickers from '../../public/data/tickers.json'
 import { registerCoverage } from './activeTicker.mjs'
 
-registerCoverage((tickers as unknown as { tickers: { ticker: string; cov?: string[] }[] }).tickers)
+registerCoverage((tickers as unknown as { tickers: { ticker: string; cov?: string[]; class?: string }[] }).tickers)
 export {}

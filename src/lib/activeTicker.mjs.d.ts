@@ -11,5 +11,6 @@ export function defaultTicker(code: string): string
 export function barTicker(code: string, stored: string, universe: string[]): { ticker: string; fallbackFrom: string }
 export function functionUniverse(code: string, universe: string[]): string[]
 export const FUNCTION_DATASET: Record<string, string>
-export function registerCoverage(tickers: { ticker: string; cov?: string[] }[]): Record<string, string[]>
+export function registerCoverage(tickers: { ticker: string; cov?: string[]; class?: string }[]): Record<string, string[]>
 export function covers(code: string, ticker: string): boolean
+export const MARKET_CLASSES: string[]
