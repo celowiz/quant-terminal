@@ -16,12 +16,8 @@ updates:
     groups:
       npm-minor-patch: { update-types: [minor, patch] }
     ignore:
-      # majors pedem migração (Next 15/16 = React 19); fazer de propósito, não por PR automática
-      - dependency-name: next
-        update-types: ['version-update:semver-major']
-      - dependency-name: react
-        update-types: ['version-update:semver-major']
-      - dependency-name: react-dom
+      # majors pedem migração (Next 15/16 = React 19, ESLint 10, TS 7, recharts 3); fazer de propósito, não por PR automática
+      - dependency-name: '*'
         update-types: ['version-update:semver-major']
 
   - package-ecosystem: pip
