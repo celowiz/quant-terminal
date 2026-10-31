@@ -45,11 +45,11 @@ export function DESMarket({ ticker }: { ticker: string }) {
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1.3fr 1fr 1fr' }}>
         <div className="grid gap-2 content-start">
           <Panel title={tabs[tab]} asOf={last.time}>
-            <FnChart height={250} panes={[{ series: [{ kind: 'area', data: shown.map(r => ({ time: r.time, value: r.close })), color: C.white, title: short(ticker), decimals: d }] }]} />
+            <FnChart height={190} panes={[{ series: [{ kind: 'area', data: shown.map(r => ({ time: r.time, value: r.close })), color: C.white, title: short(ticker), decimals: d }] }]} />
           </Panel>
           <Panel title={L('Price', 'Preço')}>
-            <KV cols={2} rows={[[L('Last', 'Último'), nf(last.close, d), C.amber], [L('Date', 'Data'), dBR(last.time)],
-              [L('1-day change', 'Variação em 1 dia'), pc(s.chg1d), clr(s.chg1d)], [L('Quote', 'Cotação'), quote(m)],
+            <KV rows={[[L('Last', 'Último'), `${nf(last.close, d)} · ${dBR(last.time)}`, C.amber],
+              [L('1-day change', 'Variação em 1 dia'), pc(s.chg1d), clr(s.chg1d)],
               [co ? L('52w high (close)', 'Máxima 52 sem. (fech.)') : L('52w high', 'Máxima 52 sem.'), s.hi ? `${nf(s.hi.v, d)} · ${dBR(s.hi.t)}` : '—'],
               [co ? L('52w low (close)', 'Mínima 52 sem. (fech.)') : L('52w low', 'Mínima 52 sem.'), s.lo ? `${nf(s.lo.v, d)} · ${dBR(s.lo.t)}` : '—']]} />
           </Panel>
