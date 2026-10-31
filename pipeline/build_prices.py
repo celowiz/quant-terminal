@@ -268,6 +268,8 @@ def main():
     off, off_info = official_bars()
     meta, kept, patched = [], [], {'replaced': 0, 'appended': 0}
     repaired, day_cache = {}, {}
+    try: fixes = json.load(open(f'{OUT}/bar_fixes.json'))['fixes']   # correções oficiais de execuções anteriores
+    except Exception: fixes = {}
     def official_day(d):
         """barras oficiais de um pregão passado (no máx. 5 arquivos por execução)"""
         if d not in day_cache:
@@ -283,8 +285,9 @@ def main():
             kept.append(t)
         mo = {}
         if t.endswith('.SA'):
-            rows, fx = repair_bad_bars(rows, _prev_rows(t), lambda d, c=t[:-3]: official_day(d).get(c))
+            rows, fx, used = repair_bad_bars(rows, fixes.get(t), lambda d, c=t[:-3]: official_day(d).get(c))
             if fx: repaired[t] = fx
+            if used: fixes[t] = {**fixes.get(t, {}), **used}
         if t.endswith('.SA') and t[:-3] in off:
             rows, how = apply_official(rows, off[t[:-3]])
             if how: patched[how] += 1
@@ -293,6 +296,7 @@ def main():
         meta.append({'ticker': t, 'key': key(t), **m, 'first': rows[0]['time'], 'last': rows[-1]['time'], 'n': len(rows), **mo})
     if off_info: print(f"  COTAHIST {off_info['date']}: {patched['replaced']} barras finais substituídas, {patched['appended']} acrescentadas")
     if repaired: print(f'  barras com O/H/L corrigidos pelo oficial: {repaired}')
+    save('bar_fixes.json', {'generated_at': now_iso(), 'fixes': fixes})
     if kept: print(f'  {len(kept)} tickers mantidos do arquivo anterior: {", ".join(kept[:20])}')
     if len(meta) < MIN_TICKERS: raise RuntimeError(f'universo com {len(meta)} tickers (< {MIN_TICKERS}); tickers.json anterior mantido')
     mark_coverage({m['ticker']: m for m in meta})   # cobertura da execução anterior; o build_coverage atualiza no fim

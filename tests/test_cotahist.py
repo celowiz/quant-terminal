@@ -71,22 +71,33 @@ def test_suspect_marca_so_a_barra_ruim():
 
 def test_repair_usa_oficial_e_nao_inventa():
     off = {'2026-10-26': {'time': '2026-10-26', 'open': 176.1, 'high': 176.4, 'low': 171.3, 'close': 172.42, 'volume': 5}}
-    out, fixed = ch.repair_bad_bars(_bars(), official=lambda d: off.get(d))
-    assert fixed == ['2026-10-26']
+    out, fixed, used = ch.repair_bad_bars(_bars(), official=lambda d: off.get(d))
+    assert fixed == ['2026-10-26'] and used['2026-10-26']['low'] == 171.3
     b = out[2]
     assert (b['open'], b['high'], b['low'], b['close'], b['volume']) == (176.1, 176.4, 171.3, 172.42, 9)
     # sem referência: a barra fica como veio
-    out, fixed = ch.repair_bad_bars(_bars(), official=lambda d: None)
-    assert fixed == [] and out[2]['open'] == 140.0
+    out, fixed, used = ch.repair_bad_bars(_bars(), official=lambda d: None)
+    assert fixed == [] and used == {} and out == _bars()
 
 
-def test_repair_mantem_correcao_da_execucao_anterior():
-    prev = _bars(); prev[2] = {**prev[2], 'open': 176.1, 'high': 176.4, 'low': 171.3}
-    out, fixed = ch.repair_bad_bars(_bars(), prev=prev)
+def test_repair_aplica_ledger_oficial_fora_da_janela():
+    ledger = {'2026-10-26': {'open': 176.1, 'high': 176.4, 'low': 171.3, 'close': 172.42}}
+    out, fixed, _ = ch.repair_bad_bars(_bars(), ledger=ledger, recent=0)
     assert fixed == ['2026-10-26'] and out[2]['low'] == 171.3
+    # sem ledger e fora da janela: intocada, mesmo com oficial disponível
+    out, fixed, _ = ch.repair_bad_bars(_bars(), official=lambda d: ledger.get(d), recent=0)
+    assert fixed == [] and out == _bars()
+
+
+def test_repair_nao_mexe_em_barra_incoerente_sem_oficial():
+    """caso ANIM3 2016-12-22: fechamento abaixo da mínima, sem oficial → nada de forçar a mínima"""
+    r = [{'time': '2016-12-21', 'open': 3.6, 'high': 3.65, 'low': 3.6, 'close': 3.62396, 'volume': 1},
+         {'time': '2016-12-22', 'open': 3.74893, 'high': 3.7767, 'low': 3.74893, 'close': 3.69617, 'volume': 1}]
+    out, fixed, _ = ch.repair_bad_bars(r, ledger={}, official=None)
+    assert fixed == [] and out == r
 
 
 def test_repair_ignora_oficial_de_outra_escala():
     off = {'2026-10-26': {'time': '2026-10-26', 'open': 17.6, 'high': 17.64, 'low': 17.1, 'close': 17.24, 'volume': 5}}
-    out, fixed = ch.repair_bad_bars(_bars(), official=lambda d: off.get(d))
+    out, fixed, _ = ch.repair_bad_bars(_bars(), official=lambda d: off.get(d))
     assert fixed == [] and out[2]['open'] == 140.0
