@@ -8,8 +8,7 @@ on:
     - cron: '53 12 1 * *'   # dia 1 de cada mês, 12:53 UTC = 09:53 BRT
   workflow_dispatch:
 
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: keepalive
@@ -18,8 +17,11 @@ concurrency:
 jobs:
   keepalive:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write    # único job que grava: commit mensal em .github/keepalive
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
       - name: Atualizar .github/keepalive

@@ -1,0 +1,32 @@
+# Atualizações de dependências (custo zero). As PRs passam pelo pr-build do pages.yml antes do merge.
+# Actions ficam fixadas por SHA; o Dependabot atualiza o SHA e o comentário da versão.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday, time: '09:00', timezone: America/Sao_Paulo }
+    open-pull-requests-limit: 5
+    groups:
+      actions: { patterns: ['*'] }
+
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly, day: monday, time: '09:00', timezone: America/Sao_Paulo }
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch: { update-types: [minor, patch] }
+    ignore:
+      # majors pedem migração (Next 15/16 = React 19); fazer de propósito, não por PR automática
+      - dependency-name: next
+        update-types: ['version-update:semver-major']
+      - dependency-name: react
+        update-types: ['version-update:semver-major']
+      - dependency-name: react-dom
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: pip
+    directory: /pipeline
+    schedule: { interval: weekly, day: monday, time: '09:00', timezone: America/Sao_Paulo }
+    open-pull-requests-limit: 5
+    groups:
+      pip: { patterns: ['*'] }
