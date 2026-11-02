@@ -256,3 +256,20 @@ def test_parse_treasury_full_curve():
     c = bm.parse_treasury_csv(txt, bm.UST_CURVE)
     assert list(c) == list(bm.UST_CURVE) and c['DGS10'].iloc[-1] == 4.98 and c['DGS1MO'].index[-1].day == 29
     assert set(bm.parse_treasury_csv(txt)) == {'DGS2', 'DGS5', 'DGS10', 'DGS30'}
+
+def test_eco_bls_actuals_e_dedupe():
+    import pandas as pd, eco_sources as es
+    idx = pd.date_range('2025-01-01', '2026-10-01', freq='MS')
+    fr = {'CPIAUCSL': pd.Series([100 + i for i in range(len(idx))], index=idx, dtype=float),
+          'PAYEMS': pd.Series([1000 + 10 * i for i in range(len(idx))], index=idx, dtype=float),
+          'UNRATE': pd.Series([4.0 + i / 100 for i in range(len(idx))], index=idx, dtype=float)}
+    rows = [es.row('US', dt.datetime(2026, 11, 6, 8, 30, tzinfo=es.NY), 'Nonfarm payrolls & unemployment rate', 'x', 'BLS', tier=3, src='bls'),
+            es.row('US', dt.datetime(2026, 11, 10, 8, 30, tzinfo=es.NY), 'CPI inflation', 'x', 'BLS', tier=3, src='bls')]
+    out = bm.bls_actuals(rows, lambda ids, start: {i: fr[i] for i in ids})
+    pay = next(r for r in out if r['series'] == 'PAYEMS')
+    assert pay['period'] == '10/2026' and pay['prior'] == 10.0 and pay['unit'] == 'k'
+    assert next(r for r in out if r['series'] == 'UNRATE')['prior'] == 4.2
+    assert next(r for r in out if r['series'] == 'CPIAUCSL')['period'] == '10/2026'
+    a = es.row('US', dt.date(2026, 11, 10), 'CPI YoY', 'x', 'BLS', approx=True, src='fred_bls')
+    b = dict(out[-1])
+    assert bm.dedupe([a, b]) == [b] and len(bm.dedupe([b, b])) == 1

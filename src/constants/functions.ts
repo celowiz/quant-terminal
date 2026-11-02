@@ -64,7 +64,7 @@ export const FUNCTION_LIST: FunctionItem[] = [
   { code: 'FOMC', desc: 'Fed & Copom Meetings', pt: 'Reuniões do Fed e do Copom', cat: 'rates' },
   { code: 'WB', desc: 'World Bonds', pt: 'Títulos soberanos mundiais', cat: 'rates' },
   { code: 'YAS', desc: 'Bond Yield & Spread Calculator', pt: 'Calculadora de títulos públicos', cat: 'rates' },
-  { code: 'ECO', desc: 'Economic Calendar (BR/US)', pt: 'Calendário econômico (BR/EUA)', cat: 'macro' },
+  { code: 'ECO', desc: 'Economic Calendar', pt: 'Calendário econômico', cat: 'macro' },
   { code: 'TAYL', desc: 'Taylor Rule (BR/US)', pt: 'Regra de Taylor (BR/EUA)', cat: 'macro' },
   { code: 'ECTR', desc: 'Trade Flows', pt: 'Comércio exterior', cat: 'macro' },
   { code: 'GMM', desc: 'Global Macro Movers', pt: 'Movimentos macro globais', cat: 'monitors' },

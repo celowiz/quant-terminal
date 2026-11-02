@@ -9,6 +9,7 @@ Cada etapa é independente e mantém o JSON anterior se a fonte falhar."""
 import io, re, sys, os, json, math, datetime as dt, urllib.parse, html as htmlmod
 from zoneinfo import ZoneInfo
 import pandas as pd
+import eco_sources
 from common import save, get, get_json, load_prev, clean, step, now_iso, today_brt, cached, OUT, TZ, fred_csv, CACHE
 
 TODAY = today_brt()
@@ -533,14 +534,14 @@ def tayl():
 # =====================================================================================
 # ECO – calendário econômico (BR: IBGE + BCB; EUA: BEA + Census + FOMC)
 # =====================================================================================
-IBGE_MAP = [  # (regex no título, id da série, descrição em inglês, unidade, fonte)
-    (r'Amplo 15', 'ipca15', 'IPCA-15 MoM', '%'),
-    (r'Pre[çc]os ao Consumidor Amplo$', 'ipca', 'IPCA MoM', '%'),
-    (r'Amostra de Domic[ií]lios Cont[ií]nua Mensal', 'desemprego', 'Unemployment rate (PNAD, 3-mo)', '%'),
-    (r'Industrial Mensal.*F[ií]sica - Brasil', 'pim', 'Industrial production MoM (sa)', '%'),
-    (r'Mensal de Com[ée]rcio$', 'pmc', 'Retail sales MoM (sa)', '%'),
-    (r'Mensal de Servi[çc]os$', 'pms', 'Services volume MoM (sa)', '%'),
-    (r'Contas Nacionais Trimestrais', 'pib_qq', 'GDP QoQ (sa)', '%'),
+IBGE_MAP = [  # (regex no título, id da série, nome EN, unidade, nome PT, importância 1–3)
+    (r'Amplo 15', 'ipca15', 'IPCA-15 MoM', '%', 'IPCA-15 (var. mensal)', 3),
+    (r'Pre[çc]os ao Consumidor Amplo$', 'ipca', 'IPCA MoM', '%', 'IPCA (var. mensal)', 3),
+    (r'Amostra de Domic[ií]lios Cont[ií]nua Mensal', 'desemprego', 'Unemployment rate (PNAD, 3-mo)', '%', 'Taxa de desemprego (PNAD, trimestre móvel)', 3),
+    (r'Industrial Mensal.*F[ií]sica - Brasil', 'pim', 'Industrial production MoM (sa)', '%', 'Produção industrial (var. mensal, dessaz.)', 2),
+    (r'Mensal de Com[ée]rcio$', 'pmc', 'Retail sales MoM (sa)', '%', 'Vendas no varejo (var. mensal, dessaz.)', 2),
+    (r'Mensal de Servi[çc]os$', 'pms', 'Services volume MoM (sa)', '%', 'Volume de serviços (var. mensal, dessaz.)', 2),
+    (r'Contas Nacionais Trimestrais', 'pib_qq', 'GDP QoQ (sa)', '%', 'PIB (var. trimestral, dessaz.)', 3),
 ]
 IBGE_EN = {'Índice de Preços ao Produtor': 'Producer prices (IPP)', 'Levantamento Sistemático da Produção Agrícola': 'Crop production survey (LSPA)',
            'Pesquisa Nacional por Amostra de Domicílios Contínua Trimestral': 'PNAD quarterly labour survey', 'Sistema Nacional de Pesquisa de Custos e Índices da Construção Civil': 'Construction costs (SINAPI)',
@@ -548,7 +549,8 @@ IBGE_EN = {'Índice de Preços ao Produtor': 'Producer prices (IPP)', 'Levantame
            'Pesquisa Mensal de Serviços - Regional': 'Services survey – regional',
            'Pesquisa Industrial Mensal: Produção Física - Regional': 'Industrial production – regional',
            'Pesquisas Trimestrais do Abate de Animais, do Leite, do Couro e da Produção de Ovos de Galinha': 'Quarterly livestock surveys (slaughter, milk, hides, eggs)',
-           'Índice de Preços ao Produtor - Indústrias Extrativas e de Transformação': 'Producer prices (IPP) – mining & manufacturing'}
+           'Índice de Preços ao Produtor - Indústrias Extrativas e de Transformação': 'Producer prices (IPP) – mining & manufacturing',
+           'Prognóstico da Safra': 'Crop forecast', 'Pesquisa de Estoques': 'Grain stocks survey'}
 
 # Calendário do IBGE: desde out/2026 a API não aceita conexão dos runners do GitHub Actions (ConnectTimeout).
 # Ordem: API (3 tentativas com espera crescente, connect 10 s) → itens guardados (QT_CACHE ou data/ibge_calendar.json,
@@ -620,10 +622,10 @@ def ibge_rows(items, sidra, sgs433, focus_m):
         quarterly = bool(re.search(r'Contas Nacionais Trimestrais', t))
         qkey = f'{y:04d}{(m - 1) // 3 + 1:02d}' if key and quarterly else None
         r = {'country': 'BR', 'time': when.isoformat(timespec='minutes'), 'event': t, 'period': (f'Q{(m - 1) // 3 + 1}/{y}' if quarterly else f'{m:02d}/{y}') if key else None, 'agency': 'IBGE',
-             'survey': None, 'actual': None, 'prior': None, 'unit': None, 'key': False}
-        for pat, sid, name, unit in IBGE_MAP:
+             'survey': None, 'actual': None, 'prior': None, 'unit': None, 'key': False, 'event_pt': t, 'tier': 1, 'src': 'ibge'}
+        for pat, sid, name, unit, pt, tier in IBGE_MAP:
             if re.search(pat, t):
-                r.update({'event': name, 'unit': unit, 'key': True, 'series': sid})
+                r.update({'event': name, 'event_pt': pt, 'tier': tier, 'unit': unit, 'key': tier >= 3, 'series': sid})
                 ser = sgs433 if sid == 'ipca' else sidra.get(sid, {})
                 if qkey: key = qkey
                 if key and ser:
@@ -635,7 +637,7 @@ def ibge_rows(items, sidra, sgs433, focus_m):
                     if fm: r['survey'] = fm[-1]
                 break
         else:
-            r['event'] = next((v for k, v in IBGE_EN.items() if t == k or t.startswith(k + ':')), t)
+            r['event'] = next((v for k, v in IBGE_EN.items() if t == k or t.startswith(k + ':') or t.startswith(k + ' (')), t)
         out.append(r)
     return out
 
@@ -661,16 +663,39 @@ def parse_census(h):
         out.append({'summary': name, 'time': t, 'period': per})
     return out
 
-US_MAP = [  # (regex, série FRED, nome, transformação, unidade)
-    (r'^Gross Domestic Product(?! by)|^GDP \(', 'A191RL1Q225SBEA', 'GDP QoQ annualized', 'level', '%'),
-    (r'^Personal Income and Outlays', 'PCEPILFE', 'Core PCE price index YoY', 'yoy', '%'),
-    (r'International Trade in Goods and Services', 'BOPGSTB', 'Trade balance', 'level_bn', 'US$ bn'),
-    (r'Advance Monthly Sales for Retail|Advance Monthly Retail', 'RSAFS', 'Retail sales MoM', 'mom', '%'),
-    (r'New Residential Construction', 'HOUST', 'Housing starts (SAAR, k)', 'level', 'k'),
-    (r'New Residential Sales', 'HSN1F', 'New home sales (SAAR, k)', 'level', 'k'),
-    (r'Durable Goods', 'DGORDER', 'Durable goods orders MoM', 'mom', '%'),
-    (r'^Construction Spending', 'TTLCONS', 'Construction spending MoM', 'mom', '%'),
+US_MAP = [  # (regex, série FRED, nome EN, transformação, unidade, nome PT, importância)
+    (r'^Gross Domestic Product(?! by)|^GDP \(', 'A191RL1Q225SBEA', 'GDP QoQ annualized', 'level', '%', 'PIB (var. trimestral anualizada)', 3),
+    (r'^Personal Income and Outlays', 'PCEPILFE', 'Core PCE price index YoY', 'yoy', '%', 'Núcleo do PCE (var. em 12 meses)', 3),
+    (r'International Trade in Goods and Services', 'BOPGSTB', 'Trade balance', 'level_bn', 'US$ bn', 'Balança comercial', 2),
+    (r'Advance Monthly Sales for Retail|Advance Monthly Retail', 'RSAFS', 'Retail sales MoM', 'mom', '%', 'Vendas no varejo (var. mensal)', 3),
+    (r'New Residential Construction', 'HOUST', 'Housing starts (SAAR, k)', 'level', 'k', 'Início de construções residenciais (anualizado, mil)', 2),
+    (r'New Residential Sales', 'HSN1F', 'New home sales (SAAR, k)', 'level', 'k', 'Vendas de casas novas (anualizado, mil)', 2),
+    (r'Durable Goods', 'DGORDER', 'Durable goods orders MoM', 'mom', '%', 'Encomendas de bens duráveis (var. mensal)', 2),
+    (r'^Construction Spending', 'TTLCONS', 'Construction spending MoM', 'mom', '%', 'Gastos com construção (var. mensal)', 1),
 ]
+# divulgações sem série acompanhada: nome PT escrito à mão (as que faltarem aparecem com o nome oficial em inglês)
+US_PT = {'Activities of U.S. Multinational Enterprises': 'Atividades de multinacionais americanas',
+         'Experimental Research and Development Economic Statistics': 'Estatísticas experimentais de P&D',
+         'GDP by County and Personal Income by County': 'PIB e renda pessoal por condado',
+         'GDP by State and Personal Income by State': 'PIB e renda pessoal por estado',
+         'Outdoor Recreation Economic Statistics': 'Estatísticas econômicas de recreação ao ar livre',
+         'Real Personal Consumption Expenditures by State and Real Personal Income by State': 'Consumo e renda pessoal reais por estado',
+         'Advance Economic Indicators Report (International Trade': 'Indicadores antecipados (comércio exterior, estoques)',
+         'Advance Economic Indicators Report': 'Indicadores antecipados (comércio exterior, estoques)',
+         'Advance Services Report': 'Relatório antecipado de serviços',
+         'Business Formation Statistics': 'Abertura de empresas',
+         "Full Report - Manufacturers' Shipments": 'Encomendas e estoques da indústria (relatório completo)',
+         'Housing Vacancies and Homeownership': 'Imóveis vagos e taxa de casa própria',
+         'Manufacturing and Trade: Inventories and Sales': 'Estoques e vendas da indústria e do comércio',
+         'Monthly Wholesale Trade: Sales and Inventories': 'Vendas e estoques do atacado',
+         'Preliminary U.S. Imports for Consumption of Steel Products': 'Importações de aço (preliminar)',
+         'Quarterly Financial Report--Manufacturing': 'Relatório financeiro trimestral – indústria',
+         'Quarterly Financial Report--Retail Trade': 'Relatório financeiro trimestral – varejo',
+         'Quarterly Services Survey': 'Pesquisa trimestral de serviços',
+         'Quarterly Retail E-Commerce Sales': 'Vendas trimestrais do comércio eletrônico',
+         'Personal Income and Outlays': 'Renda e gastos pessoais',
+         'U.S. International Transactions': 'Transações internacionais dos EUA (balanço de pagamentos)',
+         'Corporate Profits': 'Lucros das empresas'}
 
 def period_key(txt):
     """'November 2026' → 202611; '3rd Quarter 2026' → 202607 (1º mês do trimestre, como no FRED)."""
@@ -681,6 +706,7 @@ def period_key(txt):
     return None
 
 def transform(s, how):
+    if how == 'diff': return s.diff()
     if how == 'yoy': return (s / s.shift(12) - 1) * 100
     if how == 'mom': return (s / s.shift(1) - 1) * 100
     if how == 'level_bn': return s / 1000
@@ -692,10 +718,11 @@ def us_rows(events, fr):
         name = e['summary']; t = e['time'].astimezone(TZ)
         per = e.get('period') or name.split(',', 1)[1].strip() if ',' in name or e.get('period') else e.get('period')
         r = {'country': 'US', 'time': t.isoformat(timespec='minutes'), 'event': name.split(',')[0].strip(), 'period': per, 'agency': e.get('agency'),
-             'survey': None, 'actual': None, 'prior': None, 'unit': None, 'key': False}
-        for pat, sid, nm, how, unit in US_MAP:
+             'survey': None, 'actual': None, 'prior': None, 'unit': None, 'key': False, 'tier': 1, 'src': (e.get('agency') or '').lower()}
+        r['event_pt'] = US_PT.get(r['event'], r['event'])
+        for pat, sid, nm, how, unit, pt, tier in US_MAP:
             if re.search(pat, name):
-                r.update({'event': nm, 'unit': unit, 'key': True, 'series': sid})
+                r.update({'event': nm, 'event_pt': pt, 'tier': tier, 'unit': unit, 'key': tier >= 3, 'series': sid})
                 pk = period_key(per or name)
                 s = fr.get(sid)
                 if pk and s is not None and len(s):
@@ -746,8 +773,9 @@ def eco():
         if a.isoformat() <= m['decision'] <= b.isoformat():
             prior = next((x['selic'] for x in reversed(cm[:i]) if x.get('selic') is not None), None)
             t = dt.datetime.fromisoformat(m['decision'] + 'T18:30').replace(tzinfo=TZ)
-            rows.append({'country': 'BR', 'time': t.isoformat(timespec='minutes'), 'event': 'Copom rate decision (Selic target)', 'period': m.get('label'),
-                         'agency': 'BCB', 'survey': focus_by.get(m['decision']), 'actual': m.get('selic') if m.get('decided') else None, 'prior': prior, 'unit': '%', 'key': True, 'time_approx': True})
+            rows.append({'country': 'BR', 'time': t.isoformat(timespec='minutes'), 'event': 'Copom rate decision (Selic target)', 'event_pt': 'Decisão do Copom (meta da Selic)',
+                         'period': m.get('label'), 'agency': 'BCB', 'survey': focus_by.get(m['decision']), 'actual': m.get('selic') if m.get('decided') else None,
+                         'prior': prior, 'unit': '%', 'key': True, 'tier': 3, 'src': 'copom', 'time_approx': True})
     # --- EUA: BEA (ICS) + Census
     us_ev = []
     try:
@@ -770,15 +798,72 @@ def eco():
         if a.isoformat() <= m['decision'] <= b.isoformat():
             t = dt.datetime.fromisoformat(m['decision'] + 'T14:00').replace(tzinfo=NY).astimezone(TZ)
             prior = next((x['upper'] for x in reversed(fd[:i]) if x.get('upper') is not None), None)
-            rows.append({'country': 'US', 'time': t.isoformat(timespec='minutes'), 'event': 'FOMC rate decision (upper bound)', 'period': None, 'agency': 'Fed',
-                         'survey': None, 'actual': m.get('upper') if m.get('decided') else None, 'prior': prior, 'unit': '%', 'key': True})
+            rows.append({'country': 'US', 'time': t.isoformat(timespec='minutes'), 'event': 'FOMC rate decision (upper bound)', 'event_pt': 'Decisão do FOMC (teto da meta)',
+                         'period': None, 'agency': 'Fed', 'survey': None, 'actual': m.get('upper') if m.get('decided') else None, 'prior': prior, 'unit': '%',
+                         'key': True, 'tier': 3, 'src': 'fomc'})
+    # --- demais calendários oficiais (BCB, FGV, MTE, MDIC, BLS, ISM, DOL, EIA, UMich, Tesouro, PMI, Eurostat, ONS, StatCan, BCs)
+    extra, st = eco_sources.collect(a, b, prev.get('events', []), fred_key=os.environ.get('FRED_API_KEY') or None)
+    status.update(st)
+    rows += bls_actuals(extra, fred)
     if not rows: raise RuntimeError('calendário vazio')
-    rows.sort(key=lambda r: r['time'])
+    rows = dedupe(rows)
+    rows.sort(key=lambda r: (r['time'], -(r.get('tier') or 1)))
     save('eco.json', {'generated_at': now_iso(), 'from': a.isoformat(), 'to': b.isoformat(), 'events': rows, 'status': status,
-                      'note': 'Times in Brasília time (BRT). Survey: market survey median for IPCA (month) and per-meeting Selic; no free consensus source for US releases. '
-                              'BLS releases (CPI, payrolls) are not listed: the BLS calendar blocks automated access.',
+                      'note': 'Times in Brasília time (BRT); "all day" means the releaser publishes the date but not the time, and "≈" marks an approximate time. '
+                              'Importance (1–3 dots) is our own rough ranking by indicator type. Survey: market survey median for IPCA (month) and per-meeting Selic; '
+                              'no consensus is shown for other releases.',
+                      'note_pt': 'Horários de Brasília (BRT); "dia todo" indica que o órgão divulga a data mas não o horário, e "≈" marca horário aproximado. '
+                                 'A importância (1–3 pontos) é uma classificação nossa, aproximada, pelo tipo de indicador. Expectativa: mediana da pesquisa de mercado para o IPCA (mês) '
+                                 'e a Selic por reunião; não mostramos consenso para as demais divulgações.',
                       'source': 'IBGE – release calendar (API v3); IBGE SIDRA and BCB SGS (actuals); BCB Focus (survey); BCB Copom calendar; '
-                                'BEA release calendar (ICS); U.S. Census Bureau economic indicator calendar; FRED (US actuals); federalreserve.gov (FOMC)'})
+                                'BEA release calendar (ICS); U.S. Census Bureau economic indicator calendar; FRED (US actuals); federalreserve.gov (FOMC); '
+                                'calendars of BCB, FGV IBRE, MTE, MDIC, BLS, EIA, UMich, TreasuryDirect, S&P Global, Eurostat, ONS, StatCan, ECB, BoE, BoJ, BoC'})
+
+# Realizado/anterior das divulgações do BLS (série do FRED; período = mês anterior ao da divulgação, como no calendário do BLS).
+BLS_ACT = {'CPI inflation': ('CPIAUCSL', 'yoy', '%', 'CPI YoY', 'CPI (var. em 12 meses)'),
+           'Nonfarm payrolls & unemployment rate': ('PAYEMS', 'diff', 'k', 'Nonfarm payrolls (change, k)', 'Payroll (vagas criadas, mil)')}
+
+def bls_actuals(rows, fred_fn):
+    want = [r for r in rows if r.get('src') in ('bls', 'fred_bls') and r['event'] in BLS_ACT]
+    if not want: return rows
+    fr = fred_fn(sorted({v[0] for v in BLS_ACT.values()}), (TODAY - dt.timedelta(days=900)).isoformat())
+    out = []
+    for r in rows:
+        spec = BLS_ACT.get(r['event']) if r in want else None
+        if spec:
+            sid, how, unit, en, pt = spec
+            r = {**r, 'event': en, 'event_pt': pt, 'unit': unit, 'series': sid}
+            y, m = int(r['time'][:4]), int(r['time'][5:7])
+            pk = y * 100 + m - 1 if m > 1 else (y - 1) * 100 + 12
+            r['period'] = f'{pk % 100:02d}/{pk // 100}'
+            pp = pk - 1 if pk % 100 > 1 else pk - 100 + 11
+            s = fr.get(sid)
+            if s is not None and len(s):
+                v = transform(s, how).dropna()
+                idx = {i.year * 100 + i.month: float(x) for i, x in v.items()}
+                if pk in idx and r['time'][:10] <= TODAY.isoformat(): r['actual'] = clean(idx[pk], 1 if how == 'diff' else 2)
+                if pp in idx: r['prior'] = clean(idx[pp], 1 if how == 'diff' else 2)
+            out.append(r)
+            if sid == 'PAYEMS':  # mesma divulgação: taxa de desemprego
+                u = {**r, 'event': 'Unemployment rate', 'event_pt': 'Taxa de desemprego', 'unit': '%', 'series': 'UNRATE', 'actual': None, 'prior': None, 'tier': 3, 'key': True}
+                ur = fred_fn(['UNRATE'], (TODAY - dt.timedelta(days=900)).isoformat()).get('UNRATE')
+                if ur is not None and len(ur):
+                    idx = {i.year * 100 + i.month: float(x) for i, x in ur.dropna().items()}
+                    if pk in idx and r['time'][:10] <= TODAY.isoformat(): u['actual'] = clean(idx[pk], 1)
+                    if pp in idx: u['prior'] = clean(idx[pp], 1)
+                out.append(u)
+            continue
+        out.append(r)
+    return out
+
+def dedupe(rows):
+    """Mesmo país, dia e nome (ex.: BLS e reserva do FRED; IBGE da API e do cache): fica a primeira com horário exato."""
+    best = {}
+    for r in rows:
+        k = (r['country'], r['time'][:10], r['event'])
+        o = best.get(k)
+        if o is None or (o.get('time_approx') and not r.get('time_approx')): best[k] = r
+    return list(best.values())
 
 # =====================================================================================
 # FXFC – projeções Focus para o câmbio

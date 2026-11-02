@@ -3,55 +3,82 @@ import { tc } from '../../lib/themeRuntime'
 /** ECO (calendário econômico), GMM (movimentos macro globais), FXC (matriz de cruzamento), FXFC (projeções Focus de câmbio). Strings em inglês por tela. */
 import React, { useEffect, useMemo, useState } from 'react'
 import { fetchIbgeLive } from '@/lib/ibgeLive'
+import { lang } from '@/lib/settings'
 import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
 import { C, useJSON, FnScreen, Panel, Grid, Btns, Field, Spark } from '@/components/fn/kit'
 import { n, sn, pc, bps, auto, cl, dUS, dUSfull, dShort, weekday, addDays, dayN, todaySP, Kpis, Loading2, Unavailable } from './fn11util'
 
 // ======================= ECO =======================
-const S_ECO = {
-  title: 'Economic Calendar – Brazil & United States', country: 'Country', all: 'All', view: 'Show', key: 'Key only', allEv: 'All events', week: 'Week',
-  weeks: [{ v: -1, l: 'Prev' }, { v: 0, l: 'This' }, { v: 1, l: 'Next' }, { v: 9, l: 'All' }],
-  c: { time: 'Date / time', country: 'Ctry', event: 'Event', period: 'Period', survey: 'Survey', actual: 'Actual', prior: 'Prior', unit: 'Unit', agency: 'Agency' },
-  empty: 'No releases in this window.', live: 'Brazil releases loaded live in the browser.', liveNo: 'Brazil releases unavailable right now.', approx: '≈ time approximate', count: 'events',
-}
+const L = (en: string, pt: string) => (lang() === 'pt' ? pt : en)
+// país → nome EN/PT (ordem do filtro); só aparecem os países presentes no eco.json
+const ECO_CTRY: [string, string, string][] = [
+  ['BR', 'Brazil', 'Brasil'], ['US', 'United States', 'Estados Unidos'], ['EA', 'Euro area', 'Zona do euro'], ['DE', 'Germany', 'Alemanha'],
+  ['FR', 'France', 'França'], ['IT', 'Italy', 'Itália'], ['ES', 'Spain', 'Espanha'], ['GB', 'United Kingdom', 'Reino Unido'],
+  ['CA', 'Canada', 'Canadá'], ['MX', 'Mexico', 'México'], ['JP', 'Japan', 'Japão'], ['CN', 'China', 'China'], ['IN', 'India', 'Índia'], ['AU', 'Australia', 'Austrália'],
+]
+const WD_PT = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
+const S_ECO = () => ({
+  title: L('Economic Calendar', 'Calendário econômico'), country: L('Country', 'País'), all: L('All', 'Todos'), view: L('Importance', 'Importância'), week: L('Week', 'Semana'),
+  imps: [{ v: 1, l: L('All', 'Todas') }, { v: 2, l: '●●+' }, { v: 3, l: '●●●' }],
+  weeks: [{ v: -1, l: L('Prev', 'Anterior') }, { v: 0, l: L('This', 'Atual') }, { v: 1, l: L('Next', 'Próxima') }, { v: 9, l: L('All', 'Todas') }],
+  c: { time: L('Date / time', 'Data / hora'), country: L('Ctry', 'País'), imp: L('Imp.', 'Imp.'), event: L('Event', 'Evento'), period: L('Period', 'Período'),
+       survey: L('Survey', 'Expect.'), actual: L('Actual', 'Atual'), prior: L('Prior', 'Anterior'), unit: L('Unit', 'Unid.'), agency: L('Releaser', 'Divulgador') },
+  empty: L('No releases in this window.', 'Nenhuma divulgação neste período.'), live: L('Brazil releases loaded live in the browser.', 'Divulgações do Brasil carregadas direto no navegador.'),
+  liveNo: L('Brazil releases unavailable right now.', 'Divulgações do Brasil indisponíveis no momento.'), approx: L('≈ time approximate', '≈ horário aproximado'),
+  allday: L('all day', 'dia todo'), count: L('events', 'eventos'), times: L('Times in Brasília time (BRT).', 'Horários de Brasília (BRT).'),
+})
 const fmtV = (v: any, u?: string) => v == null ? '' : n(v, u === 'US$ bn' || u === 'US$ mn' || u === 'R$ bn' ? 2 : Math.abs(+v) >= 100 ? 1 : 2)
+const tierOf = (e: any) => e.tier ?? (e.key ? 3 : 1)
 export function ECOView() {
   const { data: d0, err } = useJSON<any>('eco.json')
-  const [cty, setCty] = useState('All'), [key, setKey] = useState(false), [wk, setWk] = useState(0)
+  const [cty, setCty] = useState('All'), [imp, setImp] = useState(1), [wk, setWk] = useState(0)
   const [live, setLive] = useState<any[] | null | undefined>(undefined)
-  const S = S_ECO
+  const S = S_ECO(), pt = lang() === 'pt'
   const today = todaySP()
   const noBR = !!d0 && !(d0.events as any[]).some(e => e.agency === 'IBGE')
-  // eco.json sem o IBGE (API fora para o Actions): completa a agenda do Brasil direto do navegador
+  // eco.json sem o IBGE: completa a agenda do Brasil direto do navegador
   useEffect(() => { if (noBR) fetchIbgeLive(d0.from, d0.to, today).then(setLive) }, [noBR]) // eslint-disable-line react-hooks/exhaustive-deps
   const d = useMemo(() => d0 && live?.length ? { ...d0, events: [...d0.events, ...live] } : d0, [d0, live])
+  const ctys = useMemo(() => {
+    const have = new Set(((d?.events || []) as any[]).map(e => e.country))
+    return ECO_CTRY.filter(c => have.has(c[0]))
+  }, [d])
   const v = useMemo(() => {
     if (!d) return null
     // semana de referência: segunda-feira da semana do próximo dia útil
     let ref = today; const wd = new Date(ref + 'T12:00:00Z').getUTCDay(); if (wd === 6) ref = addDays(ref, 2); if (wd === 0) ref = addDays(ref, 1)
     const mon = addDays(ref, -((new Date(ref + 'T12:00:00Z').getUTCDay() + 6) % 7))
     const a = wk === 9 ? '0000' : addDays(mon, 7 * wk), b = wk === 9 ? '9999' : addDays(mon, 7 * wk + 7)
-    const ev = (d.events as any[]).filter(e => (cty === 'All' || e.country === cty) && (!key || e.key) && e.time.slice(0, 10) >= a && e.time.slice(0, 10) < b)
-      .sort((x, y) => x.time.localeCompare(y.time))
+    const ev = (d.events as any[]).filter(e => (cty === 'All' || e.country === cty) && tierOf(e) >= imp && e.time.slice(0, 10) >= a && e.time.slice(0, 10) < b)
+      .sort((x, y) => x.time.slice(0, 10).localeCompare(y.time.slice(0, 10)) || (+!!y.allday - +!!x.allday) || x.time.localeCompare(y.time) || tierOf(y) - tierOf(x))
     return { ev, a, b: wk === 9 ? null : addDays(b, -1) }
-  }, [d, cty, key, wk])
+  }, [d, cty, imp, wk, today])
   if (!d || !v) return <FnScreen code="ECO" title={S.title}><Loading2 err={err} /></FnScreen>
+  const cName = (c: string) => { const x = ECO_CTRY.find(k => k[0] === c); return x ? (pt ? x[2] : x[1]) : c }
+  const note = (pt && d.note_pt) || d.note || S.times
   let last = ''
   return (
     <FnScreen code="ECO" title={S.title}
       right={<>
         <Field label={S.week}><Btns opts={S.weeks} value={wk} onChange={setWk} /></Field>
-        <Field label={S.country}><Btns opts={[{ v: 'All', l: S.all }, { v: 'BR', l: 'BR' }, { v: 'US', l: 'US' }]} value={cty} onChange={setCty} /></Field>
-        <Field label={S.view}><Btns opts={[{ v: false, l: S.allEv }, { v: true, l: S.key }]} value={key} onChange={setKey} /></Field>
+        <Field label={S.country}>
+          <select aria-label={S.country} value={cty} onChange={e => setCty(e.target.value)} className="bg-black border px-1 py-[1px] text-[12px] outline-none"
+            style={{ borderColor: C.line, color: C.amber }}>
+            <option value="All">{S.all}</option>
+            {ctys.map(c => <option key={c[0]} value={c[0]}>{c[0]} · {pt ? c[2] : c[1]}</option>)}
+          </select>
+        </Field>
+        <Field label={S.view}><Btns opts={S.imps} value={imp} onChange={setImp} /></Field>
       </>}
-      source={d.source} note={<>{d.note} {S.approx}.{noBR && live !== undefined ? <> {live?.length ? S.live : S.liveNo}</> : null}</>}>
+      note={<>{note}{d.note ? '' : ` ${S.approx}.`}{noBR && live !== undefined ? <> {live?.length ? S.live : S.liveNo}</> : null}</>}>
       <Panel title={`${wk === 9 ? `${dUS(d.from)} – ${dUS(d.to)}` : `${dShort(v.a)} – ${dShort(v.b)}`} · ${v.ev.length} ${S.count}`}>
         {!v.ev.length ? <div className="p-4 text-[12px]" style={{ color: C.muted }}>{S.empty}</div> :
           <Grid maxH={640} rows={v.ev} rowStyle={(e: any) => { const day = e.time.slice(0, 10); const st: any = day === today ? { background: tc('#1a1405') } : {}; if (day !== last) { last = day; st.borderTop = `1px solid ${C.amberDim}` } return st }} cols={[
-            { k: 'time', label: S.c.time, fmt: (x, e: any) => <span><span style={{ color: C.muted }}>{weekday(x)} </span>{dUS(x)} <span style={{ color: C.white }}>{x.slice(11, 16)}</span>{e.time_approx ? <span style={{ color: C.muted }}>≈</span> : ''}</span> },
-            { k: 'country', label: S.c.country, align: 'c', color: x => x === 'BR' ? C.up : C.cyan },
-            { k: 'event', label: S.c.event, fmt: (x, e: any) => <span style={{ color: e.key ? C.amber : C.text }}>{e.key ? '★ ' : ''}{x}</span> },
+            { k: 'time', label: S.c.time, fmt: (x, e: any) => <span className="whitespace-nowrap"><span style={{ color: C.muted }}>{pt ? WD_PT[new Date(x.slice(0, 10) + 'T12:00:00Z').getUTCDay()] : weekday(x)} </span>{dUS(x)} {e.allday ? <span style={{ color: C.muted }}>{S.allday}</span> : <span style={{ color: C.white }}>{x.slice(11, 16)}</span>}{e.time_approx && !e.allday ? <span style={{ color: C.muted }}>≈</span> : ''}</span> },
+            { k: 'country', label: S.c.country, align: 'c', fmt: (x: any) => <span title={cName(x)}>{x}</span>, color: x => x === 'BR' ? C.up : x === 'US' ? C.cyan : C.text },
+            { k: 'tier', label: S.c.imp, align: 'c', fmt: (_x, e: any) => { const t = tierOf(e); return <span title={`${t}/3`} style={{ color: t >= 3 ? C.amber : t === 2 ? C.text : C.muted }}>{'●'.repeat(t)}<span style={{ color: C.line }}>{'●'.repeat(3 - t)}</span></span> } },
+            { k: 'event', label: S.c.event, fmt: (x, e: any) => <span style={{ color: tierOf(e) >= 3 ? C.amber : C.text }}>{(pt && e.event_pt) || x}</span> },
             { k: 'period', label: S.c.period, color: () => C.muted },
             { k: 'survey', label: S.c.survey, align: 'r', fmt: (x, e: any) => fmtV(x, e.unit), color: () => C.purple },
             { k: 'actual', label: S.c.actual, align: 'r', fmt: (x, e: any) => fmtV(x, e.unit), color: (x, e: any) => e.survey != null && x != null ? (x > e.survey ? C.up : x < e.survey ? C.down : C.white) : C.white },

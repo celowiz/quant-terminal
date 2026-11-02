@@ -1,0 +1,64 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:bcb.gov.br
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Estatísticas monetárias e de crédito | Banco Central do Brasil
+X-WR-CALDESC:Banco Central do Brasil
+BEGIN:VTIMEZONE
+TZID:America/Sao_Paulo
+BEGIN:STANDARD
+TZOFFSETTO:-0300
+TZOFFSETFROM:-0300
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:agendaics97Estatísticasmonetáriasedecrédito
+DTSTAMP:20260929T172600
+DTSTART;TZID=America/Sao_Paulo:20270330T083000
+DTEND;TZID=America/Sao_Paulo:20270330T083000
+SUMMARY:Estatísticas monetárias e de crédito
+END:VEVENT
+BEGIN:VEVENT
+UID:agendaics96Estatísticasmonetáriasedecrédito
+DTSTAMP:20260929T172600
+DTSTART;TZID=America/Sao_Paulo:20270225T083000
+DTEND;TZID=America/Sao_Paulo:20270225T083000
+SUMMARY:Estatísticas monetárias e de crédito
+END:VEVENT
+BEGIN:VEVENT
+UID:agendaics95Estatísticasmonetáriasedecrédito
+DTSTAMP:20260929T172600
+DTSTART;TZID=America/Sao_Paulo:20270128T083000
+DTEND;TZID=America/Sao_Paulo:20270128T083000
+SUMMARY:Estatísticas monetárias e de crédito
+END:VEVENT
+BEGIN:VEVENT
+UID:agendaics94Estatísticasmonetáriasedecrédito
+DTSTAMP:20250930T174700
+DTSTART;TZID=America/Sao_Paulo:20261228T083000
+DTEND;TZID=America/Sao_Paulo:20261228T083000
+SUMMARY:Estatísticas monetárias e de crédito
+END:VEVENT
+BEGIN:VEVENT
+UID:agendaics93Estatísticasmonetáriasedecrédito
+DTSTAMP:20250930T174700
+DTSTART;TZID=America/Sao_Paulo:20261127T083000
+DTEND;TZID=America/Sao_Paulo:20261127T083000
+SUMMARY:Estatísticas monetárias e de crédito
+END:VEVENT
+BEGIN:VEVENT
+UID:agendaics92Estatísticasmonetáriasedecrédito
+DTSTAMP:20250930T174700
+DTSTART;TZID=America/Sao_Paulo:20261029T083000
+DTEND;TZID=America/Sao_Paulo:20261029T083000
+SUMMARY:Estatísticas monetárias e de crédito
+END:VEVENT
+BEGIN:VEVENT
+UID:agendaics91Estatísticasmonetáriasedecrédito
+DTSTAMP:20250930T174700
+DTSTART;TZID=America/Sao_Paulo:20260929T083000
+DTEND;TZID=America/Sao_Paulo:20260929T083000
+SUMMARY:Estatísticas monetárias e de crédito
+END:VEVENT
+END:VCALENDAR
