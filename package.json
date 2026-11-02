@@ -6,7 +6,7 @@
     "date-fns": "^2.30.0",
     "katex": "^0.19.1",
     "lightweight-charts": "^5.2.1",
-    "lucide-react": "^1.62.0",
+    "lucide-react": "^1.65.0",
     "modern-screenshot": "^4.7.0",
     "next": "^14.2.35",
     "react": "^18.2.0",
