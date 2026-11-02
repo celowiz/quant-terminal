@@ -302,6 +302,46 @@ export const HELP: Record<string, HelpDoc> = {
       { tex: R`F = \sum_t (S_t - R_t)`, en: 'Net flow over the window: subscriptions S minus redemptions R.', pt: 'Captação líquida na janela: aplicações S menos resgates R.' },
     ],
   },
+  RESV: {
+    en: 'Brazil\'s international reserves in US dollars, daily and month-end. The top chart shows the stock over the chosen range (month-end values for MAX, which goes back to 2000); the lower pane shows the change over 12 months. The table lists the last 24 month-end stocks with the change in the month and in 12 months. Changes are in US$ billions.',
+    pt: 'Reservas internacionais do Brasil em dólares, diárias e de fim de mês. O gráfico de cima mostra o estoque no período escolhido (valores de fim de mês em MAX, que vai até 2000); o painel de baixo mostra a variação em 12 meses. A tabela traz os últimos 24 estoques de fim de mês com a variação no mês e em 12 meses. As variações estão em US$ bilhões.',
+    formulas: [
+      { tex: R`\Delta_{h} R = R_t - R_{t-h}`, en: 'Change over horizon h (1 week, 1 month, 12 months): last value minus the last value on or before the date h ago.', pt: 'Variação no horizonte h (1 semana, 1 mês, 12 meses): último valor menos o último valor até a data de h atrás.' },
+      { tex: R`\Delta_{YTD} R = R_t - R_{\text{last day of previous year}}`, en: 'Year-to-date change.', pt: 'Variação no ano.' },
+    ],
+  },
+  WEO: {
+    en: 'Official world economic projections for growth, inflation, unemployment, public debt, fiscal balance and current account. Pick the indicator at the top; the table shows each economy from four years before the first projected year (marked * and in amber) to five years ahead. Click a row to chart that economy and see all indicators for this year, next year and five years ahead. Sort by this year or next year to rank the economies.',
+    pt: 'Projeções econômicas mundiais oficiais de crescimento, inflação, desemprego, dívida pública, resultado fiscal e conta-corrente. Escolha o indicador no topo; a tabela mostra cada economia de quatro anos antes do primeiro ano projetado (marcado com * e em âmbar) até cinco anos à frente. Clique numa linha para ver o gráfico daquela economia e todos os indicadores deste ano, do próximo e de cinco anos à frente. Ordene por este ano ou pelo próximo para ranquear as economias.',
+    formulas: [
+      { tex: R`g_t = 100\left(\frac{Y_t}{Y_{t-1}} - 1\right)`, en: 'Real GDP growth (Y = GDP at constant prices).', pt: 'Crescimento do PIB real (Y = PIB a preços constantes).' },
+      { tex: R`\pi_t = 100\left(\frac{\overline{P}_t}{\overline{P}_{t-1}} - 1\right)`, en: 'Inflation as the change in the annual average consumer price index.', pt: 'Inflação como variação do índice de preços ao consumidor médio do ano.' },
+      { tex: R`b_t = 100\,\frac{D_t}{PIB_t},\qquad s_t = 100\,\frac{\text{Revenue}_t - \text{Expenditure}_t}{PIB_t}`, en: 'Gross general government debt (b) and net lending/borrowing (s), both in % of GDP.', pt: 'Dívida bruta do governo geral (b) e resultado nominal (s), ambos em % do PIB.' },
+    ],
+  },
+  EUCV: {
+    en: 'Euro area government yield curve, zero-coupon, for AAA-rated issuers or all issuers. The curve chart compares today with the date you pick (1 week to 1 year ago) and shows the other curve dotted; the table gives each maturity, the change in basis points and the gap between all issuers and AAA. The history chart shows the AAA 2-, 10- and 30-year yields and the 10y–2y slope.',
+    pt: 'Curva de juros dos governos da área do euro, cupom zero, para emissores AAA ou todos os emissores. O gráfico da curva compara hoje com a data escolhida (de 1 semana a 1 ano atrás) e mostra a outra curva pontilhada; a tabela traz cada prazo, a variação em pontos-base e a diferença entre todos os emissores e os AAA. O gráfico histórico mostra as taxas AAA de 2, 10 e 30 anos e a inclinação 10a–2a.',
+    formulas: [
+      { tex: R`y(\tau) = \beta_0 + \beta_1\frac{1-e^{-\tau/\lambda_1}}{\tau/\lambda_1} + \beta_2\left(\frac{1-e^{-\tau/\lambda_1}}{\tau/\lambda_1} - e^{-\tau/\lambda_1}\right) + \beta_3\left(\frac{1-e^{-\tau/\lambda_2}}{\tau/\lambda_2} - e^{-\tau/\lambda_2}\right)`, en: 'Svensson model of the zero-coupon spot yield y at maturity τ (in years): level β0, slope β1 and two humps β2, β3.', pt: 'Modelo de Svensson para a taxa à vista de cupom zero y no prazo τ (em anos): nível β0, inclinação β1 e duas curvaturas β2, β3.' },
+      { tex: R`\text{slope} = 100\,\big(y(10) - y(2)\big),\qquad \text{gap}(\tau) = 100\,\big(y_{all}(\tau) - y_{AAA}(\tau)\big)`, en: 'Slope and the all-issuers minus AAA gap, in basis points.', pt: 'Inclinação e diferença entre todos os emissores e os AAA, em pontos-base.' },
+    ],
+  },
+  CDR: {
+    en: 'Holiday calendar for six markets. The list shows upcoming full-day closures (all markets or one), with the weekday and how many days away. The month grid shows the next 12 months for the market chosen above it: red days are closed; hover a day to see the holiday. The cards at the top give each market\'s next closure. Useful for settlement dates, option expiries and cross-border trades.',
+    pt: 'Calendário de feriados de seis mercados. A lista mostra os próximos fechamentos de dia inteiro (todos os mercados ou um só), com o dia da semana e quantos dias faltam. A grade mostra os próximos 12 meses do mercado escolhido acima dela: dias em vermelho estão fechados; passe o mouse para ver o feriado. Os cartões no topo mostram o próximo fechamento de cada mercado. Útil para datas de liquidação, vencimentos de opções e operações entre países.',
+    formulas: [
+      { tex: R`D^{+n}_{\text{útil}}(t) = \min\{d > t : \#\{\text{business days in } (t, d]\} = n\}`, en: 'Settlement after n business days (e.g. T+2) skips weekends and the closures listed here.', pt: 'A liquidação em n dias úteis (ex.: D+2) pula fins de semana e os fechamentos listados aqui.' },
+    ],
+  },
+  INSD: {
+    en: 'Purchases and sales of a company\'s own shares by its insiders. Brazil tab: one row per company for the month you pick, with shares and values bought and sold and the net; click a row to split the shares by role (controlling holders, board, executives, fiscal council). United States tab: each open-market purchase or sale reported by directors, officers and 10% owners of large US companies in the last 90 days, with a link to the filing; filter by side and ticker.',
+    pt: 'Compras e vendas de ações da própria empresa feitas por insiders. Aba Brasil: uma linha por companhia no mês escolhido, com ações e valores comprados e vendidos e o líquido; clique numa linha para separar as ações por cargo (controladores, conselho, diretoria, conselho fiscal). Aba Estados Unidos: cada compra ou venda a mercado informada por conselheiros, diretores e acionistas com 10% ou mais de grandes empresas dos EUA nos últimos 90 dias, com link para o documento; filtre por lado e ticker.',
+    formulas: [
+      { tex: R`V_{buy} = \sum_{i \in \text{buys}} q_i\,p_i,\qquad V_{net} = V_{buy} - V_{sell}`, en: 'Values sum quantity × price (or the reported amount) only over trades that have one.', pt: 'Os valores somam quantidade × preço (ou o volume informado) só nas negociações que os trazem.' },
+      { tex: R`\bar p_{buy} = \frac{V_{buy}}{Q_{buy}}`, en: 'Average purchase price (uses the valued trades only).', pt: 'Preço médio de compra (usa só as negociações com valor).' },
+    ],
+  },
   BKS: {
     en: 'Panel of the 40 largest Brazilian prudential conglomerates by total assets: total assets, credit portfolio, funding, equity, net income, Basel ratio and fixed-asset ratio. The data is quarterly and comes out about three months after each quarter ends. Net income is accumulated within each half-year (a March or September figure covers 3 months; June or December, 6), so ROE is annualised accordingly. Segments S1–S5 are the proportional-regulation tiers. The chart shows the Basel ratio and the credit portfolio over the last quarters.',
     pt: 'Painel dos 40 maiores conglomerados prudenciais do Brasil por ativo total: ativo total, carteira de crédito, captações, patrimônio líquido, lucro líquido, índice de Basileia e índice de imobilização. Os dados são trimestrais e saem cerca de três meses depois do fim de cada trimestre. O lucro líquido é acumulado dentro de cada semestre (março ou setembro cobrem 3 meses; junho ou dezembro, 6), por isso o ROE é anualizado conforme o caso. Os segmentos S1–S5 são as faixas da regulação proporcional. O gráfico mostra o índice de Basileia e a carteira de crédito nos últimos trimestres.',

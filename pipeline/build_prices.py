@@ -158,7 +158,7 @@ def _r(x):
     return float(f'{x:.6g}') if abs(x) >= 1 else round(x, 6)
 
 def rows_from_frame(d):
-    d = d.dropna(subset=['Close']); d = d[d.index.dayofweek < 5]  # FX/cripto no Yahoo têm barras de fim de semana
+    d = d.dropna(subset=['Close']); d = d[d.index.day_of_week < 5]  # FX/cripto no Yahoo têm barras de fim de semana
     return [{'time': i.strftime('%Y-%m-%d'), 'open': _r(r.Open if pd.notna(r.Open) else r.Close), 'high': _r(r.High if pd.notna(r.High) else r.Close),
              'low': _r(r.Low if pd.notna(r.Low) else r.Close), 'close': _r(r.Close), 'volume': int(r.Volume) if pd.notna(r.Volume) else 0}
             for i, r in d.iterrows()]
