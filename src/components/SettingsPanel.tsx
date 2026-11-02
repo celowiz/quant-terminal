@@ -4,6 +4,32 @@ import { RotateCcw, X } from 'lucide-react'
 import { getSettings, resetSettings, setSettings, type Settings } from '../lib/settings'
 import { t } from '../lib/i18n'
 import { trackSetting } from '../lib/track'
+import { BENCH_MARKETS, BENCH_OPTIONS, benchName, type BenchMarket } from '../lib/bench.mjs'
+
+const B_LABEL: Record<BenchMarket, Parameters<typeof t>[0]> = { us: 'set.bUS', br: 'set.bBR', crypto: 'set.bCrypto', fx: 'set.bFX', cmd: 'set.bCmd' }
+
+/** benchmark padrão por mercado: um select por mercado, só com valores da lista validada */
+function BenchRows() {
+  const s = getSettings()
+  return (
+    <div className="py-2 border-b border-[#2a2a2a]">
+      <div className="text-[11px] uppercase tracking-wider text-[#8a8a8a] mb-1">{t('set.bench')}</div>
+      <div className="grid grid-cols-[84px_1fr] gap-x-2 gap-y-1 items-center">
+        {BENCH_MARKETS.map(m => (
+          <label key={m} className="contents">
+            <span className="text-[12px] text-slate-300">{t(B_LABEL[m])}</span>
+            <select value={s.bench[m]} aria-label={`${t('set.bench')}: ${t(B_LABEL[m])}`}
+              onChange={e => { setSettings({ bench: { ...s.bench, [m]: e.target.value } }) }}
+              className="min-w-0 bg-black border border-[#3a3a3a] text-[#FFA028] text-[12px] px-1 py-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA028]">
+              {BENCH_OPTIONS[m].map(o => <option key={o} value={o}>{benchName(o, s.lang) || o}</option>)}
+            </select>
+          </label>
+        ))}
+      </div>
+      <p className="mt-1 text-[10px] leading-snug text-[#8a8a8a]">{t('set.benchHint')}</p>
+    </div>
+  )
+}
 
 type Opt<K extends keyof Settings> = { v: Settings[K]; l: string }
 
@@ -19,7 +45,7 @@ function Row<K extends keyof Settings>({ k, label, opts }: { k: K; label: string
             <button key={String(o.v)} type="button" role="radio" aria-checked={on}
               onClick={() => {
                 if (on) return
-                setSettings({ [k]: o.v } as Partial<Settings>); trackSetting(k, String(o.v))
+                setSettings({ [k]: o.v } as Partial<Settings>); trackSetting(k as 'lang' | 'num' | 'tz' | 'theme' | 'ud', String(o.v))
                 // cores vêm do tema na importação dos módulos: recarrega para aplicar em gráficos e estilos inline
                 if (k === 'theme' || k === 'ud') window.location.reload()
               }}
@@ -46,7 +72,7 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
   }, [onClose])
   return (
     <div ref={ref} id="qt-settings" data-capture-hide="" role="dialog" aria-label={t('set.title')}
-      className="absolute right-2 top-full mt-1 z-[70] w-[280px] max-w-[calc(100vw-16px)] bg-black border border-[#FFA028] shadow-xl shadow-black/70 text-slate-100 font-mono">
+      className="absolute right-2 top-full mt-1 z-[70] w-[280px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-72px)] overflow-y-auto bg-black border border-[#FFA028] shadow-xl shadow-black/70 text-slate-100 font-mono">
       <div className="flex items-center justify-between bg-[#FFA028] text-black px-2 py-1">
         <span className="text-[12px] font-bold tracking-wider uppercase">{t('set.title')}</span>
         <button type="button" aria-label={t('set.close')} onClick={onClose} className="hover:opacity-70"><X className="w-4 h-4" aria-hidden /></button>
@@ -57,6 +83,7 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
         <Row k="tz" label={t('set.tz')} opts={[{ v: 'brt', l: t('set.tzBrt') }, { v: 'local', l: t('set.tzLocal') }]} />
         <Row k="theme" label={t('set.theme')} opts={[{ v: 'amber', l: t('set.thAmber') }, { v: 'green', l: t('set.thGreen') }, { v: 'contrast', l: t('set.thContrast') }, { v: 'light', l: t('set.thLight') }]} />
         <Row k="ud" label={t('set.ud')} opts={[{ v: 'std', l: t('set.udStd') }, { v: 'cb', l: t('set.udCb') }]} />
+        <BenchRows />
         <button type="button" onClick={() => { const th = getSettings(); resetSettings(); trackSetting('reset'); if (th.theme !== 'amber' || th.ud !== 'std') window.location.reload() }}
           className="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1 text-[12px] border border-[#3a3a3a] text-slate-200 hover:text-[#FFA028] hover:border-[#FFA028]">
           <RotateCcw className="w-3.5 h-3.5" aria-hidden /> {t('set.reset')}

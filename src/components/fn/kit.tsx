@@ -6,7 +6,9 @@ import React, { createContext, useContext, useEffect, useRef, useState, useSyncE
 import { flushSync } from 'react-dom'
 import { getJSON, href, tickerKey } from '../../lib/static'
 import { FUNCTION_LIST } from '../../constants/functions'
-import { lang, numLocale } from '../../lib/settings'
+import { getSettings, lang, numLocale } from '../../lib/settings'
+import { pickBench, benchName, benchMarket, peersOf, BENCH_OPTIONS } from '../../lib/bench.mjs'
+import tickersJson from '../../../public/data/tickers.json'
 import { fmtDate, fmtDateFull } from '../../lib/dates'
 import { t } from '../../lib/i18n'
 import { trackPeriod } from '../../lib/track'
@@ -60,14 +62,34 @@ export const EQUITIES = ['PETR4.SA', 'PETR3.SA', 'VALE3.SA', 'ITUB4.SA', 'ITUB3.
 export const isEquity = (t: string) => covers('FUND', t)
 /** O ativo tem o dataset da função (HDS → holders, FA → fa, OMON → options, GIP → intraday) */
 export const hasData = (code: string, t: string) => covers(code, t)
-/** Benchmark padrão por mercado: ações e índices BR → Ibovespa; Ibovespa → dólar (BRL=X); S&P 500 → Nasdaq-100;
- *  demais (ações e ETFs dos EUA, índices externos, cripto, commodities) → S&P 500. Usado em GR, BETA, HS e HRA. */
-export function defaultBench(t: string) {
-  const u = t.toUpperCase()
-  if (u === '^BVSP') return 'BRL=X'
-  if (u.endsWith('.SA') || u.includes('BRL')) return '^BVSP'
-  if (u === '^GSPC') return '^NDX'
-  return '^GSPC'
+/** Benchmark padrão pela classe do ativo no cadastro (lib/bench.mjs): EUA, BDRs e ETFs que replicam índice dos EUA → S&P 500;
+ *  ações, FIIs e ETFs da B3 → Ibovespa; cripto → Bitcoin (o Bitcoin → S&P 500); câmbio e commodities → índice do dólar;
+ *  índices: Ibovespa → dólar, S&P 500 → Nasdaq-100, demais → S&P 500. Configurável por mercado (Configurações).
+ *  Usado em GR, BETA, HS, HRA, COMP e DCF. */
+const META = new Map<string, TickerMeta>((tickersJson as any).tickers.map((x: TickerMeta) => [x.ticker.toUpperCase(), x]))
+export type TickerMeta = { ticker: string; key: string; name: string; class: string; currency?: string }
+export const tickerMeta = (t: string) => META.get(t.toUpperCase())
+export function defaultBench(t: string) { return pickBench(t, tickerMeta(t), getSettings().bench) }
+/** nome legível do benchmark/ativo: "S&P 500", "Ibovespa", "Bitcoin", "US Dollar Index"…; senão o ticker curto */
+export const benchLabel = (t: string) => benchName(t, lang()) || short(t)
+/** "vs S&P 500" / "vs Ibovespa" */
+export const vsLabel = (t: string) => `vs ${benchLabel(t)}`
+/** lista de benchmarks para os selects: o atual, as opções do mercado do ativo e as referências gerais (só o que existe no universo) */
+export function benchChoices(t: string, cur?: string) {
+  const m = benchMarket(t, tickerMeta(t))
+  const base = m === 'index' ? [] : BENCH_OPTIONS[m]
+  return Array.from(new Set([cur || defaultBench(t), defaultBench(t), ...base, '^GSPC', '^BVSP', '^NDX', 'BTC-USD', 'DX-Y.NYB', 'BRL=X']))
+    .filter(x => x.toUpperCase() !== t.toUpperCase() && META.has(x.toUpperCase()))
+}
+/** Pares da mesma classe (ações: mesmo subsetor/setor no screener, maior valor de mercado primeiro). [] até carregar. */
+export function usePeers(t: string, n: number) {
+  const cls = tickerMeta(t)?.class
+  const scr = cls === 'br_equity' ? 'screener.json' : cls === 'us_equity' ? 'screener_us.json' : null
+  const { data, err } = useJSON<any>(scr)
+  const all = (tickersJson as any).tickers as TickerMeta[]
+  if (scr && !data && !err) return { peers: [] as string[], ready: false }
+  const rows = Array.isArray(data) ? data : data?.rows || data?.data || null
+  return { peers: peersOf(t, all, n, rows), ready: true }
 }
 export const isBR = (t: string) => { const u = t.toUpperCase(); return u.endsWith('.SA') || u === '^BVSP' || u.includes('BRL') }
 export const corpPath = (t: string) => isEquity(t) ? `corp/${tickerKey(t)}.json` : null

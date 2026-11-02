@@ -4,7 +4,7 @@
  *  (curves.json), fechamentos (prices/) e B3 COTAHIST (options/). Premissas do usuário ficam em caixas âmbar e são rotuladas como premissas. */
 import React, { useMemo, useState } from 'react'
 import XYChart from '@/components/fn/XYChart'
-import { C, MONO, useJSON, FnScreen, Panel, Grid, Btns, Field, KV, NA, corpPath, hasData, defaultBench, isBR, short, isoMinus, inputCls, inputStyle } from '@/components/fn/kit'
+import { C, MONO, useJSON, FnScreen, Panel, Grid, Btns, Field, KV, NA, corpPath, hasData, defaultBench, benchLabel, benchChoices, isBR, short, isoMinus, inputCls, inputStyle } from '@/components/fn/kit'
 import { n, sn, pc, cl, dUS, bigE, Kpis, Loading2, NumIn, BarLine, Unavailable } from './fn11util'
 import { usePrices } from './tech'
 import { regress, weekly, align } from '@/lib/quant'
@@ -22,8 +22,8 @@ const Row = ({ k, children, tag }: { k: string; children: React.ReactNode; tag?:
 )
 
 // ======================= DCF =======================
-function useBeta(ticker: string) {
-  const a = usePrices(ticker), bench = defaultBench(ticker), b = usePrices(bench)
+function useBeta(ticker: string, bench: string) {
+  const a = usePrices(ticker), b = usePrices(bench)
   return useMemo(() => {
     if (!a.rows?.length || !b.rows?.length) return null
     const last = a.rows[a.rows.length - 1].time, from = isoMinus(last, 0, 0, 2)
@@ -56,7 +56,8 @@ export function DCFView({ ticker }: { ticker: string }) {
   const ok = hasData('DCF', ticker)
   const { data: d, err } = useJSON<any>(ok ? corpPath(ticker) : null)
   const { data: cv } = useJSON<any>(ok ? 'curves.json' : null)
-  const beta = useBeta(ticker)
+  const [bench, setBench] = useState(() => defaultBench(ticker))
+  const beta = useBeta(ticker, bench)
   const [basis, setBasis] = useState<'ltm' | 'fy' | 'avg3'>('ltm')
   const [ov, setOv] = useState<DcfOv>({})
   if (!ok) return <FnScreen code="DCF" ticker={ticker}><NA ticker={ticker} what={L('company financial statements', 'demonstrações financeiras')} code="dcf" /></FnScreen>
@@ -96,7 +97,7 @@ export function DCFView({ ticker }: { ticker: string }) {
   return (
     <FnScreen code="DCF" ticker={ticker} source={src} note={note} asOf={bal?.period}
       right={<><Field label={L('FCF base', 'Base do FCL')}><Btns opts={[{ v: 'ltm', l: 'LTM' }, { v: 'fy', l: A.length ? `FY${A[A.length - 1].period.slice(0, 4)}` : 'FY' }, { v: 'avg3', l: L('3Y avg', 'Média 3a') }]} value={basis} onChange={setBasis} /></Field>
-        <button onClick={() => setOv({})} className="border px-2 py-[1px]" style={{ borderColor: C.line, color: C.cyan }}>{L('Reset', 'Restaurar')}</button></>}>
+        <button onClick={() => { setOv({}); setBench(defaultBench(ticker)) }} className="border px-2 py-[1px]" style={{ borderColor: C.line, color: C.cyan }}>{L('Reset', 'Restaurar')}</button></>}>
       <Kpis items={[
         [L('Price', 'Preço'), `${cur} ${n(px[1])}`, C.white],
         [L('DCF value / share', 'Valor DCF / ação'), vps == null ? '—' : `${cur} ${n(vps)}`, C.amber],
@@ -110,7 +111,8 @@ export function DCFView({ ticker }: { ticker: string }) {
         <Panel title={L('Assumptions & cost of capital', 'Premissas e custo de capital')}>
           <div className="px-2 py-1">
             <Row k={`Rf · ${rf?.label || '—'}`} tag={dataT}><NumIn value={v.rf} onChange={set('rf')} /></Row>
-            <Row k={beta ? `β · ${L('2Y weekly vs', '2a semanal vs')} ${short(beta.bench)}` : 'β'} tag={beta ? dataT : asmT}><NumIn value={v.beta} onChange={set('beta')} step={0.05} /></Row>
+            <Row k={L('β benchmark', 'Benchmark do β')}><select aria-label={L('β benchmark', 'Benchmark do β')} value={bench} onChange={e => { setBench(e.target.value); setOv(o => ({ ...o, beta: null })) }} className={inputCls} style={{ ...inputStyle, maxWidth: 150 }}>{benchChoices(ticker, bench).map(t => <option key={t} value={t}>{benchLabel(t)}</option>)}</select></Row>
+            <Row k={beta ? `β · ${L('2Y weekly vs', '2a semanal vs')} ${benchLabel(beta.bench)}` : 'β'} tag={beta ? dataT : asmT}><NumIn value={v.beta} onChange={set('beta')} step={0.05} /></Row>
             <Row k={L('Equity risk premium', 'Prêmio de risco (ERP)')} tag={asmT}><NumIn value={v.erp} onChange={set('erp')} /></Row>
             <Row k={L('Cost of debt (pre-tax)', 'Custo da dívida (antes IR)')} tag={asmT}><NumIn value={v.kd} onChange={set('kd')} /></Row>
             <Row k={L('Tax rate (statutory)', 'Alíquota IR (nominal)')} tag={asmT}><NumIn value={v.tax} onChange={set('tax')} step={1} /></Row>

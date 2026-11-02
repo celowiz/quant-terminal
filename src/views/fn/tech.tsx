@@ -2,7 +2,7 @@
 import { tc } from '../../lib/themeRuntime'
 import React, { useEffect, useMemo, useState } from 'react'
 import { getPrices, type Price, listTickers, RECENT_PERIODS } from '../../lib/static'
-import { FnScreen, Panel, Grid, Btns, Field, KV, Loading, C, nf, pf, dBR, clr, short, isoMinus, inputCls, inputStyle, PALETTE, useJSON, defaultBench, isBR } from '../../components/fn/kit'
+import { FnScreen, Panel, Grid, Btns, Field, KV, Loading, C, nf, pf, dBR, clr, short, isoMinus, inputCls, inputStyle, PALETTE, defaultBench, benchLabel, vsLabel, benchChoices, usePeers } from '../../components/fn/kit'
 import FnChart, { type PaneDef } from '../../components/fn/FnChart'
 import XYChart from '../../components/fn/XYChart'
 import { macd, rsi, logret, rollStd, regress, weekly, monthlyReturns, quantile, mean, align, corr } from '../../lib/quant'
@@ -232,6 +232,8 @@ export function VOLView({ ticker }: { ticker: string }) {
 }
 
 // ---------------- BETA ----------------
+/** cabeçalho compacto da matriz: índices pelo nome (S&P 500, Ibovespa, DXY), ativos pelo ticker */
+const mHead = (c: string) => c === 'DX-Y.NYB' ? 'DXY' : c.startsWith('^') ? benchLabel(c) : short(c)
 export function BETAView({ ticker }: { ticker: string }) {
   const [bench, setBench] = useState(() => defaultBench(ticker))
   const [freq, setFreq] = useState<'w' | 'd'>('w')
@@ -239,7 +241,6 @@ export function BETAView({ ticker }: { ticker: string }) {
   const [tab, setTab] = useState(0)
   const { rows, err } = usePrices(ticker)
   const b = usePrices(bench)
-  const uni = useJSON<any>(tab === 1 ? 'universe.json' : null)
   const calc = useMemo(() => {
     if (!rows?.length || !b.rows?.length) return null
     const last = rows[rows.length - 1].time, from = isoMinus(last, 0, 0, yrs)
@@ -259,41 +260,55 @@ export function BETAView({ ticker }: { ticker: string }) {
     const xs = [Math.min(...x), Math.max(...x)]
     return { reg, x, y, xs, roll, n: x.length, adj: 0.67 * reg.beta + 0.33 }
   }, [rows, b.rows, freq, yrs])
+  // matriz: ativo + benchmark + até 10 pares da mesma classe, retornos diários do último ano
+  const { peers, ready } = usePeers(ticker, 10)
+  const mcodes = useMemo(() => ready ? Array.from(new Set([ticker, bench, ...peers])) : [], [ready, ticker, bench, peers.join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [mpx, setMpx] = useState<Record<string, Price[]> | null>(null)
+  const [merr, setMerr] = useState<string | null>(null)
+  useEffect(() => {
+    if (tab !== 1 || !mcodes.length) return
+    let alive = true
+    Promise.all(mcodes.map(c => getPrices(c, undefined, undefined, 'd', true).then(r => [c, r] as const).catch(() => [c, [] as Price[]] as const)))
+      .then(all => { if (alive) { setMpx(Object.fromEntries(all.filter(([, r]) => r.length > 30))); setMerr(null) } })
+      .catch(e => alive && setMerr(String(e?.message || e)))
+    return () => { alive = false }
+  }, [tab, mcodes.join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
   const matrix = useMemo(() => {
-    if (!uni.data) return null
-    const top = uni.data.components.slice().sort((p: any, q: any) => q.weight - p.weight).slice(0, 12).map((c: any) => c.cod)
-    const L = uni.data.dates.length, st = Math.max(1, L - 252)
-    const rets = (code: string) => { const c = code === 'IBOV' ? uni.data.close['^BVSP'] ?? uni.data.close['IBOV'] : uni.data.close[code]; return c ? c.slice(st).map((v: number, i: number) => { const p = c[st + i - 1]; return v != null && p != null ? v / p - 1 : null }) : null }
-    const codes = ['IBOV', ...top].filter(c => rets(c))
-    const R = Object.fromEntries(codes.map(c => [c, rets(c)]))
-    const cc = (p: string, q: string) => { const a: number[] = [], bb: number[] = []; R[p].forEach((v: any, i: number) => { const w = R[q][i]; if (v != null && w != null) { a.push(v); bb.push(w) } }); return corr(a, bb) }
+    if (!mpx) return null
+    const codes = mcodes.filter(c => mpx[c])
+    const R = Object.fromEntries(codes.map(c => {
+      const r = mpx[c].slice(-253), m = new Map<string, number>()
+      for (let i = 1; i < r.length; i += 1) if (r[i].close && r[i - 1].close) m.set(r[i].time, r[i].close / r[i - 1].close - 1)
+      return [c, m]
+    }))
+    const cc = (p: string, q: string) => { const a: number[] = [], bb: number[] = []; R[p].forEach((v, d) => { const w = R[q].get(d); if (w != null) { a.push(v); bb.push(w) } }); return a.length > 30 ? corr(a, bb) : NaN }
     return { codes, m: codes.map(p => codes.map(q => p === q ? 1 : cc(p, q))) }
-  }, [uni.data])
+  }, [mpx, mcodes])
   if (!calc) return <FnScreen code="BETA" ticker={ticker}><Loading err={err || b.err} /></FnScreen>
   return (
     <FnScreen code="BETA" ticker={ticker} title="Historical Beta / Correlation" tabs={['Beta (regression)', 'Correlation matrix']} tab={tab} setTab={setTab}
-      right={tab === 0 && <><Field label="Index"><select className={inputCls} style={inputStyle} value={bench} onChange={e => setBench(e.target.value)}>{Array.from(new Set([bench, ...(isBR(ticker) ? ['^BVSP', 'PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BRL=X', '^GSPC'] : ['^GSPC', '^NDX', '^BVSP', 'BRL=X'])])).map(t => <option key={t}>{t}</option>)}</select></Field><Btns opts={[{ v: 'd', l: 'Daily' }, { v: 'w', l: 'Weekly' }] as any} value={freq} onChange={setFreq as any} /><Btns opts={[{ v: 1, l: '1Y' }, { v: 2, l: '2Y' }, { v: 3, l: '3Y' }, { v: 5, l: '5Y' }] as any} value={yrs} onChange={setYrs as any} /></>}
-      source={tab === 0 ? SRC_PX : 'B3 (Ibovespa theoretical portfolio) + Yahoo Finance; correlation of daily returns, last year.'}
-      note={tab === 0 ? 'OLS regression of the asset\'s returns (Y) on the index (X). Adjusted beta = 0.67 × raw + 0.33 (Blume adjustment, the same one used by commercial terminals). Default: weekly, 2 years.' : 'Top 12 Ibovespa components by weight + the index. Green = high correlation.'}>
+      right={tab === 0 && <><Field label="vs"><select className={inputCls} style={inputStyle} value={bench} onChange={e => setBench(e.target.value)} aria-label="Benchmark">{benchChoices(ticker, bench).map(t => <option key={t} value={t}>{benchLabel(t)}</option>)}</select></Field><Btns opts={[{ v: 'd', l: 'Daily' }, { v: 'w', l: 'Weekly' }] as any} value={freq} onChange={setFreq as any} /><Btns opts={[{ v: 1, l: '1Y' }, { v: 2, l: '2Y' }, { v: 3, l: '3Y' }, { v: 5, l: '5Y' }] as any} value={yrs} onChange={setYrs as any} /></>}
+      source={tab === 0 ? SRC_PX : 'Adjusted daily closes; correlation of daily returns, last year (common trading days).'}
+      note={tab === 0 ? `OLS regression of the asset's returns (Y) on the benchmark (X), ${vsLabel(bench)}. Adjusted beta = 0.67 × raw + 0.33 (Blume adjustment, the same one used by commercial terminals). Default benchmark follows the asset's market (Settings); default window: weekly, 2 years.` : `The asset, its benchmark (${benchLabel(bench)}) and up to 10 peers of the same class. Green = high positive correlation, red = negative.`}>
       {tab === 0 ? (
         <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 300px' }}>
           <div>
-            <XYChart height={400} legend xLabel={`${short(bench)} return (%)`} yLabel={`${short(ticker)} return (%)`} zeroLine series={[
+            <XYChart height={400} legend xLabel={`${benchLabel(bench)} return (%)`} yLabel={`${short(ticker)} return (%)`} zeroLine series={[
               { name: `${freq === 'w' ? 'Weeks' : 'Days'} (${calc.n})`, points: calc.x.map((v, i) => [v, calc.y[i]]), color: C.amber, scatter: true, opacity: 0.65 },
               { name: `Y = ${nf(calc.reg.alpha, 3)} + ${nf(calc.reg.beta, 3)}·X`, points: calc.xs.map(v => [v, calc.reg.alpha + calc.reg.beta * v]), color: C.white, width: 2 },
             ]} xFmt={v => nf(v, 1)} yFmt={v => nf(v, 1)} />
             <div className="mt-2 text-[12px]" style={{ color: C.amber }}>Rolling beta (252 sessions, daily) — last 5 years</div>
             <FnChart height={200} panes={[{ series: [{ kind: 'line', data: calc.roll, color: C.amber, title: 'Beta 252d', decimals: 2, lines: [{ price: 1, color: tc('#666') }] }] }]} />
           </div>
-          <Panel title={`${short(ticker)} vs ${short(bench)}`}>
+          <Panel title={`${short(ticker)} ${vsLabel(bench)}`}>
             <KV rows={[['Raw beta', nf(calc.reg.beta, 3), C.amber], ['Adjusted beta', nf(calc.adj, 3), C.amber], ['Alpha (intercept, %)', nf(calc.reg.alpha, 3)], ['R²', nf(calc.reg.r2, 3)], ['Correlation', nf(calc.reg.corr, 3)], ['Beta standard error', nf(calc.reg.se, 3)], ['Observations', String(calc.n)], ['Frequency', freq === 'w' ? 'Weekly (Friday)' : 'Daily'], ['Window', `${yrs} yr(s)`]]} />
           </Panel>
         </div>
-      ) : !matrix ? <Loading err={uni.err} /> : (
+      ) : !matrix ? <Loading err={merr} /> : (
         <div className="overflow-auto">
           <table className="border-collapse text-[12px]">
-            <thead><tr><th></th>{matrix.codes.map(c => <th key={c} className="px-2 py-1 font-normal" style={{ color: C.amber }}>{c}</th>)}</tr></thead>
-            <tbody>{matrix.codes.map((p, i) => <tr key={p}><td className="px-2 py-1" style={{ color: C.amber }}>{p}</td>{matrix.m[i].map((v, j) => <td key={j} className="px-2 py-1 text-right border border-[#1a1a1a]" style={{ background: `rgba(${v >= 0 ? '61,220,132' : '255,77,77'},${Math.abs(v) * 0.8})`, color: tc('#fff'), minWidth: 54 }}>{nf(v, 2)}</td>)}</tr>)}</tbody>
+            <thead><tr><th></th>{matrix.codes.map(c => <th key={c} className="px-2 py-1 font-normal" style={{ color: C.amber }} title={benchLabel(c)}>{mHead(c)}</th>)}</tr></thead>
+            <tbody>{matrix.codes.map((p, i) => <tr key={p}><td className="px-2 py-1 whitespace-nowrap" style={{ color: C.amber }} title={benchLabel(p)}>{mHead(p)}{p === bench ? ' (bench)' : ''}</td>{matrix.m[i].map((v, j) => <td key={j} className="px-2 py-1 text-right border border-[#1a1a1a]" style={{ background: Number.isFinite(v) ? `rgba(${v >= 0 ? '61,220,132' : '255,77,77'},${Math.abs(v) * 0.8})` : 'transparent', color: tc('#fff'), minWidth: 54 }}>{nf(v, 2)}</td>)}</tr>)}</tbody>
           </table>
         </div>
       )}
@@ -320,7 +335,7 @@ export function GRView({ ticker }: { ticker: string }) {
     const panes: PaneDef[] = [
       { stretch: 0.5, series: [
         { kind: 'line', data: idx.map(i => ({ time: al.t[i], value: (al.a[i] / al.a[i0]) * 100 })), color: C.white, title: short(ticker) },
-        { kind: 'line', data: idx.map(i => ({ time: al.t[i], value: (al.b[i] / al.b[i0]) * 100 })), color: C.amber, title: short(other) },
+        { kind: 'line', data: idx.map(i => ({ time: al.t[i], value: (al.b[i] / al.b[i0]) * 100 })), color: C.amber, title: benchLabel(other) },
       ] },
       { stretch: 0.5, series: [{ kind: 'line', data: idx.map((i, k) => ({ time: al.t[i], value: ratio[k] })), color: C.blue, width: 2, title: 'Ratio', decimals: 4, lines: [{ price: rm, color: tc('#aaa'), title: 'Average' }, { price: rm + 2 * rs, color: C.down, title: '+2σ' }, { price: rm - 2 * rs, color: C.up, title: '−2σ' }] }] },
     ]
@@ -329,13 +344,13 @@ export function GRView({ ticker }: { ticker: string }) {
   }, [a.rows, b.rows, period, ticker, other])
   return (
     <FnScreen code="GR" ticker={ticker} title="Graph Relationship (ratio / regression)"
-      right={<><Field label="vs"><select className={inputCls} style={inputStyle} value={other} onChange={e => setOther(e.target.value)}>{list.filter(t => t !== ticker).map(t => <option key={t}>{t}</option>)}</select></Field><Btns opts={PERIODS} value={period} onChange={setPeriod} /></>}
+      right={<><Field label="vs"><select className={inputCls} style={inputStyle} value={other} onChange={e => setOther(e.target.value)}>{Array.from(new Set([...benchChoices(ticker, other), ...list])).filter(t => t !== ticker).map(t => <option key={t} value={t}>{benchLabel(t) === short(t) ? t : `${benchLabel(t)} (${t})`}</option>)}</select></Field><Btns opts={PERIODS} value={period} onChange={setPeriod} /></>}
       source={SRC_PX} note="Pane 1: prices rebased to 100 at the start of the period. Pane 2: price ratio with mean and ±2 standard-deviation bands. Regression statistics on daily returns.">
       {!calc ? <Loading err={a.err || b.err} /> : (
         <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 260px' }}>
           <FnChart panes={calc.panes} height={620} />
           <Panel title="Relationship">
-            <KV rows={[[`${short(ticker)} return`, pf(calc.perfA), clr(calc.perfA)], [`${short(other)} return`, pf(calc.perfB), clr(calc.perfB)], ['Current ratio', nf(calc.lastR, 4), C.amber], ['Ratio mean', nf(calc.rm, 4)], ['Std. deviation', nf(calc.rs, 4)], ['Z-score', nf(calc.z, 2), calc.z > 2 ? C.down : calc.z < -2 ? C.up : C.text], ['Correlation', nf(calc.reg.corr, 3)], ['Beta (Y=asset)', nf(calc.reg.beta, 3)], ['R²', nf(calc.reg.r2, 3)]]} />
+            <KV rows={[[`${short(ticker)} return`, pf(calc.perfA), clr(calc.perfA)], [`${benchLabel(other)} return`, pf(calc.perfB), clr(calc.perfB)], ['Current ratio', nf(calc.lastR, 4), C.amber], ['Ratio mean', nf(calc.rm, 4)], ['Std. deviation', nf(calc.rs, 4)], ['Z-score', nf(calc.z, 2), calc.z > 2 ? C.down : calc.z < -2 ? C.up : C.text], ['Correlation', nf(calc.reg.corr, 3)], ['Beta (Y=asset)', nf(calc.reg.beta, 3)], ['R²', nf(calc.reg.r2, 3)]]} />
           </Panel>
         </div>
       )}
