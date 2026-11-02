@@ -74,14 +74,14 @@ def test_run_all_tem_todas_as_etapas_uma_vez():
     names = _order()
     assert sorted(names) == sorted(set(names))
     assert set(names) == {'prices', 'markets', 'calendar', 'options', 'corp', 'rates', 'news', 'anb', 'fns1', 'fns3',
-                          'fns2', 'extra', 'macro', 'credit', 'sec', 'des', 'slim', 'coverage', 'alerts'}
+                          'fns2', 'extra', 'macro', 'credit', 'sec', 'des', 'fns4', 'slim', 'coverage', 'alerts'}
 
 
 def test_run_all_respeita_dependencias():
     names = _order()
     before = lambda a, b: names.index(a) < names.index(b)
     for a, b in [('prices', 'markets'), ('markets', 'corp'), ('markets', 'calendar'), ('calendar', 'options'),
-                 ('sec', 'des'), ('extra', 'macro'), ('macro', 'credit'), ('coverage', 'alerts'), ('slim', 'coverage')]:
+                 ('sec', 'des'), ('des', 'fns4'), ('extra', 'macro'), ('macro', 'credit'), ('coverage', 'alerts'), ('slim', 'coverage')]:
         assert before(a, b), (a, b)
     # fase 2 só começa depois do primeiro wait (fase 1 inteira), fase 3 depois do segundo
     waits = [m.start() for m in re.finditer(r'^wait$', RUN_ALL, re.M)]

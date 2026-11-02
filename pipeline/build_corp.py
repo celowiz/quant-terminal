@@ -289,7 +289,7 @@ def corp():
             else: o['shares']['equiv'] = None; o['shares']['note'] = 'Unit sem preço oficial das classes ON/PN: valor de mercado não calculado'
         try:
             d = raw[t] if len(tickers) > 1 else raw
-            o['raw_close'] = [[i.strftime('%Y-%m-%d'), clean(v, 4)] for i, v in d['Close'].dropna().items() if i.dayofweek < 5]
+            o['raw_close'] = [[i.strftime('%Y-%m-%d'), clean(v, 4)] for i, v in d['Close'].dropna().items() if i.day_of_week < 5]
             dv = d['Dividends'][d['Dividends'] > 0]; o['dividends'] = [[i.strftime('%Y-%m-%d'), clean(v, 6)] for i, v in dv.items()]
             sp = d['Stock Splits'][d['Stock Splits'] > 0]; o['splits'] = [[i.strftime('%Y-%m-%d'), clean(v, 6)] for i, v in sp.items()]
         except Exception as e: print('raw', t, e)

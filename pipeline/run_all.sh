@@ -63,6 +63,7 @@ wait
 (
   run sec      build_sec.py        # ações dos EUA: SEC EDGAR + Yahoo (preço bruto, proventos) → corp/ dos EUA
   STEP_TIMEOUT=1500 run des build_des.py  # DES de FIIs, ETFs B3, BDRs, ETFs EUA (tickers.json + corp/ do corp e do sec)
+  run fns4     build_fns4.py       # RESV, WEO, EUCV, CDR, INSD (depois do sec: não somar requisições à SEC)
 ) &
 wait
 

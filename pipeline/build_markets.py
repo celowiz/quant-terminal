@@ -13,7 +13,7 @@ def closes_frame(tickers, period='2y'):
     for t in tickers:
         try:
             s = df[t]['Close'].dropna()
-            s = s[s.index.dayofweek < 5]
+            s = s[s.index.day_of_week < 5]
             if len(s) > 5: out[t] = s
         except Exception: pass
     return out, df

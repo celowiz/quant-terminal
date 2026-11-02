@@ -83,6 +83,11 @@ export const FUNCTION_LIST: FunctionItem[] = [
   { code: 'FIIM', desc: 'REIT (FII) Monitor: yield, P/NAV, holders', pt: 'Monitor de FIIs: DY, P/VP, PL e cotistas', cat: 'equity' },
   { code: 'FNDS', desc: 'Fund Rankings: returns, flows, AUM, drawdown', pt: 'Ranking de fundos: cota, captação, PL e drawdown', cat: 'monitors' },
   { code: 'BKS', desc: 'Bank Monitor: Basel ratio, credit, earnings', pt: 'Painel de bancos: Basileia, crédito e resultado', cat: 'macro' },
+  { code: 'RESV', desc: 'Brazil FX Reserves', pt: 'Reservas internacionais do Brasil', cat: 'macro' },
+  { code: 'WEO', desc: 'World Economic Projections', pt: 'Projeções econômicas mundiais', cat: 'macro' },
+  { code: 'EUCV', desc: 'Euro Area Yield Curve', pt: 'Curva de juros da área do euro', cat: 'rates' },
+  { code: 'CDR', desc: 'Exchange Holiday Calendar', pt: 'Calendário de feriados das bolsas', cat: 'tools' },
+  { code: 'INSD', desc: 'Insider Transactions (BR/US)', pt: 'Negociações de insiders (BR/EUA)', cat: 'equity' },
 ]
 
 /** nome da função no idioma atual */
