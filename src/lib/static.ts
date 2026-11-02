@@ -45,6 +45,10 @@ type PriceCols = { t: string[]; o: number[]; h: number[]; l: number[]; c: number
 export const unpackPrices = (d: Price[] | PriceCols): Price[] => Array.isArray(d) ? d
   : d.t.map((time, i) => ({ time, open: d.o[i], high: d.h[i], low: d.l[i], close: d.c[i], volume: d.v[i] }))
 const readPrices = async (k: string) => unpackPrices(await getJSON<Price[] | PriceCols>(`prices/${k}.json`))
+/** prices/r/<key>.json: só os últimos ~2 anos (gerado por pipeline/build_slim.py). Ausente (artefato antigo) → histórico completo. */
+const readRecent = async (k: string) => {
+  try { return unpackPrices(await getJSON<PriceCols>(`prices/r/${k}.json`)) } catch { return readPrices(k) }
+}
 
 export const listTickers = async () => (await getJSON<TickersFile>('tickers.json')).tickers.map(t => t.ticker).sort()
 export const tickerMeta = async (ticker: string) => {
@@ -64,9 +68,12 @@ function periodKey(d: string, tf: string) {
   return end.toISOString().slice(0, 10)
 }
 
-/** Equivalente a GET /prices/{ticker}?start_date&end_date&timeframe */
-export async function getPrices(ticker: string, start?: string, end?: string, timeframe = 'd'): Promise<Price[]> {
-  const rows = (await readPrices(tickerKey(ticker)))
+/** Períodos que cabem no arquivo recente (prices/r/, ~2 anos): o resto pede o histórico completo. */
+export const RECENT_PERIODS = new Set(['1M', '3M', '6M', 'YTD', '1A'])
+/** Equivalente a GET /prices/{ticker}?start_date&end_date&timeframe.
+ *  recent=true: lê só os ~2 últimos anos (bem menor); use quando o período pedido cabe nisso. */
+export async function getPrices(ticker: string, start?: string, end?: string, timeframe = 'd', recent = false): Promise<Price[]> {
+  const rows = (await (recent ? readRecent : readPrices)(tickerKey(ticker)))
     .filter(r => (!start || r.time >= start) && (!end || r.time <= end))
   if (timeframe === 'd' || !['w', 'm', 'q', 'y'].includes(timeframe)) return rows
   const out: Price[] = []
@@ -148,20 +155,29 @@ function smooth(s: (number | null)[]): (number | null)[] {
 }
 const quadrant = (r: number, m: number) => (r >= 100 && m >= 100 ? 'Leading' : r < 100 && m >= 100 ? 'Improving' : r < 100 && m < 100 ? 'Lagging' : 'Weakening')
 
-/** Equivalente a GET /rrg — calculado no navegador a partir dos JSON de preços */
+type Weekly = { t: string[]; c: number[] }
+/** fechamentos semanais (W-FRI) de um ativo: rrg.json (pacote padrão) → weekly/<key>.json → preços diários */
+async function readWeekly(k: string): Promise<Map<string, number>> {
+  try {
+    const b = await getJSON<{ series: Record<string, Weekly> }>('rrg.json')
+    const w = b.series?.[k] || await getJSON<Weekly>(`weekly/${k}.json`)
+    return new Map(w.t.map((d, i) => [d, w.c[i]] as [string, number]))
+  } catch {
+    try { const w = await getJSON<Weekly>(`weekly/${k}.json`); return new Map(w.t.map((d, i) => [d, w.c[i]] as [string, number])) }
+    catch { return weeklyFri(await readPrices(k)) }
+  }
+}
+
+/** Equivalente a GET /rrg — calculado no navegador a partir dos fechamentos semanais (pipeline/build_slim.py) */
 export async function computeRRG(p: RRGFormData): Promise<RRGResponse> {
   const bench = tickerKey(p.benchmark)
   const list = p.tickers ? p.tickers.split(',').map(t => tickerKey(t.trim())).filter(Boolean) : DEFAULT_RRG_TICKERS.slice()
   if (!list.includes(bench)) list.push(bench)
-  // como o backend: merge diário (outer) + dropna => só datas com todos os ativos; depois W-FRI last
-  const daily: Record<string, Price[]> = {}
-  for (const k of list) {
-    try { daily[k] = await readPrices(k) } catch { /* ticker ausente: ignora, como o backend */ }
-  }
-  const sets = Object.values(daily).map(rows => new Set(rows.map(r => r.time)))
-  const common = (rows: Price[]) => rows.filter(r => sets.every(st => st.has(r.time)))
+  // fechamento semanal (W-FRI, último pregão da semana) de cada ativo; depois inner join nas sextas (dropna)
   const series: Record<string, Map<string, number>> = {}
-  for (const k of Object.keys(daily)) series[k] = weeklyFri(common(daily[k]))
+  await Promise.all(list.map(async k => {
+    try { series[k] = await readWeekly(k) } catch { /* ticker ausente: ignora, como o backend */ }
+  }))
   if (!series[bench]) throw new Error(`Benchmark '${bench}' not found in the data`)
   // inner join (dropna) nas datas semanais
   const keys = Object.keys(series)

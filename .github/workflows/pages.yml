@@ -157,6 +157,10 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: bash pipeline/run_all.sh
 
+      # Também no modo só-frontend: o artefato base pode ser de antes destes arquivos existirem (4 s).
+      - name: Arquivos enxutos (preços recentes, semanais, RRG)
+        run: python pipeline/build_slim.py
+
       - name: Testes dos dados gerados (pytest)
         run: python -m pytest -q tests
 

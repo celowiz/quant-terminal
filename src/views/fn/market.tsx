@@ -332,7 +332,7 @@ export function ALERTView() {
   useEffect(() => { setLoc(readStoredJSON(window.localStorage, 'qt_alerts', validLocalAlerts, [])) }, [])
   useEffect(() => { try { localStorage.setItem('qt_alerts', JSON.stringify(loc)) } catch { } }, [loc])
   useEffect(() => { if (d) setPx(Object.fromEntries(d.rules.map((r: any) => [r.ticker, { last: r.last, date: r.date }]))) }, [d])
-  useEffect(() => { import('../../lib/static').then(m => loc.forEach(a => !px[a.ticker] && m.getPrices(a.ticker).then(p => { const l = p[p.length - 1]; setPx(o => ({ ...o, [a.ticker]: { last: l.close, date: l.time } })) }).catch(() => { }))) }, [loc]) // eslint-disable-line
+  useEffect(() => { import('../../lib/static').then(m => loc.forEach(a => !px[a.ticker] && m.getPrices(a.ticker, undefined, undefined, 'd', true).then(p => { const l = p[p.length - 1]; setPx(o => ({ ...o, [a.ticker]: { last: l.close, date: l.time } })) }).catch(() => { }))) }, [loc]) // eslint-disable-line
   if (!d) return <FnScreen code="ALERT"><Loading err={err} /></FnScreen>
   const opL = (o: string, v: number) => o === 'above' ? `≥ ${nf(v)}` : o === 'below' ? `≤ ${nf(v)}` : o === 'change_pct_below' ? `day chg ≤ ${nf(v)}%` : `day chg ≥ ${nf(v)}%`
   const tickers = ['PETR4.SA', 'PETR3.SA', 'VALE3.SA', 'ITUB4.SA', 'ITUB3.SA', 'B3SA3.SA', '^BVSP', 'BRL=X', 'EURUSD=X', 'DX-Y.NYB']

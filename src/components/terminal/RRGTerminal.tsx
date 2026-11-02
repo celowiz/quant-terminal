@@ -10,7 +10,7 @@ import { lang } from '@/lib/settings'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { computeRRG, getJSON, type TickersFile } from '../../lib/static'
 import type { RRGResponse } from '../../types/rrg'
-import { MONO } from './PriceChart'
+import { MONO } from './chartTheme'
 import { fmtDate } from '../../lib/dates'
 
 const Q: Record<string, { c: string; n: string; d: string }> = {

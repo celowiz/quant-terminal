@@ -7,7 +7,7 @@ import { en } from '@/lib/enText'
 import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
 import { C, PALETTE, nf, pf, big, dBR, dBRfull, clr, short, useJSON, FnScreen, Panel, Grid, Btns, perLabel, Field, inputCls, inputStyle, KV, Loading, NA, isEquity, hasData, corpPath, defaultBench } from '@/components/fn/kit'
-import { getPrices, listTickers, tickerKey, type Price } from '@/lib/static'
+import { getPrices, listTickers, tickerKey, RECENT_PERIODS, type Price } from '@/lib/static'
 import { mean, std, regress, corr, align, weekly, monthEnds, monthlyReturns, maxDrawdown } from '@/lib/quant'
 import { usePrices } from './tech'
 import { downloadCSV, CsvBtn, heat, HBars, PERIODS, periodStart } from './v4util'
@@ -16,9 +16,16 @@ const SRC_PX = 'Yahoo Finance via yfinance (daily OHLCV adjusted for distributio
 const MES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const lbl = (t: string) => t === '^BVSP' ? 'IBOV' : short(t)
 function useTickerList() { const [l, setL] = useState<string[]>([]); useEffect(() => { listTickers().then(setL).catch(() => {}) }, []); return l }
-function useMulti(list: string[]) {
+/** preços de vários ativos; recent=true lê só os ~2 anos de prices/r/ (o histórico completo substitui quando pedido) */
+function useMulti(list: string[], recent = false) {
   const [m, setM] = useState<Record<string, Price[]>>({})
-  useEffect(() => { list.forEach(t => { if (!m[t]) getPrices(t).then(r => setM(p => ({ ...p, [t]: r }))).catch(() => {}) }) }, [list.join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [full, setFull] = useState<Record<string, boolean>>({})
+  useEffect(() => {
+    list.forEach(t => {
+      if (m[t] && (recent || full[t])) return
+      getPrices(t, undefined, undefined, 'd', recent).then(r => { setM(p => ({ ...p, [t]: r })); if (!recent) setFull(f => ({ ...f, [t]: true })) }).catch(() => {})
+    })
+  }, [list.join('|'), recent]) // eslint-disable-line react-hooks/exhaustive-deps
   return m
 }
 const tv = (r: Price[]) => r.map(x => ({ time: x.time, value: x.close }))
@@ -29,7 +36,7 @@ export function COMPView({ ticker }: { ticker: string }) {
   const all = useTickerList()
   const [list, setList] = useState<string[]>(() => Array.from(new Set([ticker, '^BVSP', ticker === 'VALE3.SA' ? 'PETR4.SA' : 'VALE3.SA', 'ITUB4.SA'])))
   const [per, setPer] = useState('1A')
-  const m = useMulti(list)
+  const m = useMulti(list, RECENT_PERIODS.has(per))
   const calc = useMemo(() => {
     const base = m[list[0]]; if (!base?.length) return null
     const last = base[base.length - 1].time, from = periodStart(last, per)
@@ -227,7 +234,8 @@ export function RVView({ ticker }: { ticker: string }) {
 export function HPView({ ticker }: { ticker: string }) {
   const [tf, setTf] = useState<'d' | 'w' | 'm'>('d'), [per, setPer] = useState('3M')
   const [rows, setRows] = useState<Price[] | null>(null), [err, setErr] = useState<string | null>(null)
-  useEffect(() => { setRows(null); getPrices(ticker, undefined, undefined, tf).then(setRows).catch(e => setErr(String(e?.message || e))) }, [ticker, tf])
+  const recent = tf === 'd' && RECENT_PERIODS.has(per)   // 1M–1Y diário cabe no arquivo recente (~2 anos)
+  useEffect(() => { setRows(null); getPrices(ticker, undefined, undefined, tf, recent).then(setRows).catch(e => setErr(String(e?.message || e))) }, [ticker, tf, recent])
   const calc = useMemo(() => {
     if (!rows?.length) return null
     const from = periodStart(rows[rows.length - 1].time, per), i0 = rows.findIndex(r => r.time >= from)
