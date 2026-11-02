@@ -530,11 +530,94 @@ def boc(a, b, fetch): return in_window(parse_boc(fetch(BOC_URL)), a, b)
 # ================================================================ coleta (usada por build_macro.eco)
 FRED_DATES_URL = 'https://api.stlouisfed.org/fred/releases/dates'
 # fonte → (função, cabeçalhos HTTP, 'json' ou 'text')
+# ----- México (INEGI) -----
+# Lista anual mantida à mão, copiada só do calendário oficial do INEGI:
+# "Calendario de difusión de información estadística y geográfica y de Interés Nacional del INEGI 2026"
+# https://www.inegi.org.mx/contenidos/saladeprensa/doc/cal_2026.pdf — "la información se difunde a las 06:00 a.m." (Cidade do México).
+# Atualize a cada novo calendário anual (o INEGI publica o do ano seguinte em novembro/dezembro).
+MEX = ZoneInfo('America/Mexico_City')
+INEGI_2026 = [  # (data, EN, PT, período, importância)
+    ('2026-11-09', 'CPI (2nd half-month & monthly)', 'Inflação ao consumidor (2ª quinzena e mensal)', '10/2026', 2),
+    ('2026-11-11', 'Industrial production', 'Produção industrial', '09/2026', 1),
+    ('2026-11-23', 'GDP (quarterly, revised)', 'PIB trimestral (revisado)', 'Q3/2026', 2),
+    ('2026-11-23', 'Economic activity index (IGAE)', 'Índice de atividade econômica (IGAE)', '09/2026', 1),
+    ('2026-11-24', 'CPI (1st half-month)', 'Inflação ao consumidor (1ª quinzena)', '11/2026', 2),
+    ('2026-11-26', 'Unemployment rate', 'Taxa de desemprego', '10/2026', 1),
+    ('2026-11-27', 'Trade balance', 'Balança comercial', '10/2026', 1),
+    ('2026-12-09', 'CPI (2nd half-month & monthly)', 'Inflação ao consumidor (2ª quinzena e mensal)', '11/2026', 2),
+    ('2026-12-11', 'Industrial production', 'Produção industrial', '10/2026', 1),
+    ('2026-12-23', 'Economic activity index (IGAE)', 'Índice de atividade econômica (IGAE)', '10/2026', 1),
+    ('2026-12-23', 'CPI (1st half-month)', 'Inflação ao consumidor (1ª quinzena)', '12/2026', 2),
+    ('2026-12-23', 'Trade balance', 'Balança comercial', '11/2026', 1),
+    ('2026-12-24', 'Unemployment rate', 'Taxa de desemprego', '11/2026', 1),
+]
+
+def inegi(a, b, fetch=None):
+    out = [row('MX', at(dt.date.fromisoformat(d), 6, 0, MEX), en, pt, 'INEGI', period=per, tier=t, src='inegi') for d, en, pt, per, t in INEGI_2026]
+    return in_window(out, a, b)
+
+# ----- China (NBS) -----
+# Lista anual mantida à mão, copiada só do calendário oficial "Regular Press Release Calendar of NBS in 2026"
+# https://www.stats.gov.cn/english/PressRelease/ReleaseCalendar/202512/t20251226_1962154.html (horário de Pequim;
+# "release dates are preliminary and subject to adjustment"). Atualize quando sair o calendário de 2027.
+PEK = ZoneInfo('Asia/Shanghai')
+NBS_KINDS = {  # chave → (EN, PT, importância, hora, minuto, período = mês anterior?)
+    'cpi': ('CPI inflation', 'Inflação ao consumidor (CPI)', 2, 9, 30, True),
+    'ppi': ('Producer prices (PPI)', 'Preços ao produtor (PPI)', 1, 9, 30, True),
+    'ip': ('Industrial production', 'Produção industrial', 2, 10, 0, True),
+    'retail': ('Retail sales', 'Vendas no varejo', 2, 10, 0, True),
+    'fai': ('Fixed-asset investment (YTD)', 'Investimento em ativos fixos (acum. no ano)', 1, 10, 0, True),
+    'home': ('New home prices (70 cities)', 'Preços de imóveis novos (70 cidades)', 1, 9, 30, True),
+    'profits': ('Industrial profits (YTD)', 'Lucros industriais (acum. no ano)', 1, 9, 30, True),
+    'pmi': ('Official manufacturing & non-manufacturing PMI', 'PMI oficial da indústria e de não manufatura', 3, 9, 30, False),
+}
+NBS_2026 = [('2026-11-09', 'cpi'), ('2026-11-09', 'ppi'), ('2026-11-16', 'ip'), ('2026-11-16', 'retail'), ('2026-11-16', 'fai'),
+            ('2026-11-16', 'home'), ('2026-11-27', 'profits'), ('2026-11-30', 'pmi'),
+            ('2026-12-09', 'cpi'), ('2026-12-09', 'ppi'), ('2026-12-15', 'ip'), ('2026-12-15', 'retail'), ('2026-12-15', 'fai'),
+            ('2026-12-15', 'home'), ('2026-12-27', 'profits'), ('2026-12-31', 'pmi')]
+
+def nbs(a, b, fetch=None):
+    out = []
+    for d, k in NBS_2026:
+        en, pt, tier, h, mi, prev = NBS_KINDS[k]; day = dt.date.fromisoformat(d)
+        pm = (day.replace(day=1) - dt.timedelta(days=1)) if prev else day
+        out.append(row('CN', at(day, h, mi, PEK), en, pt, 'NBS', period=f'{pm.month:02d}/{pm.year}', tier=tier, src='nbs'))
+    return in_window(out, a, b)
+
+# ----- Alemanha (Destatis) -----
+# Lista mantida à mão, copiada só do Veröffentlichungskalender oficial do Destatis
+# (https://www.destatis.de/SiteGlobals/Forms/Suche/Termine/DE/Terminsuche_Formular.html), consultado em 02/11/2026.
+# "Die Veröffentlichungen erfolgen in der Regel um 8.00 Uhr" (Berlim) → horário marcado como aproximado.
+BER = ZoneInfo('Europe/Berlin')
+DESTATIS_2026 = [  # (data, EN, PT, período, importância)
+    ('2026-11-02', 'Retail sales', 'Vendas no varejo', '09/2026', 1),
+    ('2026-11-05', 'Factory orders', 'Encomendas à indústria', '09/2026', 1),
+    ('2026-11-06', 'Industrial production', 'Produção industrial', '09/2026', 2),
+    ('2026-11-09', 'Trade balance', 'Balança comercial', '09/2026', 1),
+    ('2026-11-11', 'CPI inflation (final)', 'Inflação ao consumidor (final)', '10/2026', 1),
+    ('2026-11-20', 'Producer prices (PPI)', 'Preços ao produtor (PPI)', '10/2026', 1),
+    ('2026-11-25', 'GDP (detailed results)', 'PIB (resultados detalhados)', 'Q3/2026', 2),
+    ('2026-11-30', 'Retail sales', 'Vendas no varejo', '10/2026', 1),
+    ('2026-11-30', 'CPI inflation (flash)', 'Inflação ao consumidor (prévia)', '11/2026', 3),
+    ('2026-12-07', 'Factory orders', 'Encomendas à indústria', '10/2026', 1),
+    ('2026-12-08', 'Industrial production', 'Produção industrial', '10/2026', 2),
+    ('2026-12-09', 'Trade balance', 'Balança comercial', '10/2026', 1),
+    ('2026-12-10', 'CPI inflation (final)', 'Inflação ao consumidor (final)', '11/2026', 1),
+    ('2026-12-18', 'Producer prices (PPI)', 'Preços ao produtor (PPI)', '11/2026', 1),
+]
+
+def destatis(a, b, fetch=None):
+    out = [row('DE', at(dt.date.fromisoformat(d), 8, 0, BER), en, pt, 'Destatis', period=per, tier=t, approx=True, src='destatis')
+           for d, en, pt, per, t in DESTATIS_2026]
+    return in_window(out, a, b)
+
 SOURCES = [
     ('bcb', bcb, None, 'text'), ('fgv', fgv, None, 'text'), ('caged', caged, None, 'text'), ('mdic', mdic, None, 'text'),
     ('bls', bls, UA_CONTACT, 'text'), ('eia', eia, None, 'text'), ('umich', umich, None, 'text'), ('treasury', treasury, None, 'json'),
     ('pmi', pmi, UA_BROWSER, 'text'), ('eurostat', eurostat, None, 'text'), ('ons', ons, None, 'json'), ('statcan', statcan, None, 'json'),
     ('ecb', ecb, None, 'text'), ('boe', boe, UA_BROWSER, 'text'), ('boj', boj, None, 'text'), ('boc', boc, UA_BROWSER, 'text'),
+    ('inegi', inegi, None, 'text'), ('nbs', nbs, None, 'text'),
+    ('destatis', destatis, None, 'text'),
 ]
 
 def http_fetch(headers, kind, tries=2, timeout=(10, 40)):

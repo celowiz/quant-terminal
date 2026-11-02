@@ -172,3 +172,25 @@ def test_semente_versionada_valida():
     for name in ('fgv', 'bls'):
         assert s[name]['rows'] and s[name]['fetched_at']
         for r in s[name]['rows']: assert r['src'] == name and r['survey'] is None and r['event_pt']
+
+
+def test_listas_manuais_oficiais_mx_cn_de():
+    import datetime as dt
+    a, b = dt.date(2026, 11, 1), dt.date(2026, 12, 31)
+    mx, cn, de = es.inegi(a, b), es.nbs(a, b), es.destatis(a, b)
+    assert len(mx) == len(es.INEGI_2026) and len(cn) == len(es.NBS_2026) and len(de) == len(es.DESTATIS_2026)
+    # INEGI 06:00 Cidade do México = 09:00 BRT
+    cpi = [r for r in mx if r['time'].startswith('2026-11-09')][0]
+    assert cpi['time'] == '2026-11-09T09:00-03:00' and cpi['agency'] == 'INEGI' and cpi['survey'] is None and cpi['event_pt']
+    # NBS 09:30 Pequim = 22:30 BRT do dia anterior; período = mês anterior (exceto PMI)
+    c = [r for r in cn if r['event'] == 'CPI inflation' and r['period'] == '10/2026'][0]
+    assert c['time'] == '2026-11-08T22:30-03:00'
+    p = [r for r in cn if r['src'] == 'nbs' and 'PMI' in r['event'] and r['time'] == '2026-11-29T22:30-03:00'][0]
+    assert p['period'] == '11/2026' and p['tier'] == 3
+    # Destatis 08:00 Berlim (CET) = 04:00 BRT, horário aproximado
+    f = [r for r in de if r['event'] == 'CPI inflation (flash)'][0]
+    assert f['time'] == '2026-11-30T04:00-03:00' and f.get('time_approx')
+    for r in mx + cn + de:
+        assert r['event'] and r['event_pt'] and r['event'] != r['event_pt']
+    # janela recorta
+    assert es.inegi(dt.date(2027, 1, 1), dt.date(2027, 2, 1)) == []
