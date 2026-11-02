@@ -122,7 +122,7 @@ def test_collect_falha_suave_e_reaproveita_linhas_anteriores():
     prev = [es.row('GB', dt.datetime(2026, 11, 5, 12, tzinfo=es.LON), 'BoE rate decision', 'Decisão de juros do BoE', 'BoE', tier=3, src='boe')]
     def boom(url): raise RuntimeError('timeout')
     src = [('boe', es.boe, None, 'text'), ('umich', es.umich, None, 'text')]
-    rows, st = es.collect(a, b, prev, fetchers={'boe': boom, 'umich': lambda u: txt('um.html')}, sources=src)
+    rows, st = es.collect(a, b, prev, fetchers={'boe': boom, 'umich': lambda u: txt('um.html')}, sources=src, seed={})
     assert st['boe'] == 0 and st['boe_stale'] and st['umich'] == 1 and st['fred'] == 0
     assert find(rows, '2026-11-05', 'BoE rate decision')
     assert find(rows, '2026-11-06', 'Consumer sentiment (prelim.)')
@@ -132,10 +132,10 @@ def test_collect_usa_fred_so_como_reserva_do_bls():
     d = {'release_dates': [{'release_id': 10, 'release_name': 'Consumer Price Index', 'date': '2026-11-10'},
                            {'release_id': 14, 'release_name': 'G.19 Consumer Credit', 'date': '2026-11-06'}]}
     ok = {'bls': lambda u: txt('bls.ics'), 'fred': lambda p: d}
-    rows, st = es.collect(a, b, fetchers=ok, sources=[('bls', es.bls, None, 'text')])
+    rows, st = es.collect(a, b, fetchers=ok, sources=[('bls', es.bls, None, 'text')], seed={})
     assert not [r for r in rows if r['src'] == 'fred_bls'] and st['fred'] == 1
     def boom(url): raise RuntimeError('HTTP 403')
-    rows, st = es.collect(a, b, fetchers={'bls': boom, 'fred': lambda p: d}, sources=[('bls', es.bls, None, 'text')])
+    rows, st = es.collect(a, b, fetchers={'bls': boom, 'fred': lambda p: d}, sources=[('bls', es.bls, None, 'text')], seed={})
     assert st['bls'] == 0 and find(rows, '2026-11-10', 'CPI inflation')['src'] == 'fred_bls'
 
 def test_chave_do_fred_nunca_aparece_no_erro(monkeypatch):
@@ -145,3 +145,30 @@ def test_chave_do_fred_nunca_aparece_no_erro(monkeypatch):
     with pytest.raises(RuntimeError) as e:
         es.fred_key_fetch('SECRETKEY123')({'limit': 1})
     assert 'SECRETKEY123' not in str(e.value) and 'api_key' not in str(e.value)
+
+
+def test_semente_cobre_fonte_que_recusa_o_runner():
+    a, b = dt.date(2026, 11, 1), dt.date(2026, 11, 30)
+    seed_rows = es.parse_fgv(txt('fgv.html'))
+    seed = {'fgv': {'fetched_at': '2026-11-02T18:05-03:00', 'rows': seed_rows}}
+    def boom(u): raise RuntimeError('SSLError')
+    src = [('fgv', es.fgv, None, 'text')]
+    rows, st = es.collect(a, b, prev_events=seed_rows[:2], fetchers={'fgv': boom}, sources=src, seed=seed)
+    fg = [r for r in rows if r['src'] == 'fgv']
+    assert st['fgv'] == 0 and st['fgv_stale'] and st['fgv_seed'] == '2026-11-02T18:05-03:00'
+    assert len(fg) == len(es.in_window(seed_rows, a, b))           # anteriores + semente, sem duplicar
+    rows, st = es.collect(a, b, fetchers={'fgv': boom}, sources=src, seed={})
+    assert not [r for r in rows if r['src'] == 'fgv'] and 'fgv_seed' not in st
+
+
+def test_fgv_pede_a_janela_inteira():
+    seen = []
+    es.fgv(dt.date(2026, 11, 1), dt.date(2027, 1, 31), lambda u: seen.append(u) or txt('fgv.html'))
+    assert 'field_divulgacao_data_value=2026-11-01' in seen[0] and 'field_divulgacao_data_value_1=2027-01-31' in seen[0]
+
+
+def test_semente_versionada_valida():
+    s = es.load_seed()
+    for name in ('fgv', 'bls'):
+        assert s[name]['rows'] and s[name]['fetched_at']
+        for r in s[name]['rows']: assert r['src'] == name and r['survey'] is None and r['event_pt']

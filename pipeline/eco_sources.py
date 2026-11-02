@@ -8,7 +8,7 @@ Regras: só datas de calendários oficiais (ou regras de divulgação publicadas
 útil e pedidos de seguro-desemprego às quintas); horários convertidos para BRT; sem consenso (survey = None);
 nomes EN/PT escritos à mão aqui; importância (tier 1–3) é nossa, derivada do tipo de indicador.
 """
-import re, json, urllib.parse, html as htmlmod, datetime as dt
+import os, re, json, urllib.parse, html as htmlmod, datetime as dt
 from zoneinfo import ZoneInfo
 
 BRT = ZoneInfo('America/Sao_Paulo')
@@ -183,7 +183,10 @@ def parse_fgv(h):
                 break
     return out
 
-def fgv(a, b, fetch): return in_window(parse_fgv(fetch(FGV_URL)), a, b)
+def fgv(a, b, fetch):
+    # a página mostra só o mês corrente; o filtro 'Período' do próprio site devolve a janela inteira
+    u = f'{FGV_URL}?field_divulgacao_data_value={a.isoformat()}&field_divulgacao_data_value_1={b.isoformat()}'
+    return in_window(parse_fgv(fetch(u)), a, b)
 
 CAGED_URL = ('https://www.gov.br/trabalho-e-emprego/pt-br/acesso-a-informacao/acoes-e-programas/programas-projetos-acoes-obras-e-atividades/'
              'estatisticas-trabalho/o-pdet/calendario-de-divulgacao-do-novo-caged')
@@ -555,15 +558,29 @@ def fred_key_fetch(key):
             raise RuntimeError(f'FRED release dates: {type(e).__name__} {str(e)[:80] if isinstance(e, RuntimeError) else ""}'.strip()) from None
     return f
 
-def collect(a, b, prev_events=(), fred_key=None, fetchers=None, sources=SOURCES):
+# Semente versionada (pipeline/data/eco_seed.json) para fontes que recusam os runners do GitHub Actions
+# (FGV IBRE: erro de TLS; BLS: HTTP 403). São as linhas já interpretadas dos calendários oficiais, geradas por
+# pipeline/refresh_eco_seed.py numa máquina que alcança os sites. Só entra quando a fonte falha.
+SEED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'eco_seed.json')
+
+def load_seed(path=SEED_PATH):
+    try:
+        with open(path, encoding='utf-8') as f: return json.load(f)
+    except Exception: return {}
+
+def collect(a, b, prev_events=(), fred_key=None, fetchers=None, sources=SOURCES, seed=None):
     """Roda cada fonte isolada. Falha (ou zero linhas numa fonte que deveria ter algo): status[nome] = 0 e
-    reaproveita as linhas anteriores da mesma fonte dentro da janela. Devolve (linhas, status)."""
+    reaproveita as linhas anteriores da mesma fonte dentro da janela, completadas pela semente. Devolve (linhas, status)."""
     rows, status = [], {}
     lo, hi = a.isoformat(), b.isoformat()
+    seed = load_seed() if seed is None else seed
     def stale(name):
         old = [r for r in prev_events if r.get('src') == name and lo <= r['time'][:10] <= hi]
         if old: status[name + '_stale'] = True
-        return old
+        have = {(r['time'][:10], r['event']) for r in old}
+        sd = [r for r in (seed.get(name) or {}).get('rows', []) if lo <= r['time'][:10] <= hi and (r['time'][:10], r['event']) not in have]
+        if sd: status[name + '_seed'] = (seed.get(name) or {}).get('fetched_at')
+        return old + sd
     for name, fn, headers, kind in sources:
         try:
             fetch = (fetchers or {}).get(name) or http_fetch(headers, kind)
