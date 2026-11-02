@@ -4,7 +4,7 @@ import { CircleHelp, Settings, Share2 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import ShareMenu from './ShareMenu'
 import SettingsPanel from './SettingsPanel'
-import { isPanelOpen, setPanelOpen } from '../lib/settings'
+import { isPanelOpen, setPanelOpen, lang } from '../lib/settings'
 import { t } from '../lib/i18n'
 import Header from './Header'
 import TickerSelector from './TickerSelector'
@@ -119,7 +119,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
       }
       try {
         const meta = await tickerMeta(selectedTicker)
-        setTickerName(meta?.name || '')
+        setTickerName((lang() === 'pt' && meta?.name_pt) || meta?.name || '')
       } catch (error) {
         setTickerName('')
       }

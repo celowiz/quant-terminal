@@ -24,10 +24,30 @@ const MAX_HIST = 104 // semanas calculadas; a cauda exibida é só um recorte (n
 const label = (k: string) => k.replace(/^IDX_/, '^').replace(/_X$/, '=X')
 /** universos do RRG: seleção inicial, benchmark padrão e pacote semanal pré-calculado (pipeline/build_slim.py) */
 type Mkt = 'br' | 'us'
+/** EUA: "Setores" (os 11 ETFs setoriais SPDR, o RRG clássico; padrão) ou "Ações" (big techs + ETFs amplos) */
+type Uni = 'sec' | 'stk'
+/** ETF setorial → [rótulo curto EN, rótulo curto PT, nome do setor EN, PT, cor fixa] (cor não muda ao ocultar/adicionar) */
+const SECTOR: Record<string, [string, string, string, string, string]> = {
+  XLK: ['Tech', 'Tecnologia', 'Technology', 'Tecnologia', '#4FC3F7'],
+  XLC: ['Comm', 'Comunic.', 'Communication Services', 'Serviços de Comunicação', '#B388FF'],
+  XLY: ['Discr', 'Discric.', 'Consumer Discretionary', 'Consumo Discricionário', '#FF5BD6'],
+  XLP: ['Staples', 'Básico', 'Consumer Staples', 'Consumo Básico', '#FFD400'],
+  XLF: ['Fin', 'Financ.', 'Financials', 'Financeiro', '#00E5C0'],
+  XLV: ['Health', 'Saúde', 'Health Care', 'Saúde', '#FFFFFF'],
+  XLI: ['Indust', 'Indústria', 'Industrials', 'Industrial', '#FFA028'],
+  XLE: ['Energy', 'Energia', 'Energy', 'Energia', '#C9A27E'],
+  XLB: ['Matls', 'Materiais', 'Materials', 'Materiais', '#9CCC65'],
+  XLU: ['Util', 'Util. púb.', 'Utilities', 'Utilidades Públicas', '#90A4AE'],
+  XLRE: ['RE', 'Imob.', 'Real Estate', 'Imobiliário', '#FF8A80'],
+}
+const US_STK = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'QQQ', 'IWM']
 const MKT: Record<Mkt, { bench: string; sel: string[]; bundle: 'rrg.json' | 'rrg_us.json' }> = {
   br: { bench: 'IDX_BVSP', sel: ['PETR4', 'VALE3', 'ITUB4', 'B3SA3', 'PETR3', 'ITUB3'], bundle: 'rrg.json' },
-  us: { bench: 'IDX_GSPC', sel: ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'QQQ', 'IWM'], bundle: 'rrg_us.json' },
+  us: { bench: 'IDX_GSPC', sel: Object.keys(SECTOR), bundle: 'rrg_us.json' },
 }
+const selOf = (m: Mkt, u: Uni) => (m === 'us' && u === 'stk' ? US_STK : MKT[m].sel)
+const secShort = (k: string) => SECTOR[k]?.[lang() === 'pt' ? 1 : 0]
+const secName = (k: string) => SECTOR[k]?.[lang() === 'pt' ? 3 : 2]
 /** nomes legíveis dos benchmarks mais comuns (o resto mostra o ticker) */
 const BNAME: Record<string, [string, string]> = {
   IDX_GSPC: ['S&P 500', 'S&P 500'], IDX_BVSP: ['Ibovespa', 'Ibovespa'], IDX_NDX: ['Nasdaq-100', 'Nasdaq-100'], IDX_IXIC: ['Nasdaq Composite', 'Nasdaq Composite'],
@@ -38,6 +58,8 @@ const bname = (k: string) => BNAME[k]?.[lang() === 'pt' ? 1 : 0] || label(k)
 const mktBench = (m: Mkt) => { const b = getSettings().bench?.[m]; return b ? tickerKey(b) : MKT[m].bench }
 /** mercado inicial: ?m=us na URL abre o RRG dos EUA */
 const initMkt = (): Mkt => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('m') === 'us' ? 'us' : 'br')
+/** ?u=stocks abre o RRG dos EUA na visão de ações (padrão: setores) */
+const initUni = (): Uni => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('u') === 'stocks' ? 'stk' : 'sec')
 const quad = (x: number, y: number) => (x >= 100 ? (y >= 100 ? 'Leading' : 'Weakening') : y >= 100 ? 'Improving' : 'Lagging')
 const fmtD = (s: string) => fmtDate(s.slice(0, 10)) // PT 29/10/26 · EN 29 Oct 26
 const niceStep = (span: number) => { const r = span / 4, p = Math.pow(10, Math.floor(Math.log10(r))), f = r / p; return (f > 5 ? 10 : f > 2 ? 5 : f > 1 ? 2 : 1) * p }
@@ -49,8 +71,10 @@ export default function RRGTerminal() {
   const [mkt, setMkt] = useState<Mkt>('br')
   const [bench, setBench] = useState(MKT.br.bench)
   const [sel, setSel] = useState<string[]>(MKT.br.sel)
-  const pickMkt = (m: Mkt) => { setMkt(m); setBench(mktBench(m)); setSel(MKT[m].sel); setHidden(new Set()); setEndOff(0); setPlaying(false); setData(null) }
-  useEffect(() => { const m = initMkt(); if (m !== 'br' || mktBench('br') !== MKT.br.bench) pickMkt(m) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const [uni, setUni] = useState<Uni>('sec')
+  const pickMkt = (m: Mkt, u: Uni = uni) => { setMkt(m); setUni(u); setBench(mktBench(m)); setSel(selOf(m, u)); setHidden(new Set()); setEndOff(0); setPlaying(false); setData(null) }
+  const pickUni = (u: Uni) => { setUni(u); setSel(selOf('us', u)); setHidden(new Set()); setData(null) }
+  useEffect(() => { const m = initMkt(), u = initUni(); if (m !== 'br' || mktBench('br') !== MKT.br.bench) pickMkt(m, u) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [lbR, setLbR] = useState(10)
   const [lbM, setLbM] = useState(10)
   const [ema, setEma] = useState(true)
@@ -103,7 +127,7 @@ export default function RRGTerminal() {
 
   const colorOf = useMemo(() => {
     const m: Record<string, string> = {}
-    ;(data?.assets || []).forEach((a, i) => { m[a.ticker] = PALETTE[i % PALETTE.length] })
+    ;(data?.assets || []).forEach((a, i) => { m[a.ticker] = SECTOR[a.ticker] ? tc(SECTOR[a.ticker][4]) : PALETTE[i % PALETTE.length] })
     return m
   }, [data])
 
@@ -139,7 +163,7 @@ export default function RRGTerminal() {
       {/* mobile: 2 linhas — título truncado / semana + fonte numa faixa rolável; desktop: linha única como antes */}
       <div className="flex items-center gap-4 flex-wrap px-3 py-1 border-b border-[#3a3a3a] text-[13px] max-lg:gap-x-2 max-lg:gap-y-[2px]">
         <span className="font-bold text-black bg-[#FFA028] px-2 max-lg:shrink-0">RRG</span>
-        <span className="text-[#d9d9d9] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate">Relative Rotation Graph · {mkt === 'us' ? (lang() === 'pt' ? 'EUA' : 'US') : (lang() === 'pt' ? 'Brasil' : 'Brazil')} · vs <b className="text-[#FFA028]">{bname(bench)}</b> · {lang() === 'pt' ? 'semanal (sexta)' : 'weekly (Friday)'}</span>
+        <span className="text-[#d9d9d9] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate">Relative Rotation Graph · {mkt === 'us' ? (lang() === 'pt' ? `EUA · ${uni === 'sec' ? 'setores' : 'ações'}` : `US · ${uni === 'sec' ? 'sectors' : 'stocks'}`) : (lang() === 'pt' ? 'Brasil' : 'Brazil')} · vs <b className="text-[#FFA028]">{bname(bench)}</b> · {lang() === 'pt' ? 'semanal (sexta)' : 'weekly (Friday)'}</span>
         <div className="lg:contents max-lg:w-full max-lg:flex max-lg:items-center max-lg:gap-4 max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0 max-lg:text-[12px] fn-strip">
           <span className="text-[#8a8a8a]">{endDate ? `Week of ${fmtD(endDate)} · tail ${tail} wk` : ''}</span>
           <span className="ml-auto text-[#8a8a8a] text-[11px] max-lg:ml-0">Educational use, not a recommendation</span>
@@ -148,8 +172,11 @@ export default function RRGTerminal() {
       {/* controles */}
       <div className="flex items-center gap-3 flex-wrap px-3 py-1 border-b border-[#3a3a3a] bg-[#0a0a0a] text-[12px] text-[#8a8a8a] fn-strip max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0">
         <div className="flex gap-[2px]" role="group" aria-label={lang() === 'pt' ? 'Mercado' : 'Market'}>
-          {(['br', 'us'] as Mkt[]).map(m => <button key={m} className={btn(mkt === m)} aria-pressed={mkt === m} onClick={() => pickMkt(m)}>{m === 'br' ? 'BR' : (lang() === 'pt' ? 'EUA' : 'US')}</button>)}
+          {(['br', 'us'] as Mkt[]).map(m => <button key={m} className={btn(mkt === m)} aria-pressed={mkt === m} onClick={() => pickMkt(m, 'sec')}>{m === 'br' ? 'BR' : (lang() === 'pt' ? 'EUA' : 'US')}</button>)}
         </div>
+        {mkt === 'us' && <div className="flex gap-[2px]" role="group" aria-label={lang() === 'pt' ? 'Universo' : 'Universe'}>
+          {(['sec', 'stk'] as Uni[]).map(u => <button key={u} className={btn(uni === u)} aria-pressed={uni === u} onClick={() => pickUni(u)}>{u === 'sec' ? (lang() === 'pt' ? 'Setores' : 'Sectors') : (lang() === 'pt' ? 'Ações' : 'Stocks')}</button>)}
+        </div>}
         <label className="flex items-center gap-1">Benchmark
           <select className={box} value={bench} onChange={e => setBench(e.target.value)}>
             {available.map(k => <option key={k} value={k}>{BNAME[k] ? `${bname(k)} (${label(k)})` : label(k)}</option>)}
@@ -219,6 +246,7 @@ export default function RRGTerminal() {
           {hover && (
             <div className="absolute z-20 pointer-events-none text-[12px] leading-[17px] px-2 py-1 border" style={{ left: Math.min(hover.x + 14, W - 210), top: Math.max(4, hover.y - 70), background: tc('#0a0a0a'), borderColor: colorOf[hover.t], color: tc('#d9d9d9') }}>
               <div className="font-bold" style={{ color: colorOf[hover.t] }}>{label(hover.t)} <span className="text-[#8a8a8a] font-normal">vs {bname(bench)}</span></div>
+              {SECTOR[hover.t] && <div className="text-[#bdbdbd]">{secName(hover.t)}</div>}
               <div>Week <b className="text-white">{fmtD(hover.date)}</b></div>
               <div>RS-Ratio <b className="text-white">{hover.r.toFixed(2)}</b></div>
               <div>RS-Momentum <b className="text-white">{hover.m.toFixed(2)}</b></div>
@@ -242,7 +270,7 @@ export default function RRGTerminal() {
                     onClick={() => setHidden(h => { const s = new Set(h); if (s.has(v.t)) s.delete(v.t); else s.add(v.t); return s })}
                     onMouseEnter={() => setFocus(v.t)} onMouseLeave={() => setFocus(null)}>
                     <td className="px-2"><span className="inline-block w-[10px] h-[10px]" style={{ background: off ? 'transparent' : colorOf[v.t], border: `1px solid ${colorOf[v.t]}` }} /></td>
-                    <td className="font-bold" style={{ color: colorOf[v.t] }}>{label(v.t)}</td>
+                    <td className="font-bold whitespace-nowrap" style={{ color: colorOf[v.t] }} title={secName(v.t)}>{label(v.t)}{SECTOR[v.t] && <span className="ml-1 font-normal text-[11px] text-[#bdbdbd]">{secShort(v.t)}</span>}</td>
                     <td className="text-right text-white">{p.rs_ratio.toFixed(2)}</td>
                     <td className="text-right text-white">{p.rs_momentum.toFixed(2)}</td>
                     <td className="text-right pr-2" style={{ color: Q[q].c }}>{Q[q].n.slice(0, 4)}</td>

@@ -16,8 +16,9 @@ from common import OUT, now_iso, step, unpack_prices
 RECENT_DAYS = 730          # 1A + folga para a SMA(200) do GPC no período padrão
 WEEKS = 320                # 104 semanas exibíveis + médias de até 52 + momentum de até 52 + aquecimento da EMA
 RRG_DEFAULT = ['PETR4', 'VALE3', 'ITUB4', 'B3SA3', 'PETR3', 'ITUB3', 'IDX_BVSP', 'IDX_GSPC', 'IDX_IXIC', 'BOVA11']
-# RRG EUA: big techs + ETFs amplos que já estão no universo (não há ETFs setoriais nele) vs S&P 500
-RRG_US = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'QQQ', 'IWM', 'IDX_GSPC', 'IDX_NDX']
+# RRG EUA vs S&P 500: os 11 ETFs setoriais SPDR (visão padrão "Setores") + big techs e ETFs amplos (visão "Ações")
+RRG_US_SECTORS = ['XLK', 'XLF', 'XLE', 'XLV', 'XLY', 'XLP', 'XLI', 'XLB', 'XLU', 'XLRE', 'XLC']
+RRG_US = RRG_US_SECTORS + ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'QQQ', 'IWM', 'IDX_GSPC', 'IDX_NDX']
 US_IDX = {'IDX_GSPC', 'IDX_NDX', 'IDX_IXIC', 'IDX_DJI', 'IDX_RUT'}
 NY = ZoneInfo('America/New_York')
 US_CLOSE = dt.time(16, 15)   # fechamento 16h + folga para a barra final assentar
