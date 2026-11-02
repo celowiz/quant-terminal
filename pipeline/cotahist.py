@@ -1,7 +1,7 @@
 """B3 COTAHIST diário (arquivo público da B3): leitura e fechamento oficial das ações BR.
 Usado por build_prices (barra final oficial), build_corp (preço bruto) e build_options (cadeia de opções)."""
 import io, os, zipfile, datetime as dt
-from common import get, today_brt, CACHE
+from common import get, today_brt, CACHE, write_atomic
 
 URL = 'https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_D{:%d%m%Y}.ZIP'
 LOT_BDI = ('02', '12', '14')  # lote padrão: ações/units (02), FII (12), cotas de fundos/ETF (14)
@@ -20,7 +20,7 @@ def latest_cotahist(days=10):
         try:
             r = get(url, tries=1, timeout=120)
             if r.content[:2] == b'PK':
-                open(p, 'wb').write(r.content)
+                write_atomic(p, r.content)
                 return x, r.content, url
         except Exception as e: print('cotahist', x, e)
     raise RuntimeError('COTAHIST indisponível')
@@ -34,7 +34,7 @@ def cotahist_day(x):
     try:
         r = get(URL.format(x), tries=1, timeout=90)
         if r.content[:2] == b'PK':
-            open(p, 'wb').write(r.content)
+            write_atomic(p, r.content)
             return r.content
     except Exception as e: print('cotahist', x, e)
     return None

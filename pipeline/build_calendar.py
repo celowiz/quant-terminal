@@ -15,7 +15,7 @@ from html.parser import HTMLParser
 from urllib import robotparser
 from urllib.parse import urlsplit
 import requests
-from common import CACHE, OUT, save, now_iso, today_brt, load_prev, cached
+from common import CACHE, OUT, save, now_iso, today_brt, load_prev, cached, write_atomic
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UA = {'User-Agent': 'quant-terminal-calendar/1.0 (+https://github.com/celowiz/quant-terminal; educational, 1 req/s)'}
@@ -390,7 +390,7 @@ def cvm_data(cnpjs, y, q, today=None):
                     try:
                         r = requests.get(link, headers=UA, timeout=(10, 40))
                         if r.status_code != 200 or not r.content.startswith(b'%PDF'): raise RuntimeError(r.status_code)
-                        open(p, 'wb').write(r.content); fails = 0; time.sleep(0.5)
+                        write_atomic(p, r.content); fails = 0; time.sleep(0.5)
                     except Exception as e:
                         fails += 1; print('  cvm cal', c, e); continue
                 try:

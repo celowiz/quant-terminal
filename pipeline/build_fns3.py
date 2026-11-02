@@ -4,7 +4,7 @@ diário) e BCB (IF.data, API Olinda). Cada etapa é independente; se a fonte cai
 import io, os, zipfile, datetime as dt
 import numpy as np
 import pandas as pd
-from common import save, cached, get, now_iso, today_brt, step, CACHE
+from common import save, cached, get, now_iso, today_brt, step, CACHE, write_atomic
 from cotahist import URL as COTA_URL, parse as cota_parse
 
 TODAY = today_brt()
@@ -37,7 +37,7 @@ def cotahist_sessions(n=21, days=45):
             try:
                 r = get(COTA_URL.format(x), tries=1, timeout=90)
                 if r.content[:2] != b'PK': continue
-                b = r.content; open(p, 'wb').write(b)
+                b = r.content; write_atomic(p, b)
             except Exception:
                 continue
         out.append((x, cota_parse(b)))

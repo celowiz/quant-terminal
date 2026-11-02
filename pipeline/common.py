@@ -1,6 +1,15 @@
 """Utilidades comuns do pipeline de dados (roda local ou no GitHub Actions)."""
-import json, os, time, datetime as dt, requests
+import json, os, time, warnings, datetime as dt, requests
 from zoneinfo import ZoneInfo
+
+# yfinance 1.7 ainda usa inplace=True, que o pandas 3.1 marca como obsoleto (Pandas4Warning): dezenas de linhas
+# repetidas por lote no log, sem efeito no resultado. Silenciado só para os avisos vindos do yfinance.
+# O import do yfinance põe na frente um filtro 'default' para DeprecationWarning dele: importa antes, filtra depois.
+def quiet_yfinance():
+    try: import yfinance  # noqa: F401
+    except ImportError: pass
+    warnings.filterwarnings('ignore', message=r'.*inplace keyword', module=r'yfinance(\.|$)')
+quiet_yfinance()
 OUT = os.environ.get('QT_DATA_OUT', os.path.join(os.path.dirname(__file__), '..', '..', 'work', 'frontend', 'public', 'data'))
 OUT = os.path.abspath(OUT)
 CACHE = os.environ.get('QT_CACHE', '/tmp/qt_cache'); os.makedirs(CACHE, exist_ok=True)
@@ -20,10 +29,18 @@ def today_brt(now=None):
 def now_iso():
     return now_brt().isoformat(timespec='seconds')
 
+def write_atomic(p, data):
+    """Grava em <p>.<pid>.tmp e renomeia: com etapas em paralelo (run_all.sh), quem lê o arquivo
+    (cache de zips da CVM/B3, tickers.json, cdi.json...) nunca vê uma escrita pela metade."""
+    os.makedirs(os.path.dirname(p) or '.', exist_ok=True)
+    tmp = f'{p}.{os.getpid()}.tmp'
+    with open(tmp, 'wb' if isinstance(data, (bytes, bytearray)) else 'w', **({} if isinstance(data, (bytes, bytearray)) else {'encoding': 'utf-8'})) as f:
+        f.write(data)
+    os.replace(tmp, p)
+
 def save(rel, obj):
-    p = os.path.join(OUT, rel); os.makedirs(os.path.dirname(p), exist_ok=True)
-    with open(p, 'w', encoding='utf-8') as f:
-        json.dump(obj, f, ensure_ascii=False, separators=(',', ':'), allow_nan=False, default=str)
+    p = os.path.join(OUT, rel)
+    write_atomic(p, json.dumps(obj, ensure_ascii=False, separators=(',', ':'), allow_nan=False, default=str))
     print('  ->', rel, os.path.getsize(p)//1024, 'KB')
 
 
@@ -108,7 +125,7 @@ def cached(url, name, max_age_h=12):
     if os.path.exists(p) and time.time() - os.path.getmtime(p) < max_age_h * 3600:
         return p
     r = get(url, timeout=300)
-    open(p, 'wb').write(r.content)
+    write_atomic(p, r.content)
     return p
 
 def clean(x, nd=4):
@@ -120,8 +137,14 @@ def clean(x, nd=4):
     except Exception:
         return None
 
+def skipped(name):
+    """QT_SKIP_STEPS=tayl,ectr: etapas que rodam em outro workflow (slow.yml); o JSON publicado continua o anterior."""
+    return name in {x.strip() for x in os.environ.get('QT_SKIP_STEPS', '').split(',') if x.strip()}
+
 def step(name, fn):
     """Cada etapa é independente: se uma fonte cair, as demais seguem e o JSON anterior fica no ar."""
+    if skipped(name):
+        print(f'[{name}] pulado (QT_SKIP_STEPS)'); return True
     t = time.time(); print(f'[{name}]')
     try:
         fn(); print(f'[{name}] ok em {time.time()-t:.0f}s'); return True

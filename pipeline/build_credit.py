@@ -295,10 +295,30 @@ def ectr_build(exp, imp, months_exp, months_imp, chap_exp, chap_imp, last_year, 
     return {'years': years, 'last_year': last_year, 'last_month': last_month, 'months': [1, last_month], 'updated': updated, 'totals': totals, 'rows': rows,
             'monthly': monthly, 'chapters': {'exp': chap(chap_exp), 'imp': chap(chap_imp)}}
 
+def cx_updated(tries=4, wait=15):
+    """Data da última divulgação do Comex Stat ({'updated','year','monthNumber'}); espera e repete em HTTP 429."""
+    last = None
+    for i in range(tries):
+        r = requests.get(f'{CX}/general/dates/updated', headers=UA, timeout=60)
+        if r.status_code == 200 and isinstance((r.json() or {}).get('data'), dict): return r.json()['data']
+        last = f'HTTP {r.status_code}'
+        if i < tries - 1: time.sleep(wait)
+    raise RuntimeError(f'Comex Stat dates/updated: {last}')
+
+def ectr_unchanged(prev, u):
+    """True se o ectr.json publicado já é da mesma divulgação do Comex Stat (mesma data de atualização e mesmo
+    último mês): aí as 8 consultas (~4 min, com espera por limite de requisições) não trazem nada novo."""
+    if not prev or prev.get('status') != 'ok' or not prev.get('rows') or not u or not u.get('updated'): return False
+    try: return (prev.get('updated') == u.get('updated') and int(prev.get('last_year')) == int(u['year'])
+                 and int(prev.get('last_month')) == int(u['monthNumber']))
+    except (TypeError, ValueError, KeyError): return False
+
 def ectr():
     try:
-        u = requests.get(f'{CX}/general/dates/updated', headers=UA, timeout=60).json()['data']
+        u = cx_updated()
         ly, lm = int(u['year']), int(u['monthNumber']); updated = u.get('updated')
+        if not os.environ.get('ECTR_FORCE') and ectr_unchanged(load_out('ectr.json'), u):
+            print('ectr: sem divulgação nova desde', updated, '— mantém o ectr.json publicado'); return
         y0 = ly - 5
         per = {'from': f'{y0}-01', 'to': f'{ly}-{lm:02d}'}
         ytd = {'from': f'{ly}-01', 'to': f'{ly}-{lm:02d}'}

@@ -105,6 +105,23 @@ jobs:
             echo "ok=false" >> "$GITHUB_OUTPUT"; echo "::warning::sem artefato github-pages válido: pipeline completo"
           fi
 
+      # ECTR e TAYL saem do slow.yml (artefato slow-data, mais novo que o do último deploy): sobrepõe e o pipeline as pula.
+      - name: Fontes lentas (último artefato slow-data)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=slow-data&per_page=30" \
+            --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main")] | sort_by(.created_at) | reverse | .[0].id // empty' || true)
+          if [ -n "$id" ] && gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > /tmp/slow.zip \
+             && mkdir -p /tmp/slow && unzip -qo /tmp/slow.zip -d /tmp/slow; then
+            for f in ectr.json tayl.json; do
+              if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "/tmp/slow/$f" 2>/dev/null; then cp "/tmp/slow/$f" public/data/; fi
+            done
+            echo "slow-data: artefato $id"
+          else
+            echo "sem artefato slow-data: ECTR/TAYL ficam como no último deploy"
+          fi
+
       - name: Modo (pipeline completo ou só frontend)
         id: mode
         env:
@@ -155,6 +172,7 @@ jobs:
         continue-on-error: true
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          QT_SKIP_STEPS: tayl,ectr   # rodam no slow.yml (ECTR mensal, TAYL semanal)
         run: bash pipeline/run_all.sh
 
       # Também no modo só-frontend: o artefato base pode ser de antes destes arquivos existirem (4 s).
