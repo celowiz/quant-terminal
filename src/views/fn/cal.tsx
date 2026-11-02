@@ -193,8 +193,10 @@ function WeekBoard({ mon, today, byDate, sel, onPick, exporting, post }: { mon: 
   const bodyH = useFitH(600, 220)
   const days = [0, 1, 2, 3, 4].map(i => addDays(mon, i))
   const list = (d: string) => (byDate.get(d) || []).slice().sort(byTicker)
+  // destaque de 'hoje' some na exportação e no modo post (cabeçalhos idênticos)
+  const isToday = (d: string) => d === today && !exporting && !post
   const head = (d: string) => (
-    <div className="px-2 py-1 font-bold flex justify-between items-baseline" style={{ background: d === today && !exporting ? C.amber : C.panel2, color: d === today && !exporting ? tc('#000') : C.amber, fontSize: exporting ? 16 : 12 }}>
+    <div className="px-2 py-1 font-bold flex justify-between items-baseline" style={{ background: isToday(d) ? C.amber : C.panel2, color: isToday(d) ? tc('#000') : C.amber, fontSize: exporting ? 16 : 12 }}>
       <span>{dayName(d).toUpperCase()} {fmtDayMonth(d)}</span><span style={{ opacity: 0.75 }}>{list(d).length || '—'}</span>
     </div>
   )
@@ -202,7 +204,7 @@ function WeekBoard({ mon, today, byDate, sel, onPick, exporting, post }: { mon: 
     return (
       <div className="flex flex-col gap-2">
         {days.map(d => (
-          <div key={d} className="border" style={{ borderColor: d === today ? C.amber : C.line }}>
+          <div key={d} className="border" style={{ borderColor: isToday(d) ? C.amber : C.line }}>
             {head(d)}
             {list(d).length > 0 && <div className="p-2"><DayCards rows={list(d)} sel={sel} onPick={onPick} plain={post} fixedH={dayCols(list(d).length) === 1 ? 56 : 78} /></div>}
           </div>
@@ -238,7 +240,7 @@ function MonthView({ month, today, byDate, onDay, post }: { month: string; today
         const rs = (byDate.get(d) || []).slice().sort(byTicker), out = d.slice(0, 7) !== month
         return (
           <div key={d} className={`p-1 border-t flex flex-col ${i % 5 ? 'border-l' : ''}`} style={{ borderColor: C.line, height: cellH, opacity: out ? 0.35 : 1 }}>
-            <button type="button" onClick={() => onDay(d)} className="text-left text-[11px] font-bold mb-[2px] hover:text-white shrink-0" style={{ color: d === today ? C.amber : C.muted }}>
+            <button type="button" onClick={() => onDay(d)} className="text-left text-[11px] font-bold mb-[2px] hover:text-white shrink-0" style={{ color: d === today && !post ? C.amber : C.muted }}>
               {d.slice(8)}{rs.length ? <span className="font-normal"> · {rs.length}</span> : null}
             </button>
             <div className="flex-1 min-h-0"><Cards rows={rs} size={30} gap={3} plain={post} onPick={() => onDay(d)} onMore={() => onDay(d)} /></div>
