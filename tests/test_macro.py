@@ -207,24 +207,35 @@ def test_fred_api_key_path(monkeypatch, capsys):
     assert 'sekret123' not in capsys.readouterr().out
 
 
-def test_ibge_events_cache_semanal(tmp_path, monkeypatch):
-    """API do IBGE fora (como nos runners do Actions): usa o cache de até 7 dias que cubra a janela; senão, falha."""
+def test_ibge_events_cache_e_semente(tmp_path, monkeypatch):
+    """API do IBGE fora (como nos runners do Actions): usa o cache que cubra a janela; senão a semente versionada;
+    o calendário usado é regravado em data/ para o próximo build; sem nada, falha."""
     monkeypatch.setattr(bm, 'CACHE', str(tmp_path / 'cache')); monkeypatch.setattr(bm, 'OUT', str(tmp_path / 'out'))
+    monkeypatch.setattr(bm, 'IBGE_SEED', str(tmp_path / 'seed.json'))
     a, b = dt.date(2026, 10, 9), dt.date(2026, 12, 14)
     item = {'tipo_id': 1, 'titulo': 'Índice Nacional de Preços ao Consumidor Amplo', 'data_divulgacao': '10/11/2026 12:00:00'}
+    def down(u): raise RuntimeError('ConnectTimeout')
+    with pytest.raises(RuntimeError):   # nada guardado
+        bm.ibge_events(a, b, fetch=down)
     items, cached_at = bm.ibge_events(a, b, fetch=lambda u: {'items': [item]})
     assert items == [item] and cached_at is None
     assert (tmp_path / 'cache' / bm.IBGE_CAL).exists() and (tmp_path / 'out' / bm.IBGE_CAL).exists()
-
-    def down(u): raise RuntimeError('ConnectTimeout')
     items, cached_at = bm.ibge_events(a + dt.timedelta(days=3), b + dt.timedelta(days=3), fetch=down)
     assert items == [item] and cached_at
-    with pytest.raises(RuntimeError):   # janela fora do que o cache cobre
-        bm.ibge_events(a + dt.timedelta(days=60), b + dt.timedelta(days=60), fetch=down)
-    c = json.loads((tmp_path / 'cache' / bm.IBGE_CAL).read_text()); c['fetched_at'] = '2026-01-01T00:00:00-03:00'
-    (tmp_path / 'cache' / bm.IBGE_CAL).write_text(json.dumps(c)); (tmp_path / 'out' / bm.IBGE_CAL).unlink()
-    with pytest.raises(RuntimeError):   # cache com mais de 7 dias
-        bm.ibge_events(a, b, fetch=down)
+    seed_item = dict(item, data_divulgacao='10/02/2027 12:00:00')
+    (tmp_path / 'seed.json').write_text(json.dumps({'fetched_at': '2026-11-01T10:00:00-03:00', 'from': '2026-10-01', 'to': '2027-06-30', 'seed': True, 'items': [seed_item]}))
+    items, cached_at = bm.ibge_events(a + dt.timedelta(days=60), b + dt.timedelta(days=60), fetch=down)
+    assert items == [seed_item] and cached_at == '2026-11-01T10:00:00-03:00'   # cache não cobre: semente
+    for f in ('cache', 'out'): (tmp_path / f / bm.IBGE_CAL).unlink()
+    items, _ = bm.ibge_events(a, b, fetch=down)
+    assert items == [seed_item] and json.loads((tmp_path / 'out' / bm.IBGE_CAL).read_text())['items'] == [seed_item]
+
+
+def test_ibge_seed_versionada_cobre_janela():
+    c = json.loads(open(bm.IBGE_SEED, encoding='utf-8').read())
+    assert c['items'] and c.get('seed') and c['from'] <= '2026-11-01' and c['to'] >= '2027-03-31'
+    rows = bm.ibge_rows(c['items'], {}, {}, {})
+    assert any(r['event'] == 'IPCA MoM' and r['time'].startswith('2026-11-12T09:00') for r in rows)
 
 
 def test_parse_oecd_sdmx_csv_colombia():

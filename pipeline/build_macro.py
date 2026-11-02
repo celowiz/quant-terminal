@@ -550,45 +550,53 @@ IBGE_EN = {'Índice de Preços ao Produtor': 'Producer prices (IPP)', 'Levantame
            'Pesquisas Trimestrais do Abate de Animais, do Leite, do Couro e da Produção de Ovos de Galinha': 'Quarterly livestock surveys (slaughter, milk, hides, eggs)',
            'Índice de Preços ao Produtor - Indústrias Extrativas e de Transformação': 'Producer prices (IPP) – mining & manufacturing'}
 
-# Calendário do IBGE com disjuntor e cache semanal: desde out/2026 a API não aceita conexão dos runners do
-# GitHub Actions (ConnectTimeout em toda execução, ~7 min perdidos com 3 × 60 s × retries). Agora: 1 tentativa
-# com timeout curto; se falhar, usa os itens brutos guardados (até 7 dias) em QT_CACHE e em data/ibge_calendar.json
-# (restaurado do último site publicado), e o ECO recalcula realizado/anterior com o SIDRA do dia.
-# O navegador ainda completa a agenda direto na API (CORS aberto) quando o JSON publicado vier sem o Brasil.
+# Calendário do IBGE: desde out/2026 a API não aceita conexão dos runners do GitHub Actions (ConnectTimeout).
+# Ordem: API (3 tentativas com espera crescente, connect 10 s) → itens guardados (QT_CACHE ou data/ibge_calendar.json,
+# restaurado do último site publicado) → semente versionada pipeline/data/ibge_calendar_seed.json (calendário oficial
+# do IBGE, gerado por pipeline/refresh_ibge_seed.py numa máquina que alcança a API). O que for usado é regravado em
+# data/ibge_calendar.json, para o próximo build herdar o último calendário bom. Assim uma falha nunca esvazia o Brasil.
+# O navegador ainda completa a agenda direto na API (CORS aberto) se, mesmo assim, o JSON vier sem o IBGE.
 IBGE_CAL = 'ibge_calendar.json'
-IBGE_CACHE_DAYS = 7
+IBGE_SEED = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'ibge_calendar_seed.json')
+IBGE_TRIES, IBGE_TIMEOUT = 3, (10, 40)
 
-def _ibge_cache_read():
-    best = None
-    for p in (os.path.join(CACHE, IBGE_CAL), os.path.join(OUT, IBGE_CAL)):
+def _ibge_candidates():
+    out = []
+    for p in (os.path.join(CACHE, IBGE_CAL), os.path.join(OUT, IBGE_CAL), IBGE_SEED):
         try:
             with open(p, encoding='utf-8') as f: c = json.load(f)
-            if c.get('items') and (best is None or c.get('fetched_at', '') > best.get('fetched_at', '')): best = c
+            if c.get('items'): out.append(c)
         except Exception: pass
-    return best
+    return out
+
+def _ibge_pick(cands, a, b):
+    """Prefere o calendário que cobre [a, b] inteiro; entre esses, o buscado por último. Sem cobertura total: o mais recente."""
+    if not cands: return None
+    full = [c for c in cands if c.get('from', '9999') <= a.isoformat() and c.get('to', '0000') >= b.isoformat()]
+    return max(full or cands, key=lambda c: c.get('fetched_at', ''))
+
+def _ibge_write(c):
+    for p in (os.path.join(CACHE, IBGE_CAL), os.path.join(OUT, IBGE_CAL)):
+        try:
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, 'w', encoding='utf-8') as f: json.dump(c, f, ensure_ascii=False, separators=(',', ':'))
+        except Exception as e: print('ibge cache', e)
 
 def ibge_events(a, b, fetch=None):
-    """Itens do calendário do IBGE para [a, b]. Busca uma janela maior (a−7d, b+21d) para o cache cobrir a semana."""
+    """(itens, fetched_at do cache ou None se veio da API). Busca uma janela maior (a−7d, b+21d) para o cache cobrir a semana."""
     fa, fb = a - dt.timedelta(days=7), b + dt.timedelta(days=21)
-    u = f'https://servicodados.ibge.gov.br/api/v3/calendario/?qtd=500&de={fa:%m-%d-%Y}&ate={fb:%m-%d-%Y}'
+    u = f'https://servicodados.ibge.gov.br/api/v3/calendario/?qtd=1000&de={fa:%m-%d-%Y}&ate={fb:%m-%d-%Y}'
     try:
-        d = fetch(u) if fetch else get(u, tries=1, timeout=(6, 20)).json()
+        d = fetch(u) if fetch else get(u, tries=IBGE_TRIES, timeout=IBGE_TIMEOUT).json()
         items = d.get('items', [])
         if not items: raise RuntimeError('calendário IBGE vazio')
-        c = {'fetched_at': now_iso(), 'from': fa.isoformat(), 'to': fb.isoformat(), 'source': u, 'items': items}
-        for p in (os.path.join(CACHE, IBGE_CAL), os.path.join(OUT, IBGE_CAL)):
-            try:
-                os.makedirs(os.path.dirname(p), exist_ok=True)
-                with open(p, 'w', encoding='utf-8') as f: json.dump(c, f, ensure_ascii=False, separators=(',', ':'))
-            except Exception as e: print('ibge cache', e)
+        _ibge_write({'fetched_at': now_iso(), 'from': fa.isoformat(), 'to': fb.isoformat(), 'source': u, 'items': items})
         return items, None
     except Exception as e:
-        c = _ibge_cache_read()
+        c = _ibge_pick(_ibge_candidates(), a, b)
         if not c: raise
-        age = (dt.datetime.now(TZ) - dt.datetime.fromisoformat(c['fetched_at'])).days
-        if age > IBGE_CACHE_DAYS or c.get('from', '9999') > a.isoformat() or c.get('to', '0000') < b.isoformat():
-            raise RuntimeError(f'{e!r}; cache do IBGE velho ({age} d) ou sem cobrir {a}..{b}')
-        print(f'eco ibge: API falhou ({e!r}); usando o cache de {c["fetched_at"]}')
+        print(f'eco ibge: API falhou ({e!r}); usando {"a semente" if c.get("seed") else "o cache"} de {c["fetched_at"]} ({c.get("from")}..{c.get("to")})')
+        _ibge_write(c)
         return c['items'], c['fetched_at']
 
 def ref_key(y, m): return f'{y:04d}{m:02d}' if y and m else None
