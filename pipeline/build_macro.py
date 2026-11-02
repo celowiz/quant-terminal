@@ -767,7 +767,7 @@ def eco():
     if not rows: raise RuntimeError('calendário vazio')
     rows.sort(key=lambda r: r['time'])
     save('eco.json', {'generated_at': now_iso(), 'from': a.isoformat(), 'to': b.isoformat(), 'events': rows, 'status': status,
-                      'note': 'Times in Brasília time (BRT). Survey: Focus median for IPCA (month) and per-meeting Selic; no free consensus source for US releases. '
+                      'note': 'Times in Brasília time (BRT). Survey: market survey median for IPCA (month) and per-meeting Selic; no free consensus source for US releases. '
                               'BLS releases (CPI, payrolls) are not listed: the BLS calendar blocks automated access.',
                       'source': 'IBGE – release calendar (API v3); IBGE SIDRA and BCB SGS (actuals); BCB Focus (survey); BCB Copom calendar; '
                                 'BEA release calendar (ICS); U.S. Census Bureau economic indicator calendar; FRED (US actuals); federalreserve.gov (FOMC)'})
@@ -788,7 +788,7 @@ def fxfc():
                     'Data,DataReferencia,Media,Mediana,DesvioPadrao,Minimo,Maximo,numeroRespondentes'))['value']
     av = get_json(q('ExpectativasMercadoAnuais', f"Indicador eq 'Câmbio' and baseCalculo eq 0 and Data ge '{since}'",
                     'Data,DataReferencia,Media,Mediana,DesvioPadrao,Minimo,Maximo,numeroRespondentes'))['value']
-    if not mv and not av: raise RuntimeError('Focus câmbio vazio')
+    if not mv and not av: raise RuntimeError('pesquisa de câmbio vazia')
     last = max(r['Data'] for r in mv + av)
     def snap(rows, ref):
         h = sorted([r for r in rows if r['DataReferencia'] == ref], key=lambda r: r['Data'])
@@ -827,7 +827,7 @@ def fxfc():
     hist_spot = [[k, v] for k, v in sorted(dict((p[0], p[1]) for p in hist_spot).items())]  # econ.json mixes monthly + daily points
     save('fxfc.json', {'generated_at': now_iso(), 'survey_date': last, 'spot': spot, 'spot_date': spot_date, 'monthly': monthly_rows, 'annual': annual_rows,
                        'spot_hist': hist_spot,
-                       'note': 'Focus = market survey (median of respondents, BRL per USD, monthly average for monthly references / year-end for annual). '
+                       'note': 'Market survey (median of respondents, BRL per USD, monthly average for monthly references / year-end for annual). '
                                'Forward = theoretical covered-interest-parity value from DI1 and US Treasury yields; not a traded onshore forward.',
                        'source': 'BCB Focus via Olinda (ExpectativaMercadoMensais / ExpectativasMercadoAnuais, indicator Câmbio = BRL/USD); BCB PTAX; B3 DI1; FRED Treasuries'})
 

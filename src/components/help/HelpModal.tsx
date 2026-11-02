@@ -13,6 +13,10 @@ import { en } from '@/lib/enText'
 import { lang } from '@/lib/settings'
 import { t } from '@/lib/i18n'
 
+// rótulo do arquivo na lista de datas; arquivos com nome de fonte ganham um nome neutro
+const REF_ALIAS: Record<string, string> = { focus: 'survey' }
+const refLabel = (p: string) => { const k = p.replace(/\.json$/, ''); return REF_ALIAS[k] ?? k }
+
 // tex vem só de helpContent (estático); trust:false bloqueia \href/\url/\includegraphics e o catch devolve texto escapado
 const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
 const tex = (s: string) => { try { return katex.renderToString(s, { displayMode: true, throwOnError: false, output: 'html', trust: false, maxExpand: 1000 }) } catch { return esc(s) } }
@@ -60,7 +64,7 @@ export default function HelpModal({ code, onClose }: { code: string; onClose: ()
           {note && <div><div className="text-[12px] font-bold text-[#FFA028]">{t('help.notes')}</div><div className="text-[12px] text-[#bdbdbd]">{tr(note)}</div></div>}
           {refs.length > 0 && <div data-help-refs><div className="text-[12px] font-bold text-[#FFA028]">{t('ref.title')}</div>
             <ul className="text-[12px] text-[#bdbdbd]">{refs.map(r => <li key={r.path}>
-              <span className="text-[#8a8a8a]">{r.path.replace(/\.json$/, '')}</span>: {r.kind === 'generated' ? `${t('ref.generated')} ` : ''}<span className="text-white">{fmtDateFull(r.date)}</span>{r.official ? <span className="text-[#3DDC84]"> — {t('ref.official')}</span> : null}
+              <span className="text-[#8a8a8a]">{refLabel(r.path)}</span>: {r.kind === 'generated' ? `${t('ref.generated')} ` : ''}<span className="text-white">{fmtDateFull(r.date)}</span>{r.official ? <span className="text-[#3DDC84]"> — {t('ref.official')}</span> : null}
             </li>)}</ul></div>}
           <div className="border-t border-[#222] pt-2 text-[11px] text-[#777]">{t('fn.edu')}</div>
         </div>

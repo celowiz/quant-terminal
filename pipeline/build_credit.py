@@ -345,10 +345,10 @@ def ectr():
     except Exception as e:
         prev = load_out('ectr.json')
         if prev and prev.get('rows'):
-            prev['status'] = 'stale'; prev['note'] = f'Comex Stat unavailable in this run ({str(e)[:120]}); showing the previous data.'
+            prev['status'] = 'stale'; prev['note'] = f'Trade data unavailable in this run ({str(e)[:120]}); showing the previous data.'
             save('ectr.json', prev)
         else:
-            save('ectr.json', {'generated_at': now_iso(), 'status': 'unavailable', 'rows': [], 'note': f'Comex Stat unavailable: {str(e)[:160]}',
+            save('ectr.json', {'generated_at': now_iso(), 'status': 'unavailable', 'rows': [], 'note': f'Trade data unavailable: {str(e)[:160]}',
                                'source': 'MDIC/SECEX – Comex Stat API'})
         print('ectr', e)
 
