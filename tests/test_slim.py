@@ -52,3 +52,37 @@ def test_slim_gera_arquivos_e_pacote(tmp_path, monkeypatch):
     b = json.loads((tmp_path / 'rrg.json').read_text())
     assert list(b['series']) == ['PETR4'] and b['last'] == _cols()['t'][-1] and b['weeks'] == bs.WEEKS
     assert not os.path.exists(tmp_path / 'prices/r/r')   # não recursa no subdiretório
+
+
+def test_us_closed_through_portao_d1():
+    utc = dt.timezone.utc
+    # terça 2026-11-03: 14h ET (19h UTC) → pregão ainda aberto → segunda (D-1); 17h ET (22h UTC) → terça
+    assert bs.us_closed_through(dt.datetime(2026, 11, 3, 19, 0, tzinfo=utc)) == '2026-11-02'
+    assert bs.us_closed_through(dt.datetime(2026, 11, 3, 22, 0, tzinfo=utc)) == '2026-11-03'
+    # segunda antes da abertura → sexta; sábado/domingo → sexta
+    assert bs.us_closed_through(dt.datetime(2026, 11, 2, 10, 47, tzinfo=utc)) == '2026-10-30'
+    assert bs.us_closed_through(dt.datetime(2026, 10, 31, 23, 0, tzinfo=utc)) == '2026-10-30'
+    assert bs.us_closed_through(dt.datetime(2026, 11, 1, 23, 0, tzinfo=utc)) == '2026-10-30'
+
+
+def test_weekly_through_descarta_barra_parcial():
+    c = _cols(60)
+    rows = unpack_prices(c)
+    w = bs.weekly(rows, through=c['t'][-2])
+    assert w['last'] == c['t'][-2]
+    assert w['c'][-1] == c['c'][-2] or bs.friday(c['t'][-1]) != bs.friday(c['t'][-2])
+
+
+def test_slim_pacote_us_separado_e_portao(tmp_path, monkeypatch):
+    p = tmp_path / 'prices'; p.mkdir()
+    for k in ('PETR4', 'AAPL', 'IDX_GSPC'): (p / f'{k}.json').write_text(json.dumps(_cols()))
+    (tmp_path / 'tickers.json').write_text(json.dumps({'tickers': [{'ticker': 'AAPL', 'key': 'AAPL', 'class': 'us_equity'}]}))
+    cut = _cols()['t'][-3]
+    monkeypatch.setattr(bs, 'OUT', str(tmp_path))
+    monkeypatch.setattr(bs, 'us_closed_through', lambda now=None: cut)
+    bs.slim()
+    br = json.loads((tmp_path / 'rrg.json').read_text())
+    us = json.loads((tmp_path / 'rrg_us.json').read_text())
+    assert sorted(br['series']) == ['IDX_GSPC', 'PETR4'] and sorted(us['series']) == ['AAPL', 'IDX_GSPC']
+    assert us['series']['AAPL']['last'] == cut and us['last'] == cut          # EUA: só até o último pregão encerrado
+    assert json.loads((tmp_path / 'weekly/PETR4.json').read_text())['last'] == _cols()['t'][-1]   # BR não passa pelo portão

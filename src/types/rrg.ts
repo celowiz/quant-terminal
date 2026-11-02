@@ -69,4 +69,6 @@ export interface RRGFormData {
   tail: number;
   use_ema: boolean;
   tickers?: string;
+  /** pacote semanal pré-calculado a consultar primeiro (rrg.json = Brasil, rrg_us.json = EUA) */
+  bundle?: 'rrg.json' | 'rrg_us.json';
 }

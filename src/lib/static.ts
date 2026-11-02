@@ -156,10 +156,10 @@ function smooth(s: (number | null)[]): (number | null)[] {
 const quadrant = (r: number, m: number) => (r >= 100 && m >= 100 ? 'Leading' : r < 100 && m >= 100 ? 'Improving' : r < 100 && m < 100 ? 'Lagging' : 'Weakening')
 
 type Weekly = { t: string[]; c: number[] }
-/** fechamentos semanais (W-FRI) de um ativo: rrg.json (pacote padrão) → weekly/<key>.json → preços diários */
-async function readWeekly(k: string): Promise<Map<string, number>> {
+/** fechamentos semanais (W-FRI) de um ativo: pacote do mercado (rrg.json / rrg_us.json) → weekly/<key>.json → preços diários */
+async function readWeekly(k: string, bundle = 'rrg.json'): Promise<Map<string, number>> {
   try {
-    const b = await getJSON<{ series: Record<string, Weekly> }>('rrg.json')
+    const b = await getJSON<{ series: Record<string, Weekly> }>(bundle)
     const w = b.series?.[k] || await getJSON<Weekly>(`weekly/${k}.json`)
     return new Map(w.t.map((d, i) => [d, w.c[i]] as [string, number]))
   } catch {
@@ -176,7 +176,7 @@ export async function computeRRG(p: RRGFormData): Promise<RRGResponse> {
   // fechamento semanal (W-FRI, último pregão da semana) de cada ativo; depois inner join nas sextas (dropna)
   const series: Record<string, Map<string, number>> = {}
   await Promise.all(list.map(async k => {
-    try { series[k] = await readWeekly(k) } catch { /* ticker ausente: ignora, como o backend */ }
+    try { series[k] = await readWeekly(k, p.bundle) } catch { /* ticker ausente: ignora, como o backend */ }
   }))
   if (!series[bench]) throw new Error(`Benchmark '${bench}' not found in the data`)
   // inner join (dropna) nas datas semanais
