@@ -1,0 +1,94 @@
+# Fontes lentas e de baixa frequência, fora do pipeline noturno (custo zero: só GitHub Actions).
+# - ECTR (comércio exterior, divulgação mensal): ~4 min por causa do limite de requisições da API.
+#   Todo dia só pergunta a data da última divulgação; as 8 consultas só rodam quando ela muda (ou com force).
+# - TAYL (regra de Taylor, séries mensais/trimestrais): semanal (segunda) ou sob demanda.
+# Resultado: artefato "slow-data" (ectr.json + tayl.json). O pages.yml baixa o mais recente e sobrepõe aos
+# dados publicados antes do pipeline, que roda com QT_SKIP_STEPS=tayl,ectr.
+# Horário: 09:21 UTC = 06:21 BRT, antes do pages.yml (10:47 UTC). Não publica nada no Pages.
+name: slow
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Refazer ECTR e TAYL mesmo sem divulgação nova'
+        type: boolean
+        default: false
+  schedule:
+    - cron: '21 9 * * *'
+
+# Menor privilégio: nada no nível do workflow; o job pede só o que usa.
+permissions: {}
+
+concurrency:
+  group: slow
+  cancel-in-progress: false
+
+jobs:
+  slow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read      # listar/baixar o artefato do último deploy (dados publicados) e o slow-data anterior
+    env:
+      QT_DATA_OUT: ${{ github.workspace }}/site/data
+      QT_CACHE: ${{ github.workspace }}/.qt_cache
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Dependências Python (versões fixas)
+        run: pip install -r pipeline/requirements.txt
+
+      # Base: dados do último site publicado (TAYL lê focus/fomc/econ...; ECTR compara com o ectr.json publicado)
+      - name: Dados publicados (artefato github-pages)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=github-pages&per_page=30" \
+            --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main")] | sort_by(.created_at) | reverse | .[0].id // empty')
+          test -n "$id" || { echo "::error::sem artefato github-pages válido"; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > /tmp/site.zip
+          mkdir -p /tmp/a site && unzip -q /tmp/site.zip -d /tmp/a && tar -xf /tmp/a/artifact.tar -C site
+          test -f site/data/universe.json
+          echo "base: artefato $id"
+
+      - name: ECTR (só com divulgação nova) e TAYL (segunda ou sob demanda)
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          FORCE: ${{ inputs.force && '1' || '' }}
+        run: |
+          cd pipeline
+          ok=0
+          ECTR_FORCE="$FORCE" timeout -k 30 900 python3 build_credit.py ectr || ok=1
+          if [ -n "$FORCE" ] || [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ "$(date -u +%u)" = 1 ]; then
+            timeout -k 30 600 python3 build_macro.py tayl || ok=1
+          else
+            echo "TAYL: só às segundas (ou sob demanda); mantém o tayl.json publicado"
+          fi
+          exit $ok
+
+      - name: Validar JSON
+        run: |
+          mkdir -p /tmp/slow
+          for f in ectr.json tayl.json; do
+            python3 -c "import json,sys; json.load(open(sys.argv[1]))" "site/data/$f"
+            cp "site/data/$f" /tmp/slow/
+          done
+          ! grep -ril bloomberg /tmp/slow/
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: slow-data
+          path: /tmp/slow
+          retention-days: 90
+          if-no-files-found: error

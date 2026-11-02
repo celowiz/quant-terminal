@@ -9,7 +9,7 @@ Grava des/{T}.json. Cada classe é uma etapa independente com teto de tempo; se 
 import base64, io, json, os, re, sys, time, zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd, requests
-from common import UA, save, cached, get, get_json, now_iso, step, with_timeout, OUT, CACHE, file_key as key
+from common import UA, save, cached, get, get_json, now_iso, step, with_timeout, OUT, CACHE, file_key as key, write_atomic
 
 CVM = 'https://dados.cvm.gov.br/dados'
 B3F = 'https://sistemaswebb3-listados.b3.com.br/fundsListedProxy/Search/'
@@ -270,7 +270,7 @@ def sec_json(url, name, max_age_h=72):
     for i in range(3):
         try:
             r = requests.get(url, headers=SEC_UA, timeout=45); time.sleep(0.15)
-            if r.status_code == 200: open(p, 'wb').write(r.content); return r.json()
+            if r.status_code == 200: write_atomic(p, r.content); return r.json()
             last = f'HTTP {r.status_code}'
         except Exception as e: last = repr(e)
         time.sleep(2 * (i + 1))

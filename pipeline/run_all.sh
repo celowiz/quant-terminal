@@ -14,35 +14,66 @@ export QT_ALERTS_MD="${QT_ALERTS_MD:-/tmp/alerts_fired.md}"
 mkdir -p "$QT_DATA_OUT" "$QT_CACHE"
 cd "$HERE"
 
-FAILED=()
+# Etapas em trilhas paralelas (as dependências entre JSONs ficam na ordem de cada trilha). Cada etapa grava
+# o próprio log em $LOGS e, ao terminar, o log sai inteiro num ::group:: (sem linhas de trilhas misturadas).
+# Fontes com limite de requisições (Yahoo) ficam numa trilha só; gravações de cache/JSON são atômicas (common.write_atomic).
+LOGS="$(mktemp -d)"; T_ALL=$SECONDS
 run() {
   local name="$1"; shift
-  echo "::group::$name"
-  local t0=$SECONDS
-  if timeout -k 30 "${STEP_TIMEOUT:-1200}" python3 "$@"; then echo "[ok] $name ($((SECONDS - t0))s)"; else echo "[FALHOU] $name"; FAILED+=("$name"); fi
-  echo "::endgroup::"
+  local t0=$SECONDS rc=0
+  timeout -k 30 "${STEP_TIMEOUT:-1200}" python3 "$@" > "$LOGS/$name.log" 2>&1 || rc=$?
+  {
+    flock 9
+    echo "::group::$name"; cat "$LOGS/$name.log"
+    if [ $rc -eq 0 ]; then echo "[ok] $name ($((SECONDS - t0))s)"; else echo "[FALHOU] $name ($((SECONDS - t0))s, código $rc)"; echo "$name" >> "$LOGS/FAILED"; fi
+    echo "::endgroup::"
+  } 9> "$LOGS/.lock"
 }
 
-run prices   build_prices.py     # OHLCV 10a dos tickers do seletor + tickers.json (Yahoo)
-run markets  build_markets.py    # universe (IBOV/B3), world, fx, econ (BCB/FRED), wfi, cdi
-run rates    build_rates.py      # CDIE: DI1 (B3 BDI) + Copom (BCB) + Focus por reunião; curvas GC (FRED, Tesouro Transparente)
-run corp     build_corp.py       # CVM DFP/ITR/FCA/IPE + Yahoo (proventos, splits, perfil)
-run sec      build_sec.py        # ações dos EUA: SEC EDGAR companyfacts/submissions (DES/FUND/FA/VAL/RV) + Yahoo (preço bruto, proventos)
-run calendar build_calendar.py   # CAL: datas de resultado do trimestre — sites de RI (todo dia) + CVM (IPE calendário, ITR/DFP) como reserva
-run extra    build_extra.py      # GIP intradiário, GLCO futuros, ECFC Focus, ECST SIDRA, HDS (FRE), FA (DFP/ITR), screener EQS/RV/MOST
-run macro    build_macro.py      # WB, FOMC, WIRP, TAYL, ECO, FXFC, FXC, GMM (Tesouro Transparente, BoE, FRED, Fed, BCB, IBGE, BLS/BEA/Census, Yahoo)
-run credit   build_credit.py     # YAS (Tesouro Transparente + DI1), DRSK (CVM BPP + Yahoo), ECTR (Comex Stat) — depois de rates/extra
-run options  build_options.py    # B3 COTAHIST diário (opções) + gregas Black-Scholes
-run fns1     build_fns1.py      # BEIR (Tesouro Transparente), USMM (NY Fed), CBR (BIS), CRYP (CoinGecko, alternative.me, DefiLlama)
-run fns2     build_fns2.py      # COT (CFTC Commitments of Traders), 13F (SEC EDGAR, carteiras de gestores)
-run news     build_news.py       # RSS de licença aberta (Agência Brasil, BCB, CVM, SEC, Fed, RFB)
-run anb      build_anb.py        # CVM Informe Diário de fundos → captação líquida por classe
-run fns3     build_fns3.py      # FIIM (CVM informe mensal de FII + COTAHIST), FNDS (CVM informe diário), BKS (BCB IF.data)
-STEP_TIMEOUT=1500 run des build_des.py  # DES de FIIs (CVM informe mensal + registro), ETFs B3 (B3 + CVM), BDRs (B3 + SEC), ETFs EUA (SEC)
-run slim     build_slim.py       # prices/r/ (≈2 anos), weekly/ e rrg.json: arquivos enxutos que o site lê primeiro
-run coverage build_coverage.py   # tickers.json: quais ativos têm DES/FUND/HDS/FA/OMON/GIP (arquivos por ticker gerados acima)
-run alerts   build_alerts.py     # avalia alerts.yaml → alerts.json + $QT_ALERTS_MD se disparar (por último: usa os preços novos)
+# ---- fase 1 -------------------------------------------------------------------------------------------
+# trilha Yahoo: prices → markets → corp (corp precisa de tickers.json e official_close.json)
+#   calendar e options só precisam de universe.json/cdi.json (markets) e rodam ao lado do corp
+(
+  run prices   build_prices.py     # OHLCV 10a dos tickers do seletor + tickers.json (Yahoo) + fechamento oficial B3
+  run markets  build_markets.py    # universe (IBOV/B3), world, fx, econ (BCB/FRED), wfi, cdi
+  (
+    run calendar build_calendar.py # CAL: datas de resultado do trimestre — sites de RI (todo dia) + CVM como reserva
+    run options  build_options.py  # B3 COTAHIST diário (opções) + gregas Black-Scholes
+  ) &
+  run corp     build_corp.py       # CVM DFP/ITR/FCA/IPE + Yahoo (proventos, splits, perfil)
+  wait
+) &
+# trilha sem Yahoo e sem dependência dos JSONs acima
+(
+  run rates    build_rates.py      # CDIE: DI1 (B3 BDI) + Copom (BCB) + Focus por reunião; curvas GC
+  run news     build_news.py       # RSS de licença aberta (Agência Brasil, BCB, CVM, SEC, Fed, RFB)
+  run anb      build_anb.py        # CVM Informe Diário de fundos → captação líquida por classe
+  run fns1     build_fns1.py       # BEIR, USMM, CBR, CRYP
+  run fns3     build_fns3.py       # FIIM (CVM informe mensal de FII + COTAHIST), FNDS, BKS
+  run fns2     build_fns2.py       # COT (CFTC), 13F (SEC EDGAR)
+) &
+wait
 
+# ---- fase 2 -------------------------------------------------------------------------------------------
+(
+  run extra    build_extra.py      # GIP, GLCO, ECFC, ECST, HDS, FA, screener EQS/RV/MOST (universe, corp_index)
+  run macro    build_macro.py      # WB, FOMC, WIRP, TAYL, ECO, FXFC, FXC, GMM (rates + markets + extra)
+  run credit   build_credit.py     # YAS, DRSK, ECTR (rates + screener do extra)
+) &
+(
+  run sec      build_sec.py        # ações dos EUA: SEC EDGAR + Yahoo (preço bruto, proventos) → corp/ dos EUA
+  STEP_TIMEOUT=1500 run des build_des.py  # DES de FIIs, ETFs B3, BDRs, ETFs EUA (tickers.json + corp/ do corp e do sec)
+) &
+wait
+
+# ---- fase 3 (usa tudo acima) ----------------------------------------------------------------------------
+run slim     build_slim.py       # prices/r/ (≈2 anos), weekly/ e rrg.json: arquivos enxutos que o site lê primeiro
+run coverage build_coverage.py   # tickers.json: quais ativos têm DES/FUND/HDS/FA/OMON/GIP
+run alerts   build_alerts.py     # avalia alerts.yaml → alerts.json + $QT_ALERTS_MD se disparar (usa os preços novos)
+
+FAILED=()
+[ -f "$LOGS/FAILED" ] && mapfile -t FAILED < "$LOGS/FAILED"
+echo "Tempo total do pipeline: $((SECONDS - T_ALL))s"
 echo "Saída: $QT_DATA_OUT"
 if [ ${#FAILED[@]} -gt 0 ]; then
   echo "Etapas com falha: ${FAILED[*]}"
