@@ -88,6 +88,11 @@ export const FUNCTION_LIST: FunctionItem[] = [
   { code: 'EUCV', desc: 'Euro Area Yield Curve', pt: 'Curva de juros da área do euro', cat: 'rates' },
   { code: 'CDR', desc: 'Exchange Holiday Calendar', pt: 'Calendário de feriados das bolsas', cat: 'tools' },
   { code: 'INSD', desc: 'Insider Transactions (BR/US)', pt: 'Negociações de insiders (BR/EUA)', cat: 'equity' },
+  { code: 'FWCV', desc: 'Forward Curves (BR/US/EU)', pt: 'Curvas a termo (BR/EUA/euro)', cat: 'rates' },
+  { code: 'VAR', desc: 'Portfolio Value at Risk', pt: 'Valor em risco da carteira', cat: 'tools' },
+  { code: 'FRNT', desc: 'Efficient Frontier', pt: 'Fronteira eficiente', cat: 'tools' },
+  { code: 'BTST', desc: 'Strategy Backtest', pt: 'Backtest de estratégias', cat: 'tools' },
+  { code: 'SVOL', desc: 'Implied vs Realized Volatility', pt: 'Volatilidade implícita × realizada', cat: 'equity' },
 ]
 
 /** nome da função no idioma atual */
