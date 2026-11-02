@@ -49,6 +49,8 @@ def resv():
 
 # ======================= WEO =======================
 IMF = 'https://www.imf.org/external/datamapper/api/v1'
+# O FMI (CDN) devolve 403 para User-Agent que imita navegador ('Mozilla/…') vindo de IPs de nuvem; identificação simples passa.
+IMF_UA = {'User-Agent': 'quant-terminal-pipeline (educational; +https://celowiz.github.io/quant-terminal/)'}
 WEO_IND = ['NGDP_RPCH', 'PCPIPCH', 'LUR', 'GGXWDG_NGDP', 'GGXCNL_NGDP', 'BCA_NGDPD']
 WEO_AREAS = ['WEOWORLD', 'ADVEC', 'OEMDC', 'EURO', 'USA', 'CHN', 'BRA', 'DEU', 'JPN', 'GBR', 'FRA', 'ITA', 'ESP', 'CAN', 'IND', 'KOR', 'AUS',
              'MEX', 'ARG', 'CHL', 'COL', 'PER', 'URY', 'RUS', 'TUR', 'ZAF', 'IDN', 'SAU', 'NGA', 'EGY']
@@ -70,20 +72,20 @@ def weo_table(values, years):
     return out
 
 def weo():
-    meta = get_json(f'{IMF}/indicators')['indicators']
+    meta = get_json(f'{IMF}/indicators', headers=IMF_UA)['indicators']
     ed = {edition(meta.get(i, {}).get('source')) for i in WEO_IND} - {None}
     if len(ed) != 1: raise RuntimeError(f'WEO: edições diferentes entre indicadores {ed}')
     ed = ed.pop(); y0 = int(ed[:4])
     years = list(range(y0 - 6, y0 + 6))
     vals = {}
     for i in WEO_IND:
-        vals[i] = get_json(f'{IMF}/{i}', timeout=120).get('values', {}).get(i, {})
+        vals[i] = get_json(f'{IMF}/{i}', timeout=120, headers=IMF_UA).get('values', {}).get(i, {})
         time.sleep(0.5)
     tab = weo_table(vals, years)
     if 'BRA' not in tab or 'USA' not in tab: raise RuntimeError('WEO: sem BRA/USA')
     labels = {}
     try:
-        c = get_json(f'{IMF}/countries')['countries']; g = get_json(f'{IMF}/groups')['groups']
+        c = get_json(f'{IMF}/countries', headers=IMF_UA)['countries']; g = get_json(f'{IMF}/groups', headers=IMF_UA)['groups']
         labels = {a: (c.get(a) or g.get(a) or {}).get('label') for a in tab}
     except Exception as e: print('WEO rótulos', e)
     save('weo.json', {'generated_at': now_iso(), 'edition': ed, 'years': years, 'first_proj': y0,
@@ -279,7 +281,11 @@ def insd():
     else: doc['us'] = {**(prev.get('us') or {}), 'status': 'stale' if prev.get('us') else 'na'}
     save('insd.json', doc)
 
+def placeholder(rel):
+    """Fonte caiu e não há JSON anterior: publica um marcador de indisponível (a tela mostra '—' sem 404 no console)."""
+    if load_prev(rel) is None: save(rel, {'generated_at': now_iso(), 'unavailable': True})
+
 if __name__ == '__main__':
     only = set(sys.argv[1:])
     for nm, fn in (('resv', resv), ('weo', weo), ('eucv', eucv), ('cdr', cdr), ('insd', insd)):
-        if not only or nm in only: step(nm, fn)
+        if (not only or nm in only) and not step(nm, fn): placeholder(f'{nm}.json')

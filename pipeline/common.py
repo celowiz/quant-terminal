@@ -63,11 +63,11 @@ def with_timeout(fn, secs, *a, **kw):
     if 'e' in box: raise box['e']
     return box.get('v')
 
-def get(url, tries=3, timeout=60, **kw):
+def get(url, tries=3, timeout=60, headers=None, **kw):
     last = None
     for i in range(tries):
         try:
-            r = requests.get(url, headers=UA, timeout=timeout, **kw)
+            r = requests.get(url, headers=headers or UA, timeout=timeout, **kw)
             if r.status_code == 200: return r
             last = f'HTTP {r.status_code}'
         except Exception as e:

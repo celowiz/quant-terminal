@@ -107,3 +107,20 @@ def test_form4_parse():
     assert name == 'DOE JANE' and role == 'Director, CFO'
     assert tx[0] == {'date': '2026-10-01', 'code': 'S', 'qty': 1000.0, 'px': 12.5, 'ad': 'D'}
     assert tx[1]['date'] == '2026-10-02' and tx[1]['px'] is None
+
+
+def test_imf_ua_nao_imita_navegador():
+    # a CDN do FMI responde 403 a 'Mozilla/…' vindo de IPs de nuvem (runners do Actions)
+    assert 'mozilla' not in b.IMF_UA['User-Agent'].lower()
+
+
+def test_placeholder_so_sem_json_anterior(monkeypatch):
+    saved = {}
+    monkeypatch.setattr(b, 'save', lambda rel, doc: saved.__setitem__(rel, doc))
+    monkeypatch.setattr(b, 'load_prev', lambda rel: None)
+    b.placeholder('weo.json')
+    assert saved['weo.json']['unavailable'] is True
+    saved.clear()
+    monkeypatch.setattr(b, 'load_prev', lambda rel: {'rows': {}})
+    b.placeholder('weo.json')
+    assert saved == {}
