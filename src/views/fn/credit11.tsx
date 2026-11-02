@@ -218,7 +218,7 @@ export function ECTRView() {
     return { rows, chord: [...top, other], tot: (d.totals as any[]).find(t => t.year === year) }
   }, [d, year, flow])
   if (!d) return <FnScreen code="ECTR" title={S.title}><Loading2 err={err} /></FnScreen>
-  if (!v) return <FnScreen code="ECTR" title={S.title} source={d.source}><Unavailable what="Comex Stat trade data" note={d.note} /></FnScreen>
+  if (!v) return <FnScreen code="ECTR" title={S.title} source={d.source}><Unavailable what="Trade data" note={d.note} /></FnScreen>
   const yrs = (d.years as number[]).slice(-6)
   return (
     <FnScreen code="ECTR" title={S.title} tabs={S.tabs} tab={tab} setTab={setTab}

@@ -147,15 +147,15 @@ export function FXCView() {
 }
 
 // ======================= FXFC =======================
-const S_FXFC = { title: 'FX Forecasts – USD/BRL (Focus survey)', tabs: ['Monthly', 'Annual'], c: { ref: 'Reference', median: 'Median', mean: 'Mean', sd: 'Std dev', min: 'Min', max: 'Max', n: 'N', w1: '1W ago', w4: '4W ago', forward: 'CIP fwd', vsSpot: 'vs spot' },
-  chart: 'USD/BRL spot, Focus median (min–max band) and CIP forward', spot: 'Spot', med: 'Focus median', fwd: 'CIP forward', band: 'Min–max',
+const S_FXFC = { title: 'FX Forecasts – USD/BRL (market survey)', tabs: ['Monthly', 'Annual'], c: { ref: 'Reference', median: 'Median', mean: 'Mean', sd: 'Std dev', min: 'Min', max: 'Max', n: 'N', w1: '1W ago', w4: '4W ago', forward: 'CIP fwd', vsSpot: 'vs spot' },
+  chart: 'USD/BRL spot, survey median (min–max band) and CIP forward', spot: 'Spot', med: 'Survey median', fwd: 'CIP forward', band: 'Min–max',
   hist: 'Median history', k: { spot: 'Spot USD/BRL', survey: 'Survey date', ye: 'Year-end median', fwd: 'Year-end CIP fwd', n: 'Respondents' } }
 export function FXFCView() {
   const { data: d, err } = useJSON<any>('fxfc.json')
   const [tab, setTab] = useState(0), [sel, setSel] = useState<string | null>(null)
   const S = S_FXFC
   if (!d) return <FnScreen code="FXFC" title={S.title}><Loading2 err={err} /></FnScreen>
-  if (!d.monthly?.length && !d.annual?.length) return <FnScreen code="FXFC" title={S.title}><Unavailable what="Focus FX survey" /></FnScreen>
+  if (!d.monthly?.length && !d.annual?.length) return <FnScreen code="FXFC" title={S.title}><Unavailable what="FX survey" /></FnScreen>
   const list: any[] = tab === 0 ? d.monthly : d.annual
   const cur = list.find(x => x.ref === sel) || list[0]
   const ye = d.annual?.[0]

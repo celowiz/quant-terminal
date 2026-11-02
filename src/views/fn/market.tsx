@@ -85,7 +85,7 @@ export function ECONView() {
   const focus = d.focus as any[]
   const fInd = Array.from(new Set(focus.map(f => f.indicator))), fYears = Array.from(new Set(focus.map(f => f.year))).sort()
   return (
-    <FnScreen code="ECON" title="Economic Indicators / Expectations" source="BCB SGS and Focus Report (Olinda API), FRED; tools/pipeline/build_markets.py." note="Click an indicator to see its history. There is no release calendar with per-event consensus/forecast (proprietary data); the expectations column uses Focus medians.">
+    <FnScreen code="ECON" title="Economic Indicators / Expectations" source="BCB SGS and Focus Report (Olinda API), FRED; tools/pipeline/build_markets.py." note="Click an indicator to see its history. There is no release calendar with per-event consensus/forecast (proprietary data); the expectations column uses market survey medians.">
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1.3fr 1fr' }}>
         <div className="flex flex-col gap-2">
           <Panel title="Brazil"><Grid onRow={(r: any) => setSel(r.id)} rowStyle={(r: any) => r.id === sel ? { background: tc('#1a1205') } : undefined} cols={cols} rows={rows('BR')} /></Panel>
@@ -93,7 +93,7 @@ export function ECONView() {
         </div>
         <div className="flex flex-col gap-2">
           <Panel title={`${s?.name} (${s?.unit})`}><FnChart height={300} panes={[{ series: [{ kind: s?.freq === 'M' && /variação|saldo/.test(s?.name) ? 'hist' : 'line', data: (s?.points || []).map((p: any) => ({ time: p[0], value: p[1], color: p[1] >= 0 ? C.amber : C.down })), color: C.amber, title: (s?.name || '').split(' – ')[0].slice(0, 18), decimals: 2 }] }]} /></Panel>
-          <Panel title={`Focus — medians (${dBR(focus[0]?.date)})`}>
+          <Panel title={`Market survey — medians (${dBR(focus[0]?.date)})`}>
             <table className="w-full text-[12px]"><thead><tr><th className="px-2 py-1 text-left font-normal" style={{ color: C.amber }}>Indicator</th>{fYears.map(y => <th key={y} className="px-2 py-1 text-right font-normal" style={{ color: C.amber }}>{y}</th>)}</tr></thead>
               <tbody>{fInd.map(ind => <tr key={ind} className="border-t" style={{ borderColor: tc('#1a1a1a') }}><td className="px-2 py-[2px]">{en(ind)}</td>{fYears.map(y => { const f = focus.find(x => x.indicator === ind && x.year === y); return <td key={y} className="px-2 py-[2px] text-right">{f ? nf(f.median, 2) : '—'}</td> })}</tr>)}</tbody></table>
           </Panel>

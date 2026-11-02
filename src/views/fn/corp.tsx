@@ -264,7 +264,7 @@ export function SPLITView({ ticker }: { ticker: string }) {
     const cum = sp.reduce((p, [, r]) => p * r, 1)
     const months = raw.filter((_, i) => i % 5 === 0)
     return (
-      <FnScreen code="SPLIT" ticker={ticker} title="Splits / reverse splits" source={srcOf(d)} note="Split events from Yahoo (ratio = new shares per old share). Chart: raw price (as traded) with markers on event dates. Stock bonuses also appear as fractional splits.">
+      <FnScreen code="SPLIT" ticker={ticker} title="Splits / reverse splits" source={srcOf(d)} note="Split events (ratio = new shares per old share). Chart: raw price (as traded) with markers on event dates. Stock bonuses also appear as fractional splits.">
         <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '420px 1fr' }}>
           <Panel title={`Events (${rows.length})`}>
             {rows.length ? <Grid cols={[{ k: 'date', label: 'Ex-date', fmt: dBRfull }, { k: 'desc', label: 'Event', color: () => C.amber }, { k: 'factor', label: 'Factor', align: 'r', fmt: v => nf(v, 4) }]} rows={rows} /> : <div className="p-2 text-[12px]" style={{ color: C.muted }}>No events in the available history.</div>}

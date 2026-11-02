@@ -93,7 +93,7 @@ def focus():
             return h[-1][1] if h else None
         for ref in snap: snap[ref]['w1'] = med_at(ref, 7); snap[ref]['w4'] = med_at(ref, 28)
         out[ind] = {'date': last, 'detail': v[0].get('IndicadorDetalhe'), 'snap': snap, 'hist': {r: h[-260:] for r, h in hist.items()}}
-    if len(out) < 4: raise RuntimeError('Focus incompleto')
+    if len(out) < 4: raise RuntimeError('pesquisa incompleta')
     save('focus.json', {'generated_at': now_iso(), 'refs': refs, 'indicators': out,
                         'source': 'BCB – Sistema Expectativas de Mercado (Focus), API Olinda ExpectativasMercadoAnuais (base de cálculo 0)'})
 

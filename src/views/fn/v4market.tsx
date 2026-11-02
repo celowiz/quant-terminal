@@ -42,7 +42,7 @@ export function CDIEView() {
   const first = v.path[0]
   return (
     <FnScreen code="CDIE" title="CDI / Copom expectations implied by DI futures" tabs={['Copom meetings', 'DI1 contracts', 'History']} tab={tab} setTab={setTab}
-      source={d.source} note={<>{en(d.method)} The implied rate is what the market prices in (not a forecast); it includes a risk premium that grows with maturity. Focus = median Selic per meeting from the market survey. Implied Selic = implied CDI + current Selic−CDI spread ({nf(d.spread_selic_cdi, 2)} p.p.). Δ meeting vs the previous period; 25 bp = a &quot;standard&quot; cut/hike. Est. only exists up to the last expiry covered by the published Copom calendar. History starts with the first sessions collected and grows by one session per day with each pipeline run.</>}>
+      source={d.source} note={<>{en(d.method)} The implied rate is what the market prices in (not a forecast); it includes a risk premium that grows with maturity. Survey = median Selic expected for each meeting in the market survey. Implied Selic = implied CDI + current Selic−CDI spread ({nf(d.spread_selic_cdi, 2)} p.p.). Δ meeting vs the previous period; 25 bp = a &quot;standard&quot; cut/hike. Est. only exists up to the last expiry covered by the published Copom calendar. History starts with the first sessions collected and grows by one session per day with each pipeline run.</>}>
       <div className="mb-2 grid gap-2 text-[12px] fn-kpi" style={{ gridTemplateColumns: 'repeat(6,minmax(0,1fr))' }}>
         {[
           ['Reference date (settlement)', dBRfull(d.ref_date), C.text],
@@ -64,15 +64,15 @@ export function CDIEView() {
             { k: 'cum_bp', label: 'Δ cum. (bp)', align: 'r', fmt: x => bp(x), color: x => clr(x) },
             { k: 'n25', label: 'No. of 25 bp', align: 'r', fmt: (_, r: any) => nf(r.move_bp / 25, 2) },
             { k: 'selic', label: 'Selic impl.', align: 'r', fmt: x => nf(x, 2) },
-            { k: 'focus', label: 'Focus (med.)', align: 'r', fmt: x => x ? nf(x.median, 2) : '—', color: () => C.purple },
-            { k: 'dif', label: 'Impl.−Focus (bp)', align: 'r', fmt: (_, r: any) => r.focus ? bp((r.selic - r.focus.median) * 100) : '—', color: (_, r: any) => r.focus ? clr(r.selic - r.focus.median) : C.muted },
+            { k: 'focus', label: 'Survey (med.)', align: 'r', fmt: x => x ? nf(x.median, 2) : '—', color: () => C.purple },
+            { k: 'dif', label: 'Impl.−Survey (bp)', align: 'r', fmt: (_, r: any) => r.focus ? bp((r.selic - r.focus.median) * 100) : '—', color: (_, r: any) => r.focus ? clr(r.selic - r.focus.median) : C.muted },
           ]} />
         </Panel>
         <div>
           <XYChart height={330} legend zeroLine={false} xFmt={x => dBR(fromDay(Math.round(x)))} yFmt={y => nf(y, 2)} yLabel="% p.a." series={[
             { name: 'Implied CDI (DI1)', points: v.step(r => r.cdi, d.cdi), color: C.amber, width: 2 },
             { name: 'Implied Selic', points: v.step(r => r.selic, d.selic), color: C.cyan, dash: '4 3' },
-            { name: 'Focus – Selic median', points: v.step(r => r.focus?.median ?? null, d.selic), color: C.purple, dash: '2 3' },
+            { name: 'Survey – Selic median', points: v.step(r => r.focus?.median ?? null, d.selic), color: C.purple, dash: '2 3' },
             { name: 'DI1 rate (settlement, spot)', points: v.quoted, color: C.white, scatter: true },
           ]} />
           <div className="mt-2 text-[12px]" style={{ color: C.amber }}>Implied move by meeting (bp)</div>
@@ -284,8 +284,8 @@ export function ECFCView() {
   const rows = inds.map(k => { const r: any = { k, unit: unitOf(k), date: f.indicators[k].date }; refs.forEach(y => { const s = f.indicators[k].snap?.[y]; r[y] = s?.median; r[y + 'd'] = s && s.w4 != null ? s.median - s.w4 : null }); return r })
   const arrow = (d: number | null) => d == null || Math.abs(d) < 1e-9 ? '' : d > 0 ? ' ▲' : ' ▼'
   return (
-    <FnScreen code="ECFC" title="Economic forecasts – Brazil (Focus survey)"
-      source={f.source} note="Median of the institutions' forecasts in the Focus Report (annual). Arrow = change in the median over the last 4 weeks. Click a row to see the dispersion (mean, std. dev., min, max, no. of respondents) and the median's evolution.">
+    <FnScreen code="ECFC" title="Economic forecasts – Brazil (market survey)"
+      source={f.source} note="Median of the institutions' forecasts in the central bank's weekly market survey (annual). Arrow = change in the median over the last 4 weeks. Click a row to see the dispersion (mean, std. dev., min, max, no. of respondents) and the median's evolution.">
       <Grid onRow={(r: any) => setSel(r.k)} rowStyle={(r: any) => r.k === sel ? { background: tc('#2a1d08') } : undefined} rows={rows} cols={[
         { k: 'k', label: 'Indicator', color: () => C.amber }, { k: 'unit', label: 'Unit', color: () => C.muted },
         ...refs.map(y => ({ k: y, label: y, align: 'r' as const, fmt: (x: any, r: any) => <>{nf(x, 2)}<span style={{ color: r[y + 'd'] > 0 ? C.up : C.down }}>{arrow(r[y + 'd'])}</span></> })),
@@ -487,7 +487,7 @@ export function BTMMView() {
       note={`DI1 Δ vs previous session (${dBR(v.prevK)}); Tesouro and Treasuries vs 1 week; US money market vs previous print. No market-consensus column (no open source).`}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'repeat(4,minmax(0,1fr))' }}>
         <Panel title="Brazil – monetary policy">
-          <KV rows={[['Selic target', `${nf(d.selic, 2)}%`, C.amber], ['CDI', `${nf(d.cdi, 2)}%`, C.amber], ['Spread Selic−CDI', `${nf(d.spread_selic_cdi, 2)} p.p.`], ['Next meeting', d.path?.[0] ? `${d.path[0].label} ${dBR(d.path[0].decision)}` : '—'], ['Implied move', d.path?.[0] ? `${bp(d.path[0].move_bp)} pb` : '—', clr(d.path?.[0]?.move_bp)], ['12m cumulative', h ? `${bp(h.cum_12m_bp)} pb` : '—', clr(h?.cum_12m_bp)], ['Implied year-end CDI', h ? `${nf(h.year_end_cdi, 2)}%` : '—'], ['Focus Selic next meeting', d.path?.[0]?.focus ? `${nf(d.path[0].focus.median, 2)}%` : '—', C.purple]]} />
+          <KV rows={[['Selic target', `${nf(d.selic, 2)}%`, C.amber], ['CDI', `${nf(d.cdi, 2)}%`, C.amber], ['Spread Selic−CDI', `${nf(d.spread_selic_cdi, 2)} p.p.`], ['Next meeting', d.path?.[0] ? `${d.path[0].label} ${dBR(d.path[0].decision)}` : '—'], ['Implied move', d.path?.[0] ? `${bp(d.path[0].move_bp)} pb` : '—', clr(d.path?.[0]?.move_bp)], ['12m cumulative', h ? `${bp(h.cum_12m_bp)} pb` : '—', clr(h?.cum_12m_bp)], ['Implied year-end CDI', h ? `${nf(h.year_end_cdi, 2)}%` : '—'], ['Survey Selic next meeting', d.path?.[0]?.focus ? `${nf(d.path[0].focus.median, 2)}%` : '—', C.purple]]} />
         </Panel>
         <Panel title={`DI futures – settlement rate (${dBR(d.ref_date)})`}>{tbl(v.pick.map((c: any) => ({ l: `${c.code} ${dBR(c.mat)}`, v: c.rate, chg: c.chg })), 'bp', 3)}</Panel>
         <Panel title={`Tesouro Direto (${dBR(cv.data.td.pre?.now?.date)})`}>{tbl([...v.pre, ...v.ipca], 'bp')}</Panel>

@@ -54,7 +54,7 @@ export function COMPView({ ticker }: { ticker: string }) {
   return (
     <FnScreen code="COMP" ticker={ticker} title="Comparative Returns"
       right={<><Field label="Add"><select className={inputCls} style={inputStyle} value="" onChange={e => e.target.value && list.length < 6 && setList([...list, e.target.value])}><option value="">—</option>{all.filter(t => !list.includes(t)).map(t => <option key={t} value={t}>{lbl(t)}</option>)}</select></Field><Btns opts={PERIODS} value={per} onChange={setPer} /></>}
-      source={SRC_PX} note="Adjusted price return (includes distributions, since Yahoo's close is adjusted) from the start of the period, all series based at 0%. Annualized volatility from daily returns (√252). Correlation of daily returns with the first asset. Click × to remove.">
+      source={SRC_PX} note="Adjusted price return (includes distributions, since the close is adjusted) from the start of the period, all series based at 0%. Annualized volatility from daily returns (√252). Correlation of daily returns with the first asset. Click × to remove.">
       {!calc ? <Loading /> : <>
         <FnChart height={380} panes={panes} />
         <Grid rows={calc.rows} cols={[

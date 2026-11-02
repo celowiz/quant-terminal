@@ -7,8 +7,12 @@ import type { TickerMeta } from './static'
 export const TICKERS = (tickers as unknown as { tickers: TickerMeta[] }).tickers
 
 /** generateStaticParams de /<fn>/[ticker]: só os ativos que a função aceita (controla o tamanho do deploy).
- *  A cobertura ampliada (`ext`) não gera página: o 404.html (app/not-found.tsx) renderiza a View no navegador. */
+ *  A cobertura ampliada (`ext`) só gera página nas funções de EXT_PAGES (GP/HP, as mais abertas por link direto):
+ *  nas demais o 404.html (app/not-found.tsx) renderiza a View no navegador, mas o documento chega com status 404. */
+export const EXT_PAGES = new Set(['GP', 'HP'])
 export function staticParams(code: string) {
-  const own = (FUNCTION_UNIVERSE as Record<string, string[]>)[code.toUpperCase()]
-  return TICKERS.filter(t => !t.ext && (!own || own.includes(t.ticker.toUpperCase()))).map(t => ({ ticker: t.ticker }))
+  const C = code.toUpperCase()
+  const own = (FUNCTION_UNIVERSE as Record<string, string[]>)[C]
+  const ext = EXT_PAGES.has(C)
+  return TICKERS.filter(t => (ext || !t.ext) && (!own || own.includes(t.ticker.toUpperCase()))).map(t => ({ ticker: t.ticker }))
 }
