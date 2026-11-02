@@ -3,6 +3,9 @@
 # 2) abre issue se alguma regra de alerts.yaml disparou (ALERT)
 # 3) build estático do Next.js (output: 'export') e publica no Pages.
 # Horário: 10:47 UTC = 07:47 BRT, ter–sáb (dados do pregão de seg–sex já consolidados).
+# Segundo build: 22:30 UTC = 19:30 BRT, seg–sex, para o fechamento oficial B3 do próprio dia. O arquivo diário
+# oficial costuma sair entre 20:20 e 21:40 BRT, então esse build espera por ele (até 150 min) antes do pipeline;
+# se não sair (feriado, atraso), segue com o que houver e a data de referência mostra a última barra oficial.
 # O CAL (calendário de resultados) tem um job leve próprio, todo dia às 21:30 BRT: calendar.yml.
 # Push que só muda o frontend (nada em pipeline/, tests/, alerts.yaml ou neste workflow) não roda o pipeline:
 # reaproveita os dados do último site publicado (artefato github-pages) e faz só o build (~3 min em vez de ~30).
@@ -20,6 +23,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '47 10 * * 2-6'
+    - cron: '30 22 * * 1-5'   # build da noite (fechamento oficial do dia); ver "Fechamento oficial do dia"
 
 # Menor privilégio: nada no nível do workflow; cada job pede só o que usa.
 permissions: {}
@@ -69,7 +73,7 @@ jobs:
   build:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 240   # 90 do build + até 150 de espera pelo arquivo oficial no build da noite
     permissions:
       contents: read
       actions: read      # baixar o artefato do último deploy (dados publicados)
@@ -163,6 +167,20 @@ jobs:
           restore-keys: |
             qt-cache-v2-
             qt-cache-
+
+      # Build da noite: espera o arquivo diário oficial da B3 do pregão de hoje (HEAD a cada 5 min, até 150 min).
+      # Achou → o pipeline grava a barra oficial de hoje (tickers.json "official" = hoje, data de referência por painel).
+      - name: Fechamento oficial do dia (build da noite)
+        if: steps.mode.outputs.full == 'true' && github.event.schedule == '30 22 * * 1-5'
+        timeout-minutes: 155
+        run: |
+          d=$(TZ=America/Sao_Paulo date +%d%m%Y)
+          url="https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_D$d.ZIP"
+          for i in $(seq 0 30); do
+            if curl -sfI -m 30 "$url" > /tmp/h.txt; then echo "arquivo oficial de $d disponível ($(grep -i last-modified /tmp/h.txt | tr -d '\r'))"; exit 0; fi
+            [ "$i" -lt 30 ] && { echo "$(TZ=America/Sao_Paulo date +%H:%M) BRT: arquivo oficial de $d ainda não saiu"; sleep 300; }
+          done
+          echo "::warning::arquivo oficial de $d não saiu em 150 min (feriado ou atraso): segue com a última barra oficial"
 
       # Teto do passo: se uma fonte travar além do timeout por etapa (run_all.sh), o deploy segue
       # com os dados já gerados + os do último artefato, em vez de prender a fila até os 90 min do job.
