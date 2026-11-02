@@ -6,9 +6,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { format, subMonths, subYears, startOfYear, parseISO } from 'date-fns'
 import { t } from '../../lib/i18n'
-import { getPrices, tickerMeta, go, type Price } from '../../lib/static'
+import { getPrices, tickerMeta, go, RECENT_PERIODS, type Price } from '../../lib/static'
 import { trackPeriod } from '../../lib/track'
-import { T, MONO } from './PriceChart'
+import { T, MONO } from './chartTheme'
 import { safeUrl } from '../../lib/safe.mjs'
 
 const PriceChart = dynamic(() => import('./PriceChart'), { ssr: false })
@@ -43,6 +43,8 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
   const boxRef = useRef<HTMLDivElement | null>(null)
   const [h, setH] = useState(600)
   const [legOpen, setLegOpen] = useState(false)
+  // começa pelo arquivo recente (~2 anos); 2Y/5Y/Max, data inicial mais antiga ou timeframe ≠ diário pedem o histórico completo
+  const [full, setFull] = useState(false)
 
   // altura = viewport inteira abaixo do cabeçalho/barra de comando
   useLayoutEffect(() => {
@@ -68,12 +70,12 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
     let alive = true
     ;(async () => {
       try {
-        const [m, rows] = await Promise.all([tickerMeta(ticker), getPrices(ticker, undefined, undefined, tf)])
+        const [m, rows] = await Promise.all([tickerMeta(ticker), getPrices(ticker, undefined, undefined, tf, !full && tf === 'd')])
         if (!alive) return
         setMeta(m); setAll(rows); setErr(null)
-        if (!end && rows.length) {
+        if ((!end || period === 'MAX') && rows.length) {
           const last = rows[rows.length - 1].time
-          setEnd(last)
+          if (!end) setEnd(last)
           const f = PERIODS.find(p => p.k === period)!.from(parseISO(last))
           setStart(f ? format(f, 'yyyy-MM-dd') : rows[0].time)
         }
@@ -81,11 +83,15 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
     })()
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticker, tf])
+  }, [ticker, tf, full])
+
+  // data inicial digitada antes do começo do arquivo recente → histórico completo
+  useEffect(() => { if (!full && start && all.length && start < all[0].time) setFull(true) }, [start, all, full])
 
   const pickPeriod = (k: string) => {
     trackPeriod(k)
     setPeriod(k)
+    if (!RECENT_PERIODS.has(k)) setFull(true)
     if (!all.length) return
     const last = all[all.length - 1].time
     const f = PERIODS.find(p => p.k === k)!.from(parseISO(last))
