@@ -1,6 +1,6 @@
 'use client'
 import { tc } from '../../lib/themeRuntime'
-import { lang } from '@/lib/settings'
+import { lang, getSettings } from '@/lib/settings'
 /**
  * RRG estilo terminal: trilhas com pontos semanais (opacidade decrescente com a idade),
  * cabeça destacada com seta de direção, quadrantes coloridos, rótulos, tooltip e controles
@@ -8,7 +8,7 @@ import { lang } from '@/lib/settings'
  * de referência (ver /REFERENCIAS.md). Cálculo: computeRRG (porte fiel do backend rrg.py).
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { computeRRG, getJSON, type TickersFile } from '../../lib/static'
+import { computeRRG, getJSON, tickerKey, type TickersFile } from '../../lib/static'
 import type { RRGResponse } from '../../types/rrg'
 import { MONO } from './chartTheme'
 import { fmtDate } from '../../lib/dates'
@@ -22,6 +22,22 @@ const Q: Record<string, { c: string; n: string; d: string }> = {
 const PALETTE = ['#FFA028', tc('#FFFFFF'), tc('#4FC3F7'), tc('#FF5BD6'), tc('#7CFC00'), tc('#FFD400'), tc('#FF7F50'), tc('#B388FF'), tc('#00E5C0'), tc('#C0C0C0'), tc('#F06292')]
 const MAX_HIST = 104 // semanas calculadas; a cauda exibida é só um recorte (não altera o cálculo)
 const label = (k: string) => k.replace(/^IDX_/, '^').replace(/_X$/, '=X')
+/** universos do RRG: seleção inicial, benchmark padrão e pacote semanal pré-calculado (pipeline/build_slim.py) */
+type Mkt = 'br' | 'us'
+const MKT: Record<Mkt, { bench: string; sel: string[]; bundle: 'rrg.json' | 'rrg_us.json' }> = {
+  br: { bench: 'IDX_BVSP', sel: ['PETR4', 'VALE3', 'ITUB4', 'B3SA3', 'PETR3', 'ITUB3'], bundle: 'rrg.json' },
+  us: { bench: 'IDX_GSPC', sel: ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'QQQ', 'IWM'], bundle: 'rrg_us.json' },
+}
+/** nomes legíveis dos benchmarks mais comuns (o resto mostra o ticker) */
+const BNAME: Record<string, [string, string]> = {
+  IDX_GSPC: ['S&P 500', 'S&P 500'], IDX_BVSP: ['Ibovespa', 'Ibovespa'], IDX_NDX: ['Nasdaq-100', 'Nasdaq-100'], IDX_IXIC: ['Nasdaq Composite', 'Nasdaq Composite'],
+  IDX_DJI: ['Dow Jones', 'Dow Jones'], IDX_RUT: ['Russell 2000', 'Russell 2000'], BOVA11: ['Ibovespa (BOVA11)', 'Ibovespa (BOVA11)'], DX_Y_NYB: ['US Dollar Index', 'Índice do Dólar (DXY)'], BTC_USD: ['Bitcoin', 'Bitcoin'],
+}
+const bname = (k: string) => BNAME[k]?.[lang() === 'pt' ? 1 : 0] || label(k)
+/** benchmark padrão do mercado: o das Configurações (se houver) ou o do universo */
+const mktBench = (m: Mkt) => { const b = getSettings().bench?.[m]; return b ? tickerKey(b) : MKT[m].bench }
+/** mercado inicial: ?m=us na URL abre o RRG dos EUA */
+const initMkt = (): Mkt => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('m') === 'us' ? 'us' : 'br')
 const quad = (x: number, y: number) => (x >= 100 ? (y >= 100 ? 'Leading' : 'Weakening') : y >= 100 ? 'Improving' : 'Lagging')
 const fmtD = (s: string) => fmtDate(s.slice(0, 10)) // PT 29/10/26 · EN 29 Oct 26
 const niceStep = (span: number) => { const r = span / 4, p = Math.pow(10, Math.floor(Math.log10(r))), f = r / p; return (f > 5 ? 10 : f > 2 ? 5 : f > 1 ? 2 : 1) * p }
@@ -30,8 +46,11 @@ type Hover = { x: number; y: number; t: string; date: string; r: number; m: numb
 
 export default function RRGTerminal() {
   const [available, setAvailable] = useState<string[]>([])
-  const [bench, setBench] = useState('IDX_BVSP')
-  const [sel, setSel] = useState<string[]>(['PETR4', 'VALE3', 'ITUB4', 'B3SA3', 'PETR3', 'ITUB3'])
+  const [mkt, setMkt] = useState<Mkt>('br')
+  const [bench, setBench] = useState(MKT.br.bench)
+  const [sel, setSel] = useState<string[]>(MKT.br.sel)
+  const pickMkt = (m: Mkt) => { setMkt(m); setBench(mktBench(m)); setSel(MKT[m].sel); setHidden(new Set()); setEndOff(0); setPlaying(false); setData(null) }
+  useEffect(() => { const m = initMkt(); if (m !== 'br' || mktBench('br') !== MKT.br.bench) pickMkt(m) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [lbR, setLbR] = useState(10)
   const [lbM, setLbM] = useState(10)
   const [ema, setEma] = useState(true)
@@ -50,11 +69,11 @@ export default function RRGTerminal() {
   useEffect(() => { getJSON<TickersFile>('tickers.json').then(f => setAvailable(f.tickers.map(t => t.key))) }, [])
   useEffect(() => {
     let alive = true
-    computeRRG({ benchmark: bench, lookback_ratio: lbR, lookback_mom: lbM, tail: MAX_HIST, use_ema: ema, tickers: sel.filter(s => s !== bench).join(',') || undefined })
+    computeRRG({ benchmark: bench, lookback_ratio: lbR, lookback_mom: lbM, tail: MAX_HIST, use_ema: ema, tickers: sel.filter(s => s !== bench).join(',') || undefined, bundle: MKT[mkt].bundle })
       .then(d => { if (alive) { setData(d); setErr(null) } })
       .catch(e => alive && setErr(String(e?.message || e)))
     return () => { alive = false }
-  }, [bench, sel, lbR, lbM, ema])
+  }, [bench, sel, lbR, lbM, ema, mkt])
 
   // tamanho: viewport inteira abaixo do cabeçalho
   useEffect(() => {
@@ -120,7 +139,7 @@ export default function RRGTerminal() {
       {/* mobile: 2 linhas — título truncado / semana + fonte numa faixa rolável; desktop: linha única como antes */}
       <div className="flex items-center gap-4 flex-wrap px-3 py-1 border-b border-[#3a3a3a] text-[13px] max-lg:gap-x-2 max-lg:gap-y-[2px]">
         <span className="font-bold text-black bg-[#FFA028] px-2 max-lg:shrink-0">RRG</span>
-        <span className="text-[#d9d9d9] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate">Relative Rotation Graph · vs <b className="text-[#FFA028]">{label(bench)}</b> · {lang() === 'pt' ? 'semanal (sexta)' : 'weekly (Friday)'}</span>
+        <span className="text-[#d9d9d9] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate">Relative Rotation Graph · {mkt === 'us' ? (lang() === 'pt' ? 'EUA' : 'US') : (lang() === 'pt' ? 'Brasil' : 'Brazil')} · vs <b className="text-[#FFA028]">{bname(bench)}</b> · {lang() === 'pt' ? 'semanal (sexta)' : 'weekly (Friday)'}</span>
         <div className="lg:contents max-lg:w-full max-lg:flex max-lg:items-center max-lg:gap-4 max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0 max-lg:text-[12px] fn-strip">
           <span className="text-[#8a8a8a]">{endDate ? `Week of ${fmtD(endDate)} · tail ${tail} wk` : ''}</span>
           <span className="ml-auto text-[#8a8a8a] text-[11px] max-lg:ml-0">Educational use, not a recommendation</span>
@@ -128,9 +147,12 @@ export default function RRGTerminal() {
       </div>
       {/* controles */}
       <div className="flex items-center gap-3 flex-wrap px-3 py-1 border-b border-[#3a3a3a] bg-[#0a0a0a] text-[12px] text-[#8a8a8a] fn-strip max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0">
+        <div className="flex gap-[2px]" role="group" aria-label={lang() === 'pt' ? 'Mercado' : 'Market'}>
+          {(['br', 'us'] as Mkt[]).map(m => <button key={m} className={btn(mkt === m)} aria-pressed={mkt === m} onClick={() => pickMkt(m)}>{m === 'br' ? 'BR' : (lang() === 'pt' ? 'EUA' : 'US')}</button>)}
+        </div>
         <label className="flex items-center gap-1">Benchmark
           <select className={box} value={bench} onChange={e => setBench(e.target.value)}>
-            {available.map(k => <option key={k} value={k}>{label(k)}</option>)}
+            {available.map(k => <option key={k} value={k}>{BNAME[k] ? `${bname(k)} (${label(k)})` : label(k)}</option>)}
           </select>
         </label>
         <label className="flex items-center gap-1">RS {ema ? 'EMA' : 'SMA'}
@@ -196,7 +218,7 @@ export default function RRGTerminal() {
           </svg>
           {hover && (
             <div className="absolute z-20 pointer-events-none text-[12px] leading-[17px] px-2 py-1 border" style={{ left: Math.min(hover.x + 14, W - 210), top: Math.max(4, hover.y - 70), background: tc('#0a0a0a'), borderColor: colorOf[hover.t], color: tc('#d9d9d9') }}>
-              <div className="font-bold" style={{ color: colorOf[hover.t] }}>{label(hover.t)} <span className="text-[#8a8a8a] font-normal">vs {label(bench)}</span></div>
+              <div className="font-bold" style={{ color: colorOf[hover.t] }}>{label(hover.t)} <span className="text-[#8a8a8a] font-normal">vs {bname(bench)}</span></div>
               <div>Week <b className="text-white">{fmtD(hover.date)}</b></div>
               <div>RS-Ratio <b className="text-white">{hover.r.toFixed(2)}</b></div>
               <div>RS-Momentum <b className="text-white">{hover.m.toFixed(2)}</b></div>
