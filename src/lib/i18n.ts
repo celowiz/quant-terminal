@@ -119,6 +119,8 @@ const EN = {
   'cal.hidePanel': 'Hide details panel',
   'cal.showPanel': 'Show details panel',
   'cal.close': 'Close',
+  'cal.post': 'Post mode',
+  'cal.postHint': 'Post mode: hide status colours, show only logo, ticker and name (for sharing)',
 }
 type Key = keyof typeof EN
 
@@ -238,6 +240,8 @@ const PT: Record<Key, string> = {
   'cal.hidePanel': 'Recolher painel de detalhes',
   'cal.showPanel': 'Mostrar painel de detalhes',
   'cal.close': 'Fechar',
+  'cal.post': 'Modo post',
+  'cal.postHint': 'Modo post: esconde as cores de status e mostra só logo, ticker e nome (para compartilhar)',
 }
 
 export function t(k: Key): string { return (lang() === 'pt' ? PT : EN)[k] }
