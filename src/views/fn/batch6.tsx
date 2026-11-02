@@ -26,12 +26,12 @@ export function RESVView() {
   const { data: d, err } = useJSON<any>('resv.json')
   const [rng, setRng] = useState('3Y')
   const m = useMemo(() => {
-    if (!d) return null
+    if (!d || d.unavailable) return null
     const mt = d.monthly.t as string[], mv = d.monthly.v as number[]
     const rows = mt.map((t, i) => ({ t, v: mv[i], mom: i ? mv[i] - mv[i - 1] : null, yoy: i >= 12 ? mv[i] - mv[i - 12] : null }))
     return rows
   }, [d])
-  if (!d || !m) return <FnScreen code="RESV" title="Brazil FX Reserves"><Loading2 err={err} /></FnScreen>
+  if (!d || !m) return <FnScreen code="RESV" title="Brazil FX Reserves"><Loading2 err={err || (d?.unavailable ? 'unavailable' : null)} /></FnScreen>
   const days = RRANGE.find(r => r[0] === rng)?.[1] ?? null
   const from = days ? isoAgo(d.date, days) : null
   const dt = d.daily.t as string[], dv = d.daily.v as number[]
@@ -94,14 +94,14 @@ export function WEOView() {
   const years: number[] = d?.years || []
   const show = years.filter(y => d && y >= d.first_proj - 4)
   const rows = useMemo(() => {
-    if (!d) return []
+    if (!d || d.unavailable) return []
     const ix = years.indexOf(d.first_proj)
     const r = Object.keys(d.rows).map(a => ({ a, v: d.rows[a][ind] as (number | null)[] }))
     if (sort === 'cur') return [...r].sort((x, y) => (y.v[ix] ?? -1e9) - (x.v[ix] ?? -1e9))
     if (sort === 'next') return [...r].sort((x, y) => (y.v[ix + 1] ?? -1e9) - (x.v[ix + 1] ?? -1e9))
     return r
   }, [d, ind, sort, years])
-  if (!d) return <FnScreen code="WEO" title="World Economic Projections"><Loading2 err={err} /></FnScreen>
+  if (!d || d.unavailable) return <FnScreen code="WEO" title="World Economic Projections"><Loading2 err={err || (d?.unavailable ? 'unavailable' : null)} /></FnScreen>
   const ed = `${monName(+d.edition.slice(5, 7) - 1)} ${d.edition.slice(0, 4)}`
   const fp = d.first_proj, ix = years.indexOf(fp)
   const a = d.rows[sel] ? sel : Object.keys(d.rows)[0]
@@ -151,7 +151,7 @@ const HR: [string, number | null][] = [['1Y', 366], ['3Y', 3 * 366], ['MAX', nul
 export function EUCVView() {
   const { data: d, err } = useJSON<any>('eucv.json')
   const [cv, setCv] = useState('aaa'), [cmp, setCmp] = useState('1M'), [hr, setHr] = useState('3Y')
-  if (!d) return <FnScreen code="EUCV" title="Euro Area Yield Curve"><Loading2 err={err} /></FnScreen>
+  if (!d || d.unavailable) return <FnScreen code="EUCV" title="Euro Area Yield Curve"><Loading2 err={err || (d?.unavailable ? 'unavailable' : null)} /></FnScreen>
   const dates = d.dates as string[], last = dates.length - 1
   const cdays = CMP.find(c => c[0] === cmp)![1]
   const lim = isoAgo(d.date, cdays)
@@ -256,10 +256,10 @@ export function CDRView() {
   const [mk, setMk] = useState('all'), [cal, setCal] = useState('BVMF')
   const today = todaySP()
   const all = useMemo(() => {
-    if (!d) return [] as any[][]
+    if (!d || d.unavailable) return [] as any[][]
     return (d.markets as string[]).flatMap(k => (d.rows[k] || []).map((r: any[]) => [k, r[0], r[1], r[2]])).sort((a, b) => a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : a[0] < b[0] ? -1 : 1)
   }, [d])
-  if (!d) return <FnScreen code="CDR" title="Exchange Holiday Calendar"><Loading2 err={err} /></FnScreen>
+  if (!d || d.unavailable) return <FnScreen code="CDR" title="Exchange Holiday Calendar"><Loading2 err={err || (d?.unavailable ? 'unavailable' : null)} /></FnScreen>
   const up = all.filter(r => r[1] >= today && (mk === 'all' || r[0] === mk))
   const hol: Record<string, string> = {}
   for (const r of all) if (r[0] === cal) hol[r[1]] = holName(r)
@@ -305,7 +305,7 @@ export function INSDView() {
   const brRows = useMemo(() => (br?.rows || []).filter((r: any) => r.ref === month).map((r: any) => ({ ...r, net: r.bv - r.sv })), [br, month])
   const usTk = useMemo(() => Array.from(new Set((us?.rows || []).map((r: any) => r.tk))).sort() as string[], [us])
   const usRows = useMemo(() => (us?.rows || []).filter((r: any) => (side === 'all' || r.side === side) && (tk === 'all' || r.tk === tk)), [us, side, tk])
-  if (!d) return <FnScreen code="INSD" title="Insider Transactions"><Loading2 err={err} /></FnScreen>
+  if (!d || d.unavailable) return <FnScreen code="INSD" title="Insider Transactions"><Loading2 err={err || (d?.unavailable ? 'unavailable' : null)} /></FnScreen>
   const f = brRows.find((r: any) => r.tk === sel) || brRows[0]
   const stale = (s: any) => s?.status === 'stale' ? L(' (previous file: source unavailable today)', ' (arquivo anterior: fonte indisponível hoje)') : ''
   const note = L(
