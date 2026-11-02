@@ -6,14 +6,14 @@
  */
 import { getJSON } from './static'
 
-const MAP: [RegExp, string, string, string][] = [
-  [/Amplo 15/, 'ipca15', 'IPCA-15 MoM', '%'],
-  [/Pre[çc]os ao Consumidor Amplo$/, 'ipca', 'IPCA MoM', '%'],
-  [/Amostra de Domic[ií]lios Cont[ií]nua Mensal/, 'desemprego', 'Unemployment rate (PNAD, 3-mo)', '%'],
-  [/Industrial Mensal.*F[ií]sica - Brasil/, 'pim', 'Industrial production MoM (sa)', '%'],
-  [/Mensal de Com[ée]rcio$/, 'pmc', 'Retail sales MoM (sa)', '%'],
-  [/Mensal de Servi[çc]os$/, 'pms', 'Services volume MoM (sa)', '%'],
-  [/Contas Nacionais Trimestrais/, 'pib_qq', 'GDP QoQ (sa)', '%'],
+const MAP: [RegExp, string, string, string, string, number][] = [  // (título, série, nome EN, unidade, nome PT, importância) — igual ao IBGE_MAP do pipeline
+  [/Amplo 15/, 'ipca15', 'IPCA-15 MoM', '%', 'IPCA-15 (var. mensal)', 3],
+  [/Pre[çc]os ao Consumidor Amplo$/, 'ipca', 'IPCA MoM', '%', 'IPCA (var. mensal)', 3],
+  [/Amostra de Domic[ií]lios Cont[ií]nua Mensal/, 'desemprego', 'Unemployment rate (PNAD, 3-mo)', '%', 'Taxa de desemprego (PNAD, trimestre móvel)', 3],
+  [/Industrial Mensal.*F[ií]sica - Brasil/, 'pim', 'Industrial production MoM (sa)', '%', 'Produção industrial (var. mensal, dessaz.)', 2],
+  [/Mensal de Com[ée]rcio$/, 'pmc', 'Retail sales MoM (sa)', '%', 'Vendas no varejo (var. mensal, dessaz.)', 2],
+  [/Mensal de Servi[çc]os$/, 'pms', 'Services volume MoM (sa)', '%', 'Volume de serviços (var. mensal, dessaz.)', 2],
+  [/Contas Nacionais Trimestrais/, 'pib_qq', 'GDP QoQ (sa)', '%', 'PIB (var. trimestral, dessaz.)', 3],
 ]
 const EN: Record<string, string> = {
   'Índice de Preços ao Produtor': 'Producer prices (IPP)', 'Levantamento Sistemático da Produção Agrícola': 'Crop production survey (LSPA)',
@@ -22,6 +22,7 @@ const EN: Record<string, string> = {
   'Pesquisa Mensal de Serviços - Regional': 'Services survey – regional', 'Pesquisa Industrial Mensal: Produção Física - Regional': 'Industrial production – regional',
   'Pesquisas Trimestrais do Abate de Animais, do Leite, do Couro e da Produção de Ovos de Galinha': 'Quarterly livestock surveys (slaughter, milk, hides, eggs)',
   'Índice de Preços ao Produtor - Indústrias Extrativas e de Transformação': 'Producer prices (IPP) – mining & manufacturing',
+  'Prognóstico da Safra': 'Crop forecast', 'Pesquisa de Estoques': 'Grain stocks survey',
 }
 const p2 = (x: number) => String(x).padStart(2, '0')
 const prevKey = (k: string, q: boolean) => { const y = +k.slice(0, 4), p = +k.slice(4); return p === 1 ? `${y - 1}${q ? '04' : '12'}` : `${y}${p2(p - 1)}` }
@@ -43,18 +44,18 @@ export function ibgeRows(items: any[], sidra: Record<string, Record<string, numb
     if (it.ano_referencia_fim && it.mes_referencia_fim) { y = it.ano_referencia_fim; m = it.mes_referencia_fim }
     let key = y && m ? `${y}${p2(m)}` : null
     const quarterly = /Contas Nacionais Trimestrais/.test(t)
-    const r: any = { country: 'BR', time, event: t, period: key ? (quarterly ? `Q${Math.floor((m - 1) / 3) + 1}/${y}` : `${p2(m)}/${y}`) : null, agency: 'IBGE', survey: null, actual: null, prior: null, unit: null, key: false, live: true }
+    const r: any = { country: 'BR', time, event: t, period: key ? (quarterly ? `Q${Math.floor((m - 1) / 3) + 1}/${y}` : `${p2(m)}/${y}`) : null, agency: 'IBGE', survey: null, actual: null, prior: null, unit: null, key: false, tier: 1, event_pt: t, src: 'ibge', live: true }
     const hit = MAP.find(([re]) => re.test(t))
     if (hit) {
-      const [, sid, name, unit] = hit
-      Object.assign(r, { event: name, unit, key: true, series: sid })
+      const [, sid, name, unit, namePt, tier] = hit
+      Object.assign(r, { event: name, event_pt: namePt, tier, unit, key: tier >= 3, series: sid })
       const ser = sid === 'ipca' ? sgs433 : sidra[sid] || {}
       if (key && quarterly) key = `${y}${p2(Math.floor((m - 1) / 3) + 1)}`
       if (key) {
         if (key in ser && time.slice(0, 10) <= today) r.actual = ser[key]
         r.prior = ser[prevKey(key, quarterly)] ?? null
       }
-    } else r.event = Object.entries(EN).find(([k]) => t === k || t.startsWith(k + ':'))?.[1] ?? t
+    } else r.event = Object.entries(EN).find(([k]) => t === k || t.startsWith(k + ':') || t.startsWith(k + ' ('))?.[1] ?? t
     out.push(r)
   }
   return out

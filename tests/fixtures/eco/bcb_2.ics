@@ -1,0 +1,51 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:bcb.gov.br
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Índice de atividade econômica (IBC-Br) | Banco Central do Brasil
+X-WR-CALDESC:Banco Central do Brasil
+BEGIN:VTIMEZONE
+TZID:America/Sao_Paulo
+BEGIN:STANDARD
+TZOFFSETTO:-0300
+TZOFFSETFROM:-0300
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:agendaics91ÍndicedeAtividadeEconômicadoBancoCentral(IBC-Br)
+DTSTAMP:20260114T110200
+DTSTART;TZID=America/Sao_Paulo:20270218T090000
+SUMMARY:Índice de Atividade Econômica do Banco Central (IBC-Br)
+END:VEVENT
+BEGIN:VEVENT
+UID:agendaics90ÍndicedeAtividadeEconômicadoBancoCentral(IBC-Br)
+DTSTAMP:20260114T110200
+DTSTART;TZID=America/Sao_Paulo:20270118T090000
+SUMMARY:Índice de Atividade Econômica do Banco Central (IBC-Br)
+END:VEVENT
+BEGIN:VEVENT
+UID:agendaics89ÍndicedeAtividadeEconômicadoBancoCentral(IBC-Br)
+DTSTAMP:20260114T110200
+DTSTART;TZID=America/Sao_Paulo:20261211T090000
+SUMMARY:Índice de Atividade Econômica do Banco Central (IBC-Br)
+END:VEVENT
+BEGIN:VEVENT
+UID:agendaics88ÍndicedeAtividadeEconômicadoBancoCentral(IBC-Br)
+DTSTAMP:20260114T110200
+DTSTART;TZID=America/Sao_Paulo:20261116T090000
+SUMMARY:Índice de Atividade Econômica do Banco Central (IBC-Br)
+END:VEVENT
+BEGIN:VEVENT
+UID:agendaics87ÍndicedeAtividadeEconômicadoBancoCentral(IBC-Br)
+DTSTAMP:20260114T110200
+DTSTART;TZID=America/Sao_Paulo:20261016T090000
+SUMMARY:Índice de Atividade Econômica do Banco Central (IBC-Br)
+END:VEVENT
+BEGIN:VEVENT
+UID:agendaics86ÍndicedeAtividadeEconômicadoBancoCentral(IBC-Br)
+DTSTAMP:20260114T110200
+DTSTART;TZID=America/Sao_Paulo:20260916T090000
+SUMMARY:Índice de Atividade Econômica do Banco Central (IBC-Br)
+END:VEVENT
+END:VCALENDAR
