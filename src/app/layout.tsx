@@ -32,6 +32,7 @@ import TopBar from '../components/TopBar'
 import Footer from '../components/Footer'
 import SettingsRoot from '../components/SettingsRoot'
 import Analytics from '../components/Analytics'
+import ServiceWorker from '../components/ServiceWorker'
 
 // Antes da pintura: aplica o tema salvo (html[data-qt]) e marca o modo embutido do Launchpad (html[data-embed]).
 const BOOT = `try{var s=JSON.parse(localStorage.getItem('qt.settings.v1')||'null')||{};var t=['green','contrast','light'].indexOf(s.theme)>=0?s.theme:'amber';var k=t+'.'+(s.ud==='cb'?'cb':'std');var d=document.documentElement;if(k!=='amber.std')d.setAttribute('data-qt',k);if(t==='light')d.style.colorScheme='light';if(window.self!==window.top&&/\\/lp\\/?$/.test(window.parent.location.pathname))d.setAttribute('data-embed','1')}catch(e){}`
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Footer />
         </SettingsRoot>
         <Analytics />
+        <ServiceWorker />
       </body>
     </html>
   )

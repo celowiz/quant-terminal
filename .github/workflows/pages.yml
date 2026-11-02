@@ -67,6 +67,7 @@ jobs:
           npx tsc --noEmit -p .
           npx next build
           node scripts/csp.mjs out
+          node scripts/sw.mjs out
           test -f out/index.html
           ! grep -ril bloomberg out/
 
@@ -228,6 +229,7 @@ jobs:
           npm test
           npx next build
           node scripts/csp.mjs out
+          node scripts/sw.mjs out
           touch out/.nojekyll
           ! grep -ril bloomberg out/
 
