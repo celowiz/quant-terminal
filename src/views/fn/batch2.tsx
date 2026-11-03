@@ -13,6 +13,7 @@ import { usePrices } from './tech'
 import { tickerKey } from '@/lib/static'
 import { lang } from '@/lib/settings'
 import { safeUrl } from '../../lib/safe.mjs'
+import { EVENT_KINDS, buildEvents, type Ev as EvT } from '../../lib/chartEvents.mjs'
 
 const L = (en: string, pt: string) => (lang() === 'pt' ? pt : en)
 const isoAgo = (iso: string, days: number) => new Date(Date.parse(iso.slice(0, 10) + 'T12:00:00Z') - days * 864e5).toISOString().slice(0, 10)
@@ -227,33 +228,10 @@ export function OVMEView({ ticker }: { ticker: string }) {
 }
 
 // ======================= EVTS =======================
-type Ev = { date: string; kind: 'D' | 'S' | 'F' | 'R' | 'N'; text: string; link?: string; value?: number }
-const KIND: Record<Ev['kind'], { en: string; pt: string; color: string; shape: 'arrowDown' | 'arrowUp' | 'circle' | 'square'; pos: 'aboveBar' | 'belowBar' }> = {
-  R: { en: 'Results', pt: 'Resultados', color: tc('#2f7bff'), shape: 'square', pos: 'aboveBar' },
-  F: { en: 'Material facts / 8-K', pt: 'Fatos relevantes / 8-K', color: tc('#FFA028'), shape: 'arrowDown', pos: 'aboveBar' },
-  D: { en: 'Dividends', pt: 'Proventos', color: tc('#3ddc84'), shape: 'circle', pos: 'belowBar' },
-  S: { en: 'Splits', pt: 'Desdobramentos', color: tc('#c77dff'), shape: 'arrowUp', pos: 'belowBar' },
-  N: { en: 'Next results (CAL)', pt: 'Próximo resultado (CAL)', color: tc('#ffffff'), shape: 'square', pos: 'aboveBar' },
-}
-/** eventos a partir do corp/<t>.json (IPE da CVM ou EDGAR) e do calendar.json */
-export function buildEvents(d: any, cal: any, ticker: string): Ev[] {
-  const us = d?.country === 'US', out: Ev[] = []
-  for (const [t, a] of (d?.dividends_full || []) as [string, number][]) out.push({ date: t, kind: 'D', text: `${us ? 'US$' : 'R$'} ${a.toFixed(4)}`, value: a })
-  for (const [t, a] of (d?.splits_full || []) as [string, number][]) out.push({ date: t, kind: 'S', text: a >= 1 ? `${a}:1` : `1:${+(1 / a).toFixed(2)}`, value: a })
-  const seen = new Set<string>()
-  for (const f of (d?.filings || []) as any[]) {
-    const res = us ? /^10-[KQ]/.test(f.cat) || /Results of Operations/i.test(f.subject || '') : f.cat === 'Dados Econômico-Financeiros' && /press/i.test(f.type || '')
-    const mat = us ? /^8-K/.test(f.cat) : f.cat === 'Fato Relevante'
-    if (!res && !mat) continue
-    const kind = res ? 'R' : 'F', k = kind + f.date
-    if (kind === 'R' && seen.has(k)) continue
-    seen.add(k)
-    out.push({ date: f.date, kind, text: (f.subject || f.type || f.cat || '').trim(), link: f.link })
-  }
-  const row = (cal?.rows || []).find((r: any) => r.ticker === short(ticker).toUpperCase())
-  if (row?.date) out.push({ date: row.date, kind: 'N', text: `${row.q || ''} · ${row.status || ''}${row.call?.date ? ` · call ${row.call.date}` : ''}`.trim(), link: row.link || row.ri_page })
-  return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-}
+type Ev = EvT
+// tipos de evento e montagem da lista: módulo puro compartilhado com o GP/GPL (src/lib/chartEvents.mjs)
+const KIND = Object.fromEntries(Object.entries(EVENT_KINDS).map(([k, m]) => [k, { ...m, color: tc(m.color) }])) as typeof EVENT_KINDS
+export { buildEvents }
 
 export function EVTSView({ ticker }: { ticker: string }) {
   const ok = hasData('EVTS', ticker)

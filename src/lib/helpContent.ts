@@ -9,9 +9,17 @@ export const HELP: Record<string, HelpDoc> = {
     pt: 'Quant Terminal: escolha uma função no campo do topo (ou digite o código) e um ticker. Todas as telas usam dados públicos e gratuitos, com fechamento diário atrasado salvo indicação. O botão ? explica a metodologia da tela atual.',
   },
   GP: {
-    en: 'Line chart of the daily close (adjusted for distributions and splits) with traded volume in the lower pane. The axis label marks the latest close.',
-    pt: 'Gráfico de linha do fechamento diário (ajustado por proventos e desdobramentos) com volume negociado no painel inferior. O rótulo no eixo marca o último fechamento.',
+    en: 'Line chart of the daily close (adjusted for distributions and splits) with traded volume in the lower pane. The axis label marks the latest close. Ruler: shift+click two points (or the Ruler button and two taps) to read the change between them; Esc clears. Events (stocks with corporate data): R results, F material facts / 8-K, D dividends, S splits on the trading day they fall. Log opens GPL, the same chart on a logarithmic scale.',
+    pt: 'Gráfico de linha do fechamento diário (ajustado por proventos e desdobramentos) com volume negociado no painel inferior. O rótulo no eixo marca o último fechamento. Régua: shift+clique em dois pontos (ou o botão Régua e dois toques) para ler a variação entre eles; Esc limpa. Eventos (ações com dados corporativos): R resultados, F fatos relevantes / 8-K, D proventos, S desdobramentos no pregão em que caem. Log abre o GPL, o mesmo gráfico em escala logarítmica.',
     formulas: [{ tex: R`\Delta_t = C_t - C_{t-1},\qquad \Delta\%_t = \frac{C_t}{C_{t-1}} - 1`, en: 'Change shown in the header: the bar under the cursor (or the last bar) against the previous bar.', pt: 'Variação no cabeçalho: a barra sob o cursor (ou a última) contra a anterior.' }],
+  },
+  GPL: {
+    en: 'The same line chart as GP (daily close adjusted for distributions and splits, volume, ruler and events) on a logarithmic price scale: equal percentage moves take the same height, so long histories and big rallies or crashes are comparable. Use Linear / Log to switch between GP and GPL for the same ticker and period.',
+    pt: 'O mesmo gráfico de linha do GP (fechamento diário ajustado por proventos e desdobramentos, volume, régua e eventos) em escala de preço logarítmica: variações percentuais iguais ocupam a mesma altura, o que torna comparáveis históricos longos e grandes altas ou quedas. Use Linear / Log para alternar entre GP e GPL no mesmo ativo e período.',
+    formulas: [
+      { tex: R`y(P) \propto \ln P,\qquad y(P_1) - y(P_0) = \ln\frac{P_1}{P_0}`, en: 'Vertical position follows the log of the price: a move from 10 to 20 (+100%) is as tall as one from 50 to 100.', pt: 'A posição vertical segue o log do preço: ir de 10 a 20 (+100%) tem a mesma altura que ir de 50 a 100.' },
+      { tex: R`\Delta = P_b - P_a,\qquad \Delta\% = \frac{P_b}{P_a} - 1`, en: 'Ruler: change between the two picked bars (close), with the number of sessions and calendar days between them.', pt: 'Régua: variação entre as duas barras escolhidas (fechamento), com o número de pregões e de dias corridos entre elas.' },
+    ],
   },
   GPC: {
     en: 'Candlestick chart (open, high, low, close) of daily bars with volume. White candles: close ≥ open; blue candles: close < open.',

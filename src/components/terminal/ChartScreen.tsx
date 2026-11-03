@@ -6,7 +6,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { format, subMonths, subYears, startOfYear, parseISO } from 'date-fns'
 import { t } from '../../lib/i18n'
-import { getPrices, tickerMeta, go, RECENT_PERIODS, type Price } from '../../lib/static'
+import { getPrices, getJSON, tickerKey, tickerMeta, go, RECENT_PERIODS, type Price } from '../../lib/static'
+import '../../lib/coverage'
+import { covers } from '../../lib/activeTicker.mjs'
+import { EVENT_KINDS, buildEvents, eventsByBar, eventMarkers, type Ev, type EvKind } from '../../lib/chartEvents.mjs'
+import { rulerStats, rulerNext } from '../../lib/ruler.mjs'
+import { putCarry, takeCarry } from '../../lib/chartCarry'
 import { trackPeriod } from '../../lib/track'
 import { T, MONO } from './chartTheme'
 import { safeUrl } from '../../lib/safe.mjs'
@@ -23,13 +28,21 @@ const PERIODS: { k: string; label: string; from: (d: Date) => Date | null }[] = 
   { k: '5A', label: '5Y', from: d => subYears(d, 5) },
   { k: 'MAX', label: 'Max', from: () => null },
 ]
-const TFS = [{ v: 'd', l: 'Daily' }, { v: 'w', l: 'Weekly' }, { v: 'm', l: 'Monthly' }, { v: 'q', l: 'Quarterly' }, { v: 'y', l: 'Yearly' }]
+const TFS = [{ v: 'd', l: 'Daily', pt: 'Diário' }, { v: 'w', l: 'Weekly', pt: 'Semanal' }, { v: 'm', l: 'Monthly', pt: 'Mensal' }, { v: 'q', l: 'Quarterly', pt: 'Trimestral' }, { v: 'y', l: 'Yearly', pt: 'Anual' }]
+const L = (en: string, pt: string) => (lang() === 'pt' ? pt : en)
+const TITLES = {
+  GP: ['GP · Line Chart', 'GP · Gráfico de linha'],
+  GPL: ['GPL · Line Chart (Log)', 'GPL · Gráfico de linha (log)'],
+  GPC: ['GPC · Candle Chart', 'GPC · Gráfico de candles'],
+} as const
 
 const nf = (v: number | undefined | null, d = 2) => v == null || isNaN(v) ? '—' : v.toLocaleString(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: d })
 const vf = (v: number) => v >= 1e9 ? `${nf(v / 1e9)}B` : v >= 1e6 ? `${nf(v / 1e6)}M` : v >= 1e3 ? `${nf(v / 1e3)}K` : String(v)
 const df = (s?: string) => s ? fmtDate(s) : '—'
 
-export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'line' | 'candle' }) {
+/** GP (linha), GPL (linha em escala log, `log`) e GPC (candles) compartilham esta tela. */
+export default function ChartScreen({ ticker, mode, log = false }: { ticker: string; mode: 'line' | 'candle'; log?: boolean }) {
+  const code = mode === 'candle' ? 'GPC' : log ? 'GPL' : 'GP'
   const [meta, setMeta] = useState<any>(null)
   const [all, setAll] = useState<Price[]>([])
   const [period, setPeriod] = useState('1A')
@@ -45,6 +58,15 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
   const [legOpen, setLegOpen] = useState(false)
   // começa pelo arquivo recente (~2 anos); 2Y/5Y/Max, data inicial mais antiga ou timeframe ≠ diário pedem o histórico completo
   const [full, setFull] = useState(false)
+  // régua: dois pontos (shift+clique no desktop; botão Régua + dois toques/cliques)
+  const [rulerOn, setRulerOn] = useState(false)
+  const [pts, setPts] = useState<string[]>([])
+  // eventos corporativos (mesma montagem do EVTS); só ações com corp/<t>.json
+  const evOk = mode !== 'candle' && covers('EVTS', ticker)
+  const [evOn, setEvOn] = useState(false)
+  const [evs, setEvs] = useState<Ev[] | null>(null)
+  const [evErr, setEvErr] = useState(false)
+  const carryRead = useRef(false)
 
   // altura = viewport inteira abaixo do cabeçalho/barra de comando
   useLayoutEffect(() => {
@@ -68,12 +90,26 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
 
   useEffect(() => {
     let alive = true
+    // primeira carga: aplica o estado trazido da tela irmã (GP ↔ GPL ↔ GPC), se houver
+    let c = null as ReturnType<typeof takeCarry>
+    if (!carryRead.current) {
+      carryRead.current = true
+      c = takeCarry(ticker)
+      if (c) {
+        if (c.period === '' || PERIODS.some(p => p.k === c!.period)) setPeriod(c.period)
+        if (c.start) setStart(c.start)
+        if (c.end) setEnd(c.end)
+        setShowVol(c.showVol); setSmaOn(c.smaOn)
+        if (c.events && evOk) setEvOn(true)
+        if (c.tf !== tf || (c.full && !full)) { setTf(c.tf); setFull(c.full || full); return }
+      }
+    }
     ;(async () => {
       try {
         const [m, rows] = await Promise.all([tickerMeta(ticker), getPrices(ticker, undefined, undefined, tf, !full && tf === 'd')])
         if (!alive) return
         setMeta(m); setAll(rows); setErr(null)
-        if ((!end || period === 'MAX') && rows.length) {
+        if (!c?.end && (!end || period === 'MAX') && rows.length) {
           const last = rows[rows.length - 1].time
           if (!end) setEnd(last)
           const f = PERIODS.find(p => p.k === period)!.from(parseISO(last))
@@ -125,15 +161,47 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
   }
   const dec = (last?.close ?? 10) < 10 ? 4 : 2
 
+  // eventos: carrega corp + calendário só quando o botão é ligado
+  useEffect(() => {
+    if (!evOn || !evOk || evs) return
+    let alive = true
+    Promise.all([getJSON<any>(`corp/${tickerKey(ticker)}.json`), getJSON<any>('calendar.json').catch(() => null)])
+      .then(([d, cal]) => { if (alive) setEvs(buildEvents(d, cal, ticker)) })
+      .catch(() => { if (alive) { setEvErr(true); setEvOn(false) } })
+    return () => { alive = false }
+  }, [evOn, evOk, evs, ticker])
+  const byBar = useMemo(() => (evOn && evs ? eventsByBar(evs, rows.map(r => r.time)) : null), [evOn, evs, rows])
+  const markers = useMemo(() => (byBar ? eventMarkers(byBar, EVENT_KINDS, tc) : undefined), [byBar])
+  const hoverEvs = hover && byBar ? byBar.get(hover.time) || [] : []
+
+  const ruler = useMemo(() => (pts.length === 2 ? rulerStats(rows, pts[0], pts[1]) : null), [pts, rows])
+  const onPick = (time: string, shift: boolean) => { if (shift || rulerOn) setPts(p => rulerNext(p, time)) }
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { setPts([]); setRulerOn(false) } }
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [])
+  // período/timeframe novos: a régua antiga deixa de valer
+  useEffect(() => { setPts([]) }, [start, end, tf])
+  const hlTitles = useMemo(() => [L('High', 'Máx'), L('Low', 'Mín')] as [string, string], [])
+
+  const goTo = (path: string) => {
+    putCarry({ ticker, period, start, end, tf, full, showVol, smaOn, events: evOn })
+    go(path)
+  }
+  const tk = encodeURIComponent(ticker)
+
   const btn = (active: boolean) =>
     `px-2 py-[2px] text-[12px] leading-5 border ${active ? 'bg-[#FFA028] text-black border-[#FFA028] font-bold' : 'bg-black text-[#FFA028] border-[#5a3d12] hover:border-[#FFA028]'}`
 
   const legend: { c: string; l: string; v: string }[] = stats && obs ? [
-    { c: mode === 'candle' ? T.up : T.line, l: hover ? `Close ${df(obs.time)}` : 'Last Price', v: nf(obs.close, dec) },
-    { c: T.high, l: `High on ${df(stats.hi.time)}`, v: nf(stats.hiV, dec) },
-    { c: tc('#9e9e9e'), l: 'Average', v: nf(stats.avg, dec) },
-    { c: T.low, l: `Low on ${df(stats.lo.time)}`, v: nf(stats.loV, dec) },
-    ...smaOn.map(n => ({ c: n === 50 ? T.sma50 : T.sma200, l: `SMAVG (${n}) on Close`, v: nf(smaVal(n) ?? NaN, dec) })),
+    { c: mode === 'candle' ? T.up : T.line, l: hover ? `${L('Close', 'Fechamento')} ${df(obs.time)}` : L('Last Price', 'Último preço'), v: nf(obs.close, dec) },
+    { c: T.high, l: `${L('High on', 'Máxima em')} ${df(stats.hi.time)}`, v: nf(stats.hiV, dec) },
+    { c: tc('#9e9e9e'), l: L('Average', 'Média'), v: nf(stats.avg, dec) },
+    { c: T.low, l: `${L('Low on', 'Mínima em')} ${df(stats.lo.time)}`, v: nf(stats.loV, dec) },
+    ...smaOn.map(n => ({ c: n === 50 ? T.sma50 : T.sma200, l: L(`SMAVG (${n}) on Close`, `SMAVG (${n}) do fechamento`), v: nf(smaVal(n) ?? NaN, dec) })),
+    // eventos ligados: chave dos marcadores com a contagem no período exibido
+    ...(byBar ? (['R', 'F', 'D', 'S'] as EvKind[]).map(k => ({ c: tc(EVENT_KINDS[k].color), l: `${k} · ${L(EVENT_KINDS[k].en, EVENT_KINDS[k].pt)}`, v: String(Array.from(byBar.values()).reduce((n, es) => n + es.filter(e => e.kind === k).length, 0)) })) : []),
   ] : []
 
   return (
@@ -154,37 +222,56 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
         {meta?.close_only && <span className="text-[#8a8a8a] italic" data-close-only="">{t('asset.closeOnly')}</span>}
         {safeUrl(meta?.link) && <a className="text-[#8a8a8a] underline hover:text-[#FFA028]" href={safeUrl(meta?.link)} target="_blank" rel="noopener noreferrer">{t('asset.official')}</a>}
         {safeUrl(meta?.ref) && <a className="text-[#8a8a8a] underline hover:text-[#FFA028]" href={safeUrl(meta?.ref)} target="_blank" rel="noopener noreferrer">{t('asset.reference')}</a>}
-        <span className="ml-auto text-[#FFA028] text-[12px]">{mode === 'candle' ? 'GPC · Candle Chart' : 'GP · Line Chart'}</span>
+        <span className="ml-auto text-[#FFA028] text-[12px]">{L(TITLES[code][0], TITLES[code][1])}</span>
       </div>
       {/* Barra de ferramentas */}
-      {/* No mobile: períodos numa linha; datas no início da segunda linha (rolável), sempre visíveis. No desktop `contents` mantém uma linha só. */}
+      {/* No mobile: períodos numa linha; as ferramentas quebram em linhas (sem rolagem lateral interna). No desktop `contents` mantém uma linha só. */}
       <div className="flex items-center gap-3 flex-wrap px-3 py-1 border-b border-[#3a3a3a] bg-[#0a0a0a] text-[12px] max-lg:gap-y-1 max-lg:whitespace-nowrap">
         <div data-gp-periods className="flex gap-[2px] max-lg:w-full max-lg:overflow-x-auto fn-strip max-lg:[&>*]:shrink-0">{PERIODS.map(p => <button key={p.k} className={btn(period === p.k)} onClick={() => pickPeriod(p.k)}>{p.label}</button>)}</div>
-        <div data-gp-tools className="contents max-lg:flex max-lg:items-center max-lg:gap-3 max-lg:w-full max-lg:overflow-x-auto fn-strip max-lg:[&>*]:shrink-0">
+        <div data-gp-tools className="contents max-lg:flex max-lg:flex-wrap max-lg:items-center max-lg:gap-x-3 max-lg:gap-y-1 max-lg:w-full">
         <div data-gp-dates className="flex items-center gap-1 text-[#8a8a8a]">
           <input type="date" value={start} onChange={e => { setStart(e.target.value); setPeriod('') }} className="bg-black text-[#FFA028] border border-[#5a3d12] px-1 py-[1px] outline-none focus:border-[#FFA028]" />
           <span>–</span>
           <input type="date" value={end} onChange={e => { setEnd(e.target.value); setPeriod('') }} className="bg-black text-[#FFA028] border border-[#5a3d12] px-1 py-[1px] outline-none focus:border-[#FFA028]" />
         </div>
         <select value={tf} onChange={e => setTf(e.target.value)} className="bg-black text-[#FFA028] border border-[#5a3d12] px-1 py-[2px] outline-none focus:border-[#FFA028]">
-          {TFS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+          {TFS.map(o => <option key={o.v} value={o.v}>{L(o.l, o.pt)}</option>)}
         </select>
         <div className="flex gap-[2px]">
           <button className={btn(showVol)} onClick={() => setShowVol(v => !v)}>Volume</button>
           {[50, 200].map(n => <button key={n} className={btn(smaOn.includes(n))} onClick={() => setSmaOn(s => s.includes(n) ? s.filter(x => x !== n) : [...s, n].sort((a, b) => a - b))}>SMAVG {n}</button>)}
         </div>
+        {mode === 'line' && (
+          <div className="flex gap-[2px]" data-gp-studies>
+            <button className={btn(rulerOn || pts.length > 0)} data-gp-ruler aria-pressed={rulerOn}
+              title={L('Measure the change between two points: shift+click two points on the chart (or turn this on and click/tap twice). Esc clears.', 'Meça a variação entre dois pontos: shift+clique em dois pontos do gráfico (ou ligue este botão e clique/toque duas vezes). Esc limpa.')}
+              onClick={() => { if (rulerOn || pts.length) { setRulerOn(false); setPts([]) } else setRulerOn(true) }}>{L('Ruler', 'Régua')}</button>
+            {evOk && !evErr && (
+              <button className={btn(evOn)} data-gp-events aria-pressed={evOn}
+                title={L('Corporate events on the chart: R results, F material facts / 8-K, D dividends (ex-date), S splits. Hover a marker for details.', 'Eventos corporativos no gráfico: R resultados, F fatos relevantes / 8-K, D proventos (data ex), S desdobramentos. Passe o mouse sobre o marcador para ver os detalhes.')}
+                onClick={() => setEvOn(v => !v)}>{L('Events', 'Eventos')}</button>
+            )}
+          </div>
+        )}
+        {mode === 'line' && (
+          <div className="flex gap-[2px]" data-gp-scale>
+            <button className={btn(!log)} aria-pressed={!log} title={L('Linear price scale (GP)', 'Escala de preço linear (GP)')} onClick={() => log && goTo(`/gp/${tk}/`)}>Linear</button>
+            <button className={btn(log)} aria-pressed={log} title={L('Logarithmic price scale (GPL): equal % moves take equal heights', 'Escala de preço logarítmica (GPL): variações % iguais ocupam alturas iguais')} onClick={() => !log && goTo(`/gpl/${tk}/`)}>Log</button>
+          </div>
+        )}
         <div className="flex gap-[2px] ml-auto">
-          <button className={btn(mode === 'line')} onClick={() => mode !== 'line' && go(`/gp/${encodeURIComponent(ticker)}/`)}>{lang() === 'pt' ? 'Linha' : 'Line'} (GP)</button>
-          <button className={btn(mode === 'candle')} onClick={() => mode !== 'candle' && go(`/gpc/${encodeURIComponent(ticker)}/`)}>Candle (GPC)</button>
+          <button className={btn(mode === 'line')} onClick={() => (mode !== 'line' || log) && goTo(`/gp/${tk}/`)}>{L('Line', 'Linha')} (GP)</button>
+          <button className={btn(mode === 'candle')} onClick={() => mode !== 'candle' && goTo(`/gpc/${tk}/`)}>Candle (GPC)</button>
         </div>
         </div>
       </div>
       {/* Gráfico: ocupa o resto da viewport */}
       <div ref={boxRef} className="relative w-full" style={{ height: h, background: T.bg }}>
-        {err && <div className="absolute inset-0 flex items-center justify-center text-[#FF4D4D]">Error loading data: {err}</div>}
-        {!err && !rows.length && <div className="absolute inset-0 flex items-center justify-center text-[#8a8a8a]">Loading…</div>}
+        {err && <div className="absolute inset-0 flex items-center justify-center text-[#FF4D4D]">{L('Error loading data', 'Erro ao carregar os dados')}: {err}</div>}
+        {!err && !rows.length && <div className="absolute inset-0 flex items-center justify-center text-[#8a8a8a]">{L('Loading…', 'Carregando…')}</div>}
         {rows.length > 0 && (
-          <PriceChart rows={rows} history={history} mode={mode} showVolume={showVol} smas={smaOn} onHover={setHover} highLow={highLow} />
+          <PriceChart rows={rows} history={history} mode={mode} showVolume={showVol} smas={smaOn} onHover={setHover} highLow={highLow}
+            hlTitles={hlTitles} log={log} markers={markers} onPick={mode === 'line' ? onPick : undefined} ruler={ruler} />
         )}
         {legend.length > 0 && (
           <button type="button" className="lg:hidden absolute top-1 left-1 z-20 text-[11px] px-2 py-[1px]" style={{ background: tc('rgba(0,0,0,0.72)'), border: '1px solid #2a2a2a', color: tc('#FFA028') }} onClick={() => setLegOpen(o => !o)}>{lang() === 'pt' ? 'Legenda' : 'Legend'} {legOpen ? '▾' : '▸'}</button>
@@ -198,6 +285,35 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
                 <span className="font-bold" style={{ color: r.c === tc('#9e9e9e') ? tc('#d9d9d9') : r.c }}>{r.v}</span>
               </div>
             ))}
+          </div>
+        )}
+        {/* régua: resumo da medição (ou instrução enquanto falta o 2º ponto) */}
+        {mode === 'line' && (ruler || rulerOn || pts.length === 1) && (
+          <div data-gp-ruler-box className="absolute top-2 right-[78px] z-20 text-[12px] leading-[17px] px-2 py-1 max-lg:top-1 max-lg:right-[64px] max-lg:text-[11px] max-lg:leading-[15px] max-w-[60%]"
+            style={{ background: tc('rgba(0,0,0,0.8)'), border: `1px solid ${ruler ? (ruler.up ? tc('#3ddc84') : tc('#FF4D4D')) : tc('#5a3d12')}` }}>
+            {ruler ? (
+              <>
+                <div className="font-bold" style={{ color: ruler.up ? tc('#3ddc84') : tc('#FF4D4D') }}>
+                  {ruler.abs > 0 ? '+' : ''}{nf(ruler.abs, dec)} ({ruler.pct == null ? '—' : `${ruler.pct > 0 ? '+' : ''}${nf(ruler.pct)}%`})
+                </div>
+                <div className="text-[#d9d9d9]">{df(ruler.from)} → {df(ruler.to)}</div>
+                <div className="text-[#8a8a8a]">{nf(ruler.v0, dec)} → {nf(ruler.v1, dec)} · {ruler.sessions} {tf === 'd' ? L(ruler.sessions === 1 ? 'session' : 'sessions', ruler.sessions === 1 ? 'pregão' : 'pregões') : L('bars', 'barras')} · {ruler.days} {L('days', 'dias')}</div>
+              </>
+            ) : (
+              <div className="text-[#d9d9d9]">{pts.length === 1 ? L('Pick the second point', 'Escolha o segundo ponto') : L('Click or tap two points on the chart', 'Clique ou toque em dois pontos do gráfico')} <span className="text-[#8a8a8a]">· Esc</span></div>
+            )}
+          </div>
+        )}
+        {/* eventos sob o cursor */}
+        {hoverEvs.length > 0 && (
+          <div data-gp-event-tip className="absolute bottom-[34px] left-2 z-20 pointer-events-none text-[11px] leading-[15px] px-2 py-1 max-w-[min(520px,90%)]" style={{ background: tc('rgba(0,0,0,0.85)'), border: '1px solid #3a3a3a' }}>
+            {hoverEvs.slice(0, 6).map((e, i) => (
+              <div key={i} className="truncate">
+                <b style={{ color: tc(EVENT_KINDS[e.kind as EvKind].color) }}>{e.kind} · {L(EVENT_KINDS[e.kind as EvKind].en, EVENT_KINDS[e.kind as EvKind].pt)}</b>
+                <span className="text-[#8a8a8a]"> {df(e.date)}</span> <span className="text-[#d9d9d9]">{e.text}</span>
+              </div>
+            ))}
+            {hoverEvs.length > 6 && <div className="text-[#8a8a8a]">+{hoverEvs.length - 6}</div>}
           </div>
         )}
         {showVol && rows.length > 0 && (
