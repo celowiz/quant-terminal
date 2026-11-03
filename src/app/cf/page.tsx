@@ -1,5 +1,5 @@
 'use client'
-import { CFView } from '@/views/fn/corp'
+import { CFView } from '@/views/fn/cf'
 import { usePageTitle } from '@/hooks/usePageTitle'
 
 export default function Page() {

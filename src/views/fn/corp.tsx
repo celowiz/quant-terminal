@@ -1,7 +1,7 @@
 'use client'
 import { tc } from '../../lib/themeRuntime'
 import React, { useEffect, useMemo, useState } from 'react'
-import { FitBox, useDesktop, NewsCards, FnScreen, Panel, Grid, Btns, Field, KV, Loading, NA, C, nf, pf, big, dBR, dBRfull, clr, short, useJSON, corpPath, hasData, isEquity, inputCls, inputStyle, isoMinus } from '../../components/fn/kit'
+import { FitBox, useDesktop, NewsCards, FnScreen, Panel, Grid, Btns, Field, KV, Loading, NA, C, nf, pf, big, dBR, dBRfull, clr, short, useJSON, corpPath, hasData, isEquity, isoMinus } from '../../components/fn/kit'
 import FnChart, { type PaneDef } from '../../components/fn/FnChart'
 import { usePrices } from './tech'
 import { getJSON, tickerKey } from '../../lib/static'
@@ -278,21 +278,7 @@ export function SPLITView({ ticker }: { ticker: string }) {
 }
 
 // ---------------- CF / CN ----------------
-export function CFView({ ticker }: { ticker: string }) {
-  const { data: d, err } = useCorp(ticker)
-  const [cat, setCat] = useState('All'); const [q, setQ] = useState('')
-  return <Guard code="CF" ticker={ticker}>{!d ? <FnScreen code="CF" ticker={ticker}><Loading err={err} /></FnScreen> : (() => {
-    const cats = ['All', ...Array.from(new Set((d.filings as any[]).map(f => f.cat))).slice(0, 10)]
-    const rows = (d.filings as any[]).filter(f => (cat === 'All' || f.cat === cat) && (!q || (f.subject + f.type).toLowerCase().includes(q.toLowerCase())))
-    return (
-      <FnScreen code="CF" ticker={ticker} title="Company Filings" right={<Field label="Search"><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
-        source={isUS(d) ? 'SEC EDGAR – submissions API (10-K, 10-Q, 8-K, proxy statements…), links to the original document on sec.gov.' : 'CVM Open Data – IPE (periodic and ad-hoc filings), links to RAD/ENET.'}
-        note={isUS(d) ? `10-K = annual report, 10-Q = quarterly report, 8-K = current report (subject = official Form 8-K item titles), DEF 14A = proxy statement. Latest ${d.filings.length} filings${d.cad?.PREDECESSOR ? `, including the predecessor registrant ${d.cad.PREDECESSOR}` : ''}.` : 'Brazilian equivalent of 10-K/10-Q/8-K: DFP/ITR, Material Facts, Notices, Minutes. Latest 400 documents.'}>
-        <div className="flex flex-wrap gap-0 pb-2">{cats.map(c => <button key={c} onClick={() => setCat(c)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: cat === c ? C.amber : 'transparent', color: cat === c ? tc('#000') : C.amber }}>{c.length > 34 ? c.slice(0, 32) + '…' : c}</button>)}</div>
-        <Grid maxH={640} cols={[{ k: 'date', label: 'Date', fmt: dBRfull, w: '90px' }, { k: 'cat', label: 'Category', color: () => C.amber, w: '230px' }, { k: 'type', label: 'Type', color: () => C.muted, w: '220px' }, { k: 'subject', label: 'Subject / document', fmt: (v, r: any) => <a href={safeUrl(r.link)} target="_blank" rel="noopener noreferrer" style={{ color: C.text }}>{v || r.type || r.cat}</a> }, { k: 'version', label: 'V', align: 'r', w: '30px' }]} rows={rows} />
-      </FnScreen>)
-  })()}</Guard>
-}
+// CF mudou para views/fn/cf.tsx (lógica em lib/filings.mjs).
 
 export function CNView({ ticker }: { ticker: string }) {
   const { data: d, err } = useCorp(ticker)
