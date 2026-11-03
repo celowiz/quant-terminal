@@ -1,7 +1,7 @@
 'use client'
 import { tc } from '../../lib/themeRuntime'
 /**
- * Gráfico de preços estilo terminal (GP = linha/montanha, GPC = candles).
+ * Gráfico de preços estilo terminal (GP = linha/montanha, GPL = GP em escala log, GPC = candles).
  * Referências de design: ver /REFERENCIAS.md (GP, GPC).
  *  - fundo carvão, grid pontilhado discreto, eixo de preço à direita com etiqueta do último preço
  *  - GPC: candle de alta "vazio" (contorno branco), de baixa preenchido em azul
@@ -9,8 +9,9 @@ import { tc } from '../../lib/themeRuntime'
  */
 import { numLocale } from '../../lib/settings'
 import { useEffect, useRef } from 'react'
+import type { RulerStats } from '../../lib/ruler.mjs'
 import {
-  createChart, TrackingModeExitMode, CandlestickSeries, AreaSeries, LineSeries, HistogramSeries, LineStyle, CrosshairMode,
+  createChart, createSeriesMarkers, PriceScaleMode, TrackingModeExitMode, CandlestickSeries, AreaSeries, LineSeries, HistogramSeries, LineStyle, CrosshairMode,
   type IChartApi, type MouseEventParams, type Time,
 } from 'lightweight-charts'
 import type { Price } from '../../lib/static'
@@ -37,6 +38,16 @@ type Props = {
   smas: number[]
   onHover: (p: Price | null) => void
   highLow?: { high: Price; low: Price } | null
+  /** títulos das linhas de máxima/mínima no eixo (EN/PT) */
+  hlTitles?: [string, string]
+  /** GPL: escala de preço logarítmica */
+  log?: boolean
+  /** marcadores de eventos corporativos (EVTS) */
+  markers?: { time: string; text: string; color: string; shape: 'arrowDown' | 'arrowUp' | 'circle' | 'square'; position: 'aboveBar' | 'belowBar' }[]
+  /** clique/toque numa barra (time da barra, shift pressionado) — régua */
+  onPick?: (time: string, shift: boolean) => void
+  /** régua: faixa entre as duas barras */
+  ruler?: Pick<RulerStats, 'from' | 'to' | 'up'> | null
 }
 
 const VOL = tc('#7189aa')
@@ -57,9 +68,32 @@ function boldRightAxis(root: HTMLElement) {
   })
 }
 
-export default function PriceChart({ rows, history, mode, showVolume, smas, onHover, highLow }: Props) {
+const isoOf = (t: Time | undefined) => !t ? '' : typeof t === 'string' ? t
+  : typeof t === 'object' ? `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}` : ''
+
+export default function PriceChart({ rows, history, mode, showVolume, smas, onHover, highLow, hlTitles, log, markers, onPick, ruler }: Props) {
   const ref = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
+  const bandRef = useRef<HTMLDivElement | null>(null)
+  const pickRef = useRef(onPick); pickRef.current = onPick
+  const rulerRef = useRef(ruler); rulerRef.current = ruler
+  // posiciona a faixa da régua pelas coordenadas das barras (acompanha zoom/rolagem/redimensionamento)
+  const place = () => {
+    const band = bandRef.current, chart = chartRef.current, r = rulerRef.current
+    if (!band) return
+    if (!chart || !r) { band.style.display = 'none'; return }
+    const ts = chart.timeScale()
+    const x0 = ts.timeToCoordinate(r.from as Time), x1 = ts.timeToCoordinate(r.to as Time)
+    const w = ts.width()
+    if (x0 == null && x1 == null) { band.style.display = 'none'; return }
+    const a = Math.max(0, x0 ?? 0), b = Math.min(w, x1 ?? w)
+    band.style.display = 'block'
+    band.style.left = `${a}px`
+    band.style.width = `${Math.max(2, b - a)}px`
+    band.style.background = r.up ? tc('rgba(61,220,132,0.14)') : tc('rgba(255,77,77,0.14)')
+    band.style.borderColor = r.up ? tc('#3ddc84') : tc('#FF4D4D')
+  }
+  const placeRef = useRef(place); placeRef.current = place
 
   useEffect(() => {
     const el = ref.current
@@ -117,8 +151,8 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
 
     if (highLow) {
       const key = mode === 'candle' ? ['high', 'low'] as const : ['close', 'close'] as const
-      price.createPriceLine({ price: highLow.high[key[0]], color: T.high, lineWidth: 1, lineStyle: LineStyle.SparseDotted, axisLabelVisible: true, title: 'High' })
-      price.createPriceLine({ price: highLow.low[key[1]], color: T.low, lineWidth: 1, lineStyle: LineStyle.SparseDotted, axisLabelVisible: true, title: 'Low' })
+      price.createPriceLine({ price: highLow.high[key[0]], color: T.high, lineWidth: 1, lineStyle: LineStyle.SparseDotted, axisLabelVisible: true, title: hlTitles?.[0] ?? 'High' })
+      price.createPriceLine({ price: highLow.low[key[1]], color: T.low, lineWidth: 1, lineStyle: LineStyle.SparseDotted, axisLabelVisible: true, title: hlTitles?.[1] ?? 'Low' })
     }
 
     const first = rows[0].time
@@ -144,6 +178,9 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
       if (panes[1]) panes[1].setStretchFactor(0.22)
     }
 
+    if (log) price.priceScale().applyOptions({ mode: PriceScaleMode.Logarithmic })
+    if (markers?.length) createSeriesMarkers(price as any, markers as any)
+
     chart.timeScale().fitContent()
     boldRightAxis(el)
     chart.applyOptions({})
@@ -151,14 +188,46 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
     const byTime = new Map(rows.map(r => [r.time, r]))
     const onMove = (p: MouseEventParams<Time>) => {
       if (!p.time) return onHover(null)
-      const t = typeof p.time === 'string' ? p.time
-        : typeof p.time === 'object' ? `${p.time.year}-${String(p.time.month).padStart(2, '0')}-${String(p.time.day).padStart(2, '0')}` : ''
-      onHover(byTime.get(t) || null)
+      onHover(byTime.get(isoOf(p.time)) || null)
     }
+    // clique/toque: barra sob o cursor; à direita da última barra (margem) vale a barra mais próxima
+    // a biblioteca descarta o 2º clique se vier em < 500 ms (vira tentativa de duplo clique): lemos o ponteiro direto,
+    // pressionar+soltar sem arrastar (< 5 px) dentro do painel = um ponto
+    let down: { x: number; y: number } | null = null
+    const onDown = (e: PointerEvent) => { down = { x: e.clientX, y: e.clientY } }
+    const onUp = (e: PointerEvent) => {
+      const d = down; down = null
+      if (!pickRef.current || !d || Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) >= 5) return
+      const r = el.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top
+      const ts = chart.timeScale()
+      if (x < 0 || x > ts.width() || y < 0 || y > r.height - ts.height()) return
+      const lg = ts.coordinateToLogical(x)
+      if (lg == null || !rows.length) return
+      pickRef.current(rows[Math.max(0, Math.min(rows.length - 1, Math.round(lg)))].time, e.shiftKey)
+    }
+    el.addEventListener('pointerdown', onDown)
+    el.addEventListener('pointerup', onUp)
+    const onRange = () => placeRef.current()
     chart.subscribeCrosshairMove(onMove)
-    return () => { chart.unsubscribeCrosshairMove(onMove); chart.remove(); chartRef.current = null }
+    chart.timeScale().subscribeVisibleLogicalRangeChange(onRange)
+    chart.timeScale().subscribeSizeChange(onRange)
+    placeRef.current()
+    return () => {
+      chart.unsubscribeCrosshairMove(onMove); el.removeEventListener('pointerdown', onDown); el.removeEventListener('pointerup', onUp)
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange); chart.timeScale().unsubscribeSizeChange(onRange)
+      chart.remove(); chartRef.current = null
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, history, mode, showVolume, smas.join(','), highLow])
+  }, [rows, history, mode, showVolume, smas.join(','), highLow, log, markers, hlTitles?.join('|')])
 
-  return <div ref={ref} className="absolute inset-0" />
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { place() }, [ruler?.from, ruler?.to, ruler?.up])
+
+  return (
+    <>
+      <div ref={ref} className="absolute inset-0" />
+      {/* faixa da régua: só visual, não intercepta o mouse (a mira e o clique continuam no gráfico) */}
+      <div ref={bandRef} data-gp-ruler-band="" className="absolute top-0 bottom-[26px] z-[5] pointer-events-none border-x" style={{ display: 'none' }} />
+    </>
+  )
 }

@@ -12,6 +12,7 @@ test('TICKER_FUNCTIONS = rotas com /[ticker]', () => {
 })
 
 test('GP → GPC preserva o ativo', () => {
+  assert.equal(functionPath('GPL', 'PETR4.SA', UNIVERSE), '/gpl/PETR4.SA/')
   assert.equal(functionPath('GPC', 'PETR4.SA', UNIVERSE), '/gpc/PETR4.SA/')
   assert.equal(functionPath('gp', 'petr4.sa', UNIVERSE), '/gp/PETR4.SA/')
 })

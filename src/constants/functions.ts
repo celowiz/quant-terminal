@@ -7,6 +7,7 @@ export type FunctionItem = { code: string; desc: string; pt: string; cat: FnCate
 export const FUNCTION_LIST: FunctionItem[] = [
   { code: '', desc: 'Homepage', pt: 'Página inicial', cat: 'tools' },
   { code: 'GP', desc: 'Line Graph', pt: 'Gráfico de linha', cat: 'charts' },
+  { code: 'GPL', desc: 'Line Graph (Log)', pt: 'Gráfico de linha (log)', cat: 'charts' },
   { code: 'GPC', desc: 'Candle Chart', pt: 'Gráfico de candles', cat: 'charts' },
   { code: 'GIP', desc: 'Intraday Graph', pt: 'Gráfico intradiário', cat: 'charts' },
   { code: 'GR', desc: 'Graph Relationship', pt: 'Relação entre ativos', cat: 'charts' },

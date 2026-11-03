@@ -4,7 +4,7 @@ import { isTicker } from './safe.mjs'
 
 /** Funções que aceitam ativo (têm rota /fn/[ticker] gerada a partir de data/tickers.json). */
 export const TICKER_FUNCTIONS = [
-  'GP', 'GPC', 'GIP', 'GR', 'MACD', 'RSI', 'SEAG', 'SEAH',
+  'GP', 'GPL', 'GPC', 'GIP', 'GR', 'MACD', 'RSI', 'SEAG', 'SEAH',
   'DES', 'CN', 'CF', 'FUND', 'FA', 'VAL', 'RV', 'HDS', 'OMON', 'OVME', 'EVTS',
   'HP', 'TRA', 'COMP', 'DY', 'DVD', 'SPLIT', 'BETA', 'VOL', 'HS', 'HRA', 'MRR',
   'DCF', 'OSA', 'IVS',
@@ -93,8 +93,8 @@ export function writeStoredTicker(storage, ticker) {
 /** Rótulo limpo do ativo no campo de ticker: PETR4.SA → PETR4 (o valor real continua o ticker completo). */
 export const displayTicker = (ticker) => String(ticker || '').toUpperCase().replace(/\.SA$/, '')
 
-/** Ativo que a página /fn/ sem ticker renderiza (GP/GPC sem ativo pedem a escolha). */
-export const defaultTicker = (code) => (['GP', 'GPC'].includes(String(code || '').toUpperCase()) ? '' : 'PETR4.SA')
+/** Ativo que a página /fn/ sem ticker renderiza (GP/GPL/GPC sem ativo pedem a escolha). */
+export const defaultTicker = (code) => (['GP', 'GPL', 'GPC'].includes(String(code || '').toUpperCase()) ? '' : 'PETR4.SA')
 
 /**
  * Ticker mostrado na barra em /fn/ (sem ticker na URL): o guardado quando a função cobre;

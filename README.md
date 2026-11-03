@@ -21,6 +21,7 @@ Publicado no GitHub Pages: https://celowiz.github.io/quant-terminal/
 | Código | Função |
 |---|---|
 | `GP` | Line Graph |
+| `GPL` | Line Graph (Log) |
 | `GPC` | Candle Chart |
 | `RRG` | Relative Rotation Graph |
 | `MACD` | MACD Indicator |
@@ -162,7 +163,7 @@ teóricas do dia da B3), `currency`/`unit` e, quando há, `link` (bolsa) e `ref`
 
 | Funções | Universo |
 |---|---|
-| GP, GPC, GR, MACD, RSI, SEAG, SEAH, HP, COMP, BETA, VOL, HS, HRA, MRR | todos os ativos (só preço) |
+| GP, GPL, GPC, GR, MACD, RSI, SEAG, SEAH, HP, COMP, BETA, VOL, HS, HRA, MRR | todos os ativos (só preço) |
 | DES, CN, CF, FUND, FA, VAL, DY, DVD, SPLIT, OMON, TRA, HDS | só ações BR com dados CVM/B3 (`corp: true`) |
 | GIP | ações com intradiário + ^BVSP |
 | RV | limitado aos dados do screener |

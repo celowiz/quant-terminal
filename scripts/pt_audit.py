@@ -15,7 +15,7 @@ APP = os.path.join(os.path.dirname(__file__), '..', 'src', 'app')
 BASE = f'http://localhost:{PORT}/quant-terminal'
 TICKER_FN = sorted(d for d in os.listdir(APP) if os.path.isdir(f'{APP}/{d}/[ticker]'))
 ROUTES = ['/'] + sorted(f'/{d}/' for d in os.listdir(APP) if os.path.isdir(f'{APP}/{d}'))
-ROUTES += [f'/{d}/PETR4.SA/' for d in TICKER_FN] + ['/gp/PETR4.SA/', '/gpc/PETR4.SA/']
+ROUTES += [f'/{d}/PETR4.SA/' for d in TICKER_FN] + ['/gp/PETR4.SA/', '/gpl/PETR4.SA/', '/gpc/PETR4.SA/']
 
 # palavras PT inequívocas; qualquer palavra com acento/cedilha também conta
 PT = set('''da do das dos para com uma não nao pelo pela entre sobre até após apos também tambem

@@ -24,6 +24,7 @@ const VIEWS: Record<string, V> = {
   GIP: dynamic(() => import('./gip/[ticker]/View'), { ssr: false }) as V,
   GP: dynamic(() => import('./gp/[ticker]/View'), { ssr: false }) as V,
   GPC: dynamic(() => import('./gpc/[ticker]/View'), { ssr: false }) as V,
+  GPL: dynamic(() => import('./gpl/[ticker]/View'), { ssr: false }) as V,
   GR: dynamic(() => import('./gr/[ticker]/View'), { ssr: false }) as V,
   HDS: dynamic(() => import('./hds/[ticker]/View'), { ssr: false }) as V,
   HP: dynamic(() => import('./hp/[ticker]/View'), { ssr: false }) as V,
