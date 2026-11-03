@@ -6,8 +6,11 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { en } from '@/lib/enText'
 import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
-import { C, PALETTE, nf, pf, big, dBR, dBRfull, clr, short, useJSON, FnScreen, Panel, Grid, Btns, perLabel, Field, inputCls, inputStyle, KV, Loading, NA, isEquity, hasData, corpPath, defaultBench, benchLabel, benchChoices, usePeers } from '@/components/fn/kit'
-import { getPrices, tickerKey, RECENT_PERIODS, type Price } from '@/lib/static'
+import IntradayChart from '@/components/fn/IntradayChart'
+import { dropTrailingSnapshot, sessions, hasVolume, windowStats, sessionStats, BRT_OFF } from '@/lib/intraday.mjs'
+import { covers, FUNCTION_UNIVERSE } from '@/lib/activeTicker.mjs'
+import { type Col, C, MONO, PALETTE, nf, pf, big, dBR, dBRfull, clr, short, useJSON, FnScreen, Panel, Grid, Btns, perLabel, Field, inputCls, inputStyle, KV, Loading, NA, isEquity, hasData, corpPath, defaultBench, benchLabel, benchChoices, usePeers } from '@/components/fn/kit'
+import { getPrices, tickerKey, href, RECENT_PERIODS, type Price } from '@/lib/static'
 import { mean, std, regress, corr, align, weekly, monthEnds, monthlyReturns, maxDrawdown } from '@/lib/quant'
 import { usePrices } from './tech'
 import { TickerPicker } from '@/components/fn/TickerPicker'
@@ -161,42 +164,94 @@ export function HRAView({ ticker }: { ticker: string }) {
 }
 
 // ======================= GIP =======================
-const INTRA = [...['PETR4.SA', 'PETR3.SA', 'VALE3.SA', 'ITUB4.SA', 'ITUB3.SA', 'B3SA3.SA'], '^BVSP']
+/** GIP sem dados intradiários: página amigável (sem buscar arquivo → sem 404 no console), com atalhos para GP/GPC. */
+function GIPNoData({ ticker }: { ticker: string }) {
+  const n = (FUNCTION_UNIVERSE as Record<string, string[]>).GIP?.length || 0
+  const ex = ((FUNCTION_UNIVERSE as Record<string, string[]>).GIP || []).filter(t => t !== '^BVSP').slice(0, 6)
+  const a = (p: string, l: string) => <a className="underline mr-3" style={{ color: C.amber }} href={href(p)}>{l}</a>
+  return (
+    <FnScreen code="GIP" ticker={ticker} title={L('Intraday Graph', 'Gráfico intradiário')}>
+      <div className="p-4 text-[13px] max-w-[760px]" style={{ fontFamily: MONO }} data-gip-nodata>
+        <div style={{ color: C.white }}>{L('No intraday bars for', 'Sem barras intradiárias para')} <span style={{ color: C.amber }}>{short(ticker)}</span>.</div>
+        <div className="mt-2" style={{ color: C.muted }}>{L(
+          `Intraday (1-minute and 5-minute) bars are collected for the Ibovespa stocks and the Ibovespa index (${n} assets). For this asset, use the daily charts:`,
+          `As barras intradiárias (1 e 5 minutos) são coletadas para as ações do Ibovespa e o próprio índice (${n} ativos). Para este ativo, use os gráficos diários:`)}</div>
+        <div className="mt-3">{a(`/gp/${ticker}/`, L(`GP — price chart for ${short(ticker)}`, `GP — gráfico de preço de ${short(ticker)}`))}{a(`/gpc/${ticker}/`, L(`GPC — candles for ${short(ticker)}`, `GPC — candles de ${short(ticker)}`))}</div>
+        {ex.length > 0 && <div className="mt-4" style={{ color: C.muted }}>{L('Intraday examples:', 'Exemplos com intradiário:')} {ex.map(t => <a key={t} className="underline mr-2" style={{ color: C.amber }} href={href(`/gip/${t}/`)}>{short(t)}</a>)}{a('/gip/^BVSP/', 'IBOV')}</div>}
+      </div>
+    </FnScreen>
+  )
+}
+
 export function GIPView({ ticker }: { ticker: string }) {
-  const ok = INTRA.includes(ticker.toUpperCase())
+  const ok = covers('GIP', ticker)
   const { data: d, err } = useJSON<any>(ok ? `intraday/${tickerKey(ticker)}.json` : null)
   const [res, setRes] = useState<'m1' | 'm5'>('m1'), [day, setDay] = useState<string>(''), [kind, setKind] = useState<'line' | 'candle'>('line')
+  const [vwOn, setVwOn] = useState(true)
   const calc = useMemo(() => {
     if (!d) return null
-    const off = 3 * 3600, bars: number[][] = d[res] || []
-    const dayOf = (u: number) => new Date((u - off) * 1000).toISOString().slice(0, 10)
-    const days = Array.from(new Set(bars.map(b => dayOf(b[0]))))
+    const bars = dropTrailingSnapshot(d[res] || [])
+    const S = sessions(bars), days = S.map(s => s.day)
     const sel = day && days.includes(day) ? day : res === 'm1' ? days[days.length - 1] : 'all'
-    const B = sel === 'all' ? bars : bars.filter(b => dayOf(b[0]) === sel)
-    if (!B.length) return { days, sel, B, prevClose: null, st: null } as any
-    const prevBars = sel === 'all' ? [] : bars.filter(b => dayOf(b[0]) < sel), prevClose = prevBars.length ? prevBars[prevBars.length - 1][4] : null
-    const vol = B.reduce((s, b) => s + (b[5] || 0), 0), vwap = vol ? B.reduce((s, b) => s + (b[2] + b[3] + b[4]) / 3 * (b[5] || 0), 0) / vol : null
-    const st = { open: B[0][1], high: Math.max(...B.map(b => b[2])), low: Math.min(...B.map(b => b[3])), last: B[B.length - 1][4], vol, vwap, n: B.length, t0: B[0][0] - off, t1: B[B.length - 1][0] - off }
-    return { days, sel, B, prevClose, st, off }
+    const B = sel === 'all' ? bars : (S.find(s => s.day === sel)?.bars || [])
+    const vol = hasVolume(bars)
+    const si = sel === 'all' ? -1 : days.indexOf(sel)
+    const prevClose = si > 0 ? S[si - 1].bars[S[si - 1].bars.length - 1][4] : null
+    const st = windowStats(B)
+    const dec = st && st.last >= 1000 ? 0 : 2
+    return { days, sel, B, prevClose, st, vol, per: sel === 'all' ? sessionStats(bars) : [], dec }
   }, [d, res, day])
-  const panes = useMemo(() => {
-    if (!calc?.st) return []
-    const o = calc.off, B = calc.B as number[][]
-    const price = kind === 'candle' ? { kind: 'candle' as const, data: B.map(b => ({ time: b[0] - o, open: b[1], high: b[2], low: b[3], close: b[4] })), title: lbl(ticker) } : { kind: 'area' as const, data: B.map(b => ({ time: b[0] - o, value: b[4] })), color: C.white, title: lbl(ticker), lines: calc.prevClose ? [{ price: calc.prevClose, color: tc('#777'), title: 'prev. close' }] : [] }
-    return [{ stretch: 0.75, series: [price] }, { stretch: 0.25, series: [{ kind: 'hist' as const, data: B.map(b => ({ time: b[0] - o, value: b[5] || 0, color: b[4] >= b[1] ? tc('rgba(61,220,132,.6)') : tc('rgba(255,77,77,.6)') })), title: 'Volume', decimals: 0 }] }]
-  }, [calc, kind, ticker])
-  if (!ok) return <FnScreen code="GIP" ticker={ticker}><NA ticker={ticker} what="Intraday history" code="GIP" /></FnScreen>
-  if (!d || !calc) return <FnScreen code="GIP" ticker={ticker}><Loading err={err} /></FnScreen>
-  const st = calc.st, chg = st && calc.prevClose ? (st.last / calc.prevClose - 1) * 100 : null
-  const hhmm = (u: number) => new Date(u * 1000).toISOString().slice(11, 16)
+  if (!ok) return <GIPNoData ticker={ticker} />
+  if (!d || !calc) return <FnScreen code="GIP" ticker={ticker} title={L('Intraday Graph', 'Gráfico intradiário')}><Loading err={err} /></FnScreen>
+  const { st, dec } = calc, all = calc.sel === 'all'
+  const chg = st && calc.prevClose ? (st.last / calc.prevClose - 1) * 100 : null
+  const hhmm = (u: number) => new Date((u - BRT_OFF) * 1000).toISOString().slice(11, 16)
+  const dayOf = (u: number) => new Date((u - BRT_OFF) * 1000).toISOString().slice(0, 10)
+  const vwapShown = vwOn && calc.vol
+  const note = <>
+    {L('Brasília time; bars are delayed (not real time). 1-minute bars cover the most recent sessions; 5-minute bars about 60 days. The last bar still forming (no trades yet) is not shown.',
+      'Horário de Brasília; barras com atraso (não é tempo real). As barras de 1 minuto cobrem os pregões mais recentes; as de 5 minutos, cerca de 60 dias. A barra ainda em formação (sem negócios) não é exibida.')}{' '}
+    {L('VWAP = Σ(typical price × volume) ÷ Σ volume, accumulated from each session open; the bands are ±1σ and ±2σ of the volume-weighted typical price.',
+      'VWAP = Σ(preço típico × volume) ÷ Σ volume, acumulado desde a abertura de cada pregão; as bandas são ±1σ e ±2σ do preço típico ponderado pelo volume.')}
+    {!calc.vol && <> {L('This index has no traded volume, so VWAP, its bands and the volume pane are not available.', 'Este índice não tem volume negociado; por isso VWAP, bandas e painel de volume não estão disponíveis.')}</>}
+  </>
+  const perCols: Col<any>[] = [
+    { k: 'day', label: L('Session', 'Pregão'), fmt: v => dBR(v) },
+    { k: 'open', label: L('Open', 'Abert.'), align: 'r', fmt: v => nf(v, dec) },
+    { k: 'high', label: L('High', 'Máx.'), align: 'r', fmt: v => nf(v, dec) },
+    { k: 'low', label: L('Low', 'Mín.'), align: 'r', fmt: v => nf(v, dec) },
+    { k: 'last', label: L('Close', 'Fech.'), align: 'r', fmt: v => nf(v, dec) },
+    { k: 'chg', label: L('Chg', 'Var.'), align: 'r', fmt: v => pf(v), color: v => clr(v) },
+    ...(calc.vol ? [{ k: 'vwap', label: 'VWAP', align: 'r' as const, fmt: (v: any) => nf(v, dec) }, { k: 'vol', label: L('Volume', 'Volume'), align: 'r' as const, fmt: (v: any) => big(v, 1) }] : []),
+    { k: 'n', label: L('Bars', 'Barras'), align: 'r' },
+  ]
+  const span = (u: number) => `${all ? dBR(dayOf(u)) + ' ' : ''}${hhmm(u)}`
   return (
-    <FnScreen code="GIP" ticker={ticker} title="Intraday Graph"
-      right={<><Btns opts={[{ v: 'm1', l: '1 min' }, { v: 'm5', l: '5 min' }]} value={res} onChange={v => { setRes(v); setDay('') }} /><Field label="Session"><select className={inputCls} style={inputStyle} value={calc.sel} onChange={e => setDay(e.target.value)}><option value="all">All ({calc.days.length})</option>{calc.days.slice().reverse().map((x: string) => <option key={x} value={x}>{dBRfull(x)}</option>)}</select></Field><Btns opts={[{ v: 'line', l: 'Line' }, { v: 'candle', l: 'Candle' }]} value={kind} onChange={setKind} /></>}
-      source={d.source} note="Brasília time. Free-source limitation: 1-minute bars only cover the last ~5–7 sessions and 5-minute bars ~60 days; data is delayed (not real time). VWAP = Σ(typical price × volume) ÷ Σ volume over the window.">
-      {!st ? <Loading err="No bars for this window." /> : <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 240px' }}>
-        <FnChart intraday height={520} panes={panes} />
-        <Panel title={calc.sel === 'all' ? 'All sessions in the file' : dBRfull(calc.sel)}>
-          <KV rows={[['Last', nf(st.last, 2), C.amber], ['Change', chg == null ? '—' : pf(chg), clr(chg)], ['Prev. close', nf(calc.prevClose, 2)], ['Open', nf(st.open, 2)], ['High', nf(st.high, 2), C.up], ['Low', nf(st.low, 2), C.down], ['VWAP', nf(st.vwap, 2)], ['Volume (shares)', big(st.vol, 2)], ['Bars', String(st.n)], ['From', `${calc.sel === 'all' ? dBR(new Date(st.t0 * 1000).toISOString().slice(0, 10)) + ' ' : ''}${hhmm(st.t0)}`], ['To', `${calc.sel === 'all' ? dBR(new Date(st.t1 * 1000).toISOString().slice(0, 10)) + ' ' : ''}${hhmm(st.t1)}`]]} />
+    <FnScreen code="GIP" ticker={ticker} title={L('Intraday Graph', 'Gráfico intradiário')} wrap
+      right={<>
+        <Btns opts={[{ v: 'm1', l: '1 min' }, { v: 'm5', l: '5 min' }]} value={res} onChange={v => { setRes(v); setDay('') }} />
+        <Field label={L('Session', 'Pregão')}><select data-gip-session className={inputCls} style={inputStyle} value={calc.sel} onChange={e => setDay(e.target.value)}><option value="all">{L(`All (${calc.days.length})`, `Todos (${calc.days.length})`)}</option>{calc.days.slice().reverse().map((x: string) => <option key={x} value={x}>{dBRfull(x)}</option>)}</select></Field>
+        <Btns opts={[{ v: 'line', l: L('Line', 'Linha') }, { v: 'candle', l: 'Candle' }]} value={kind} onChange={setKind} />
+        {calc.vol ? <Btns opts={[{ v: true, l: 'VWAP ±σ' }, { v: false, l: L('Off', 'Desl.') }]} value={vwOn} onChange={setVwOn} /> : <span className="text-[11px]" style={{ color: C.muted }} data-gip-novwap>{L('VWAP n/a (no volume)', 'VWAP indisponível (sem volume)')}</span>}
+      </>}
+      note={note}>
+      {!st ? <Loading err={L('No bars for this window.', 'Sem barras nesta janela.')} /> : <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 240px' }}>
+        <div className="min-w-0 flex flex-col gap-2">
+          <IntradayChart bars={calc.B} kind={kind} showVwap={!!vwapShown} prevClose={calc.prevClose} open={all ? null : st.open} separators={all} showVolume={calc.vol} decimals={dec} height={all ? 440 : 520} label={short(ticker)} />
+          {all && <Panel title={L('Per-session statistics', 'Estatísticas por pregão')}><Grid cols={perCols} rows={calc.per.slice().reverse()} maxH={190} /></Panel>}
+        </div>
+        <Panel title={all ? L(`All sessions (${calc.days.length})`, `Todos os pregões (${calc.days.length})`) : dBRfull(calc.sel)}>
+          <KV rows={[
+            [L('Last', 'Último'), nf(st.last, dec), C.amber],
+            ...(all ? [] : [[L('Change', 'Variação'), chg == null ? '—' : pf(chg), clr(chg)], [L('Prev. close', 'Fech. anterior'), nf(calc.prevClose, dec)]] as [string, string, string?][]),
+            [L('Open', 'Abertura'), nf(st.open, dec)],
+            [L('High', 'Máxima'), nf(st.high, dec), C.up], [L('Low', 'Mínima'), nf(st.low, dec), C.down],
+            [L('Range', 'Amplitude'), `${nf(st.high - st.low, dec)} (${pf((st.high / st.low - 1) * 100, 2, false)})`],
+            ...(calc.vol ? [['VWAP', nf(st.vwap, dec)], [L('Last vs VWAP', 'Último vs VWAP'), st.vwap ? pf((st.last / st.vwap - 1) * 100) : '—', clr(st.vwap ? st.last - st.vwap : null)], [L('Volume (shares)', 'Volume (ações)'), big(st.vol, 2)]] as [string, string, string?][] : []),
+            [L('Bars', 'Barras'), String(st.n)],
+            [L('From', 'De'), span(st.t0)], [L('To', 'Até'), span(st.t1)],
+          ]} />
+          {all && <div className="px-2 py-1 text-[11px]" style={{ color: C.muted }}>{L('Vertical lines separate sessions; VWAP restarts at each open.', 'Linhas verticais separam os pregões; o VWAP reinicia a cada abertura.')}</div>}
         </Panel>
       </div>}
     </FnScreen>
