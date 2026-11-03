@@ -6,7 +6,8 @@ import { fetchIbgeLive } from '@/lib/ibgeLive'
 import { lang } from '@/lib/settings'
 import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
-import { C, useJSON, FnScreen, Panel, Grid, Btns, Field, Spark } from '@/components/fn/kit'
+import { C, useJSON, FnScreen, Panel, Grid, Btns, Field, Spark, useDesktop } from '@/components/fn/kit'
+import { ecoPeriod, ecoUnit } from '@/lib/ecoPeriod.mjs'
 import { n, sn, pc, bps, auto, cl, dUS, dUSfull, dShort, weekday, addDays, dayN, todaySP, Kpis, Loading2, Unavailable } from './fn11util'
 
 // ======================= ECO =======================
@@ -27,14 +28,51 @@ const S_ECO = () => ({
   empty: L('No releases in this window.', 'Nenhuma divulgação neste período.'), live: L('Brazil releases loaded live in the browser.', 'Divulgações do Brasil carregadas direto no navegador.'),
   liveNo: L('Brazil releases unavailable right now.', 'Divulgações do Brasil indisponíveis no momento.'), approx: L('≈ time approximate', '≈ horário aproximado'),
   allday: L('all day', 'dia todo'), count: L('events', 'eventos'), times: L('Times in Brasília time (BRT).', 'Horários de Brasília (BRT).'),
+  imp3: (t: number) => L(`importance ${t} of 3`, `importância ${t} de 3`),
 })
 const fmtV = (v: any, u?: string) => v == null ? '' : n(v, u === 'US$ bn' || u === 'US$ mn' || u === 'R$ bn' ? 2 : Math.abs(+v) >= 100 ? 1 : 2)
 const tierOf = (e: any) => e.tier ?? (e.key ? 3 : 1)
+const actColor = (e: any) => e.survey != null && e.actual != null ? (e.actual > e.survey ? C.up : e.actual < e.survey ? C.down : C.white) : C.white
+const Dots = ({ t, S }: { t: number; S: ReturnType<typeof S_ECO> }) =>
+  <span title={`${t}/3`} aria-label={S.imp3(t)} style={{ color: t >= 3 ? C.amber : t === 2 ? C.text : C.muted }}>{'●'.repeat(t)}<span style={{ color: C.line }}>{'●'.repeat(3 - t)}</span></span>
+
+/** ECO no celular/tablet (<1024px): um cartão por divulgação, sem rolagem horizontal. Nome do evento em destaque,
+ *  linha de metadados (data/hora · país · importância · período · divulgador) e Expect./Atual/Anterior lado a lado. */
+function EcoCards({ rows, S, pt, today, showSurvey, when }: { rows: any[]; S: ReturnType<typeof S_ECO>; pt: boolean; today: string; showSurvey: boolean; when: (e: any) => React.ReactNode }) {
+  const lg = pt ? 'pt' : 'en'
+  const val = (x: any, e: any) => x == null ? '—' : <>{fmtV(x, e.unit)}{e.unit ? <span style={{ color: C.muted }}> {ecoUnit(e.unit, lg)}</span> : null}</>
+  let last = ''
+  return (
+    <ul data-eco-cards className="overflow-y-auto overflow-x-hidden" style={{ maxHeight: '70vh', overscrollBehavior: 'contain' }}>
+      {rows.map((e, i) => {
+        const day = e.time.slice(0, 10), t = tierOf(e), first = day !== last; last = day
+        const cells: [string, React.ReactNode, string][] = [
+          ...(showSurvey ? [[S.c.survey, val(e.survey, e), C.purple] as [string, React.ReactNode, string]] : []),
+          [S.c.actual, val(e.actual, e), actColor(e)], [S.c.prior, val(e.prior, e), C.text]]
+        return (
+          <li key={i} data-eco-card className="min-w-0 px-2 py-[6px] border-b"
+            style={{ borderColor: tc('#1a1a1a'), borderTop: first ? `1px solid ${C.amberDim}` : undefined, background: day === today ? tc('#1a1405') : i % 2 ? tc('#0a0a0a') : 'transparent' }}>
+            <div data-eco-title className="whitespace-normal break-words text-[13px] leading-[1.35]" style={{ color: t >= 3 ? C.amber : C.text, fontWeight: t >= 3 ? 700 : 400 }}>{(pt && e.event_pt) || e.event}</div>
+            <div data-eco-meta className="mt-[2px] text-[11px] leading-[1.3] flex flex-wrap gap-x-[6px]" style={{ color: C.muted }}>
+              {when(e)}<span>·</span><span style={{ color: e.country === 'BR' ? C.up : e.country === 'US' ? C.cyan : C.text }}>{e.country}</span><span>·</span><Dots t={t} S={S} />
+              {e.period ? <><span>·</span><span>{ecoPeriod(e.period, lg)}</span></> : null}{e.agency ? <><span>·</span><span>{e.agency}</span></> : null}
+            </div>
+            <div data-eco-vals className="mt-[3px] grid gap-x-2 text-[12px] leading-[1.3]" style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
+              {cells.map(([k, v, col]) => <div key={k} className="min-w-0 truncate"><span className="text-[10px] uppercase" style={{ color: C.muted }}>{k} </span><span style={{ color: col }}>{v}</span></div>)}
+            </div>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 export function ECOView() {
   const { data: d0, err } = useJSON<any>('eco.json')
   const [cty, setCty] = useState('All'), [imp, setImp] = useState(1), [wk, setWk] = useState(0)
   const [live, setLive] = useState<any[] | null | undefined>(undefined)
-  const S = S_ECO(), pt = lang() === 'pt'
+  const S = S_ECO(), pt = lang() === 'pt', lg = pt ? 'pt' : 'en'
+  const desk = useDesktop()
   const today = todaySP()
   const noBR = !!d0 && !(d0.events as any[]).some(e => e.agency === 'IBGE')
   // eco.json sem o IBGE: completa a agenda do Brasil direto do navegador
@@ -57,6 +95,9 @@ export function ECOView() {
   if (!d || !v) return <FnScreen code="ECO" title={S.title}><Loading2 err={err} /></FnScreen>
   const cName = (c: string) => { const x = ECO_CTRY.find(k => k[0] === c); return x ? (pt ? x[2] : x[1]) : c }
   const note = (pt && d.note_pt) || d.note || S.times
+  // sem nenhuma expectativa nas linhas visíveis, a coluna some (a nota explica onde há consenso)
+  const showSurvey = v.ev.some((e: any) => e.survey != null)
+  const when = (e: any) => { const x = e.time; return <span className="whitespace-nowrap"><span style={{ color: C.muted }}>{pt ? WD_PT[new Date(x.slice(0, 10) + 'T12:00:00Z').getUTCDay()] : weekday(x)} </span>{dUS(x)} {e.allday ? <span style={{ color: C.muted }}>{S.allday}</span> : <span style={{ color: C.white }}>{x.slice(11, 16)}</span>}{e.time_approx && !e.allday ? <span style={{ color: C.muted }}>≈</span> : ''}</span> }
   let last = ''
   return (
     <FnScreen code="ECO" title={S.title}
@@ -74,16 +115,17 @@ export function ECOView() {
       note={<>{note}{d.note ? '' : ` ${S.approx}.`}{noBR && live !== undefined ? <> {live?.length ? S.live : S.liveNo}</> : null}</>}>
       <Panel title={`${wk === 9 ? `${dUS(d.from)} – ${dUS(d.to)}` : `${dShort(v.a)} – ${dShort(v.b)}`} · ${v.ev.length} ${S.count}`}>
         {!v.ev.length ? <div className="p-4 text-[12px]" style={{ color: C.muted }}>{S.empty}</div> :
+          !desk ? <EcoCards rows={v.ev} S={S} pt={pt} today={today} showSurvey={showSurvey} when={when} /> :
           <Grid maxH={640} rows={v.ev} rowStyle={(e: any) => { const day = e.time.slice(0, 10); const st: any = day === today ? { background: tc('#1a1405') } : {}; if (day !== last) { last = day; st.borderTop = `1px solid ${C.amberDim}` } return st }} cols={[
-            { k: 'time', label: S.c.time, fmt: (x, e: any) => <span className="whitespace-nowrap"><span style={{ color: C.muted }}>{pt ? WD_PT[new Date(x.slice(0, 10) + 'T12:00:00Z').getUTCDay()] : weekday(x)} </span>{dUS(x)} {e.allday ? <span style={{ color: C.muted }}>{S.allday}</span> : <span style={{ color: C.white }}>{x.slice(11, 16)}</span>}{e.time_approx && !e.allday ? <span style={{ color: C.muted }}>≈</span> : ''}</span> },
+            { k: 'time', label: S.c.time, fmt: (_x, e: any) => when(e) },
             { k: 'country', label: S.c.country, align: 'c', fmt: (x: any) => <span title={cName(x)}>{x}</span>, color: x => x === 'BR' ? C.up : x === 'US' ? C.cyan : C.text },
-            { k: 'tier', label: S.c.imp, align: 'c', fmt: (_x, e: any) => { const t = tierOf(e); return <span title={`${t}/3`} style={{ color: t >= 3 ? C.amber : t === 2 ? C.text : C.muted }}>{'●'.repeat(t)}<span style={{ color: C.line }}>{'●'.repeat(3 - t)}</span></span> } },
+            { k: 'tier', label: S.c.imp, align: 'c', fmt: (_x, e: any) => <Dots t={tierOf(e)} S={S} /> },
             { k: 'event', label: S.c.event, fmt: (x, e: any) => <span style={{ color: tierOf(e) >= 3 ? C.amber : C.text }}>{(pt && e.event_pt) || x}</span> },
-            { k: 'period', label: S.c.period, color: () => C.muted },
-            { k: 'survey', label: S.c.survey, align: 'r', fmt: (x, e: any) => fmtV(x, e.unit), color: () => C.purple },
-            { k: 'actual', label: S.c.actual, align: 'r', fmt: (x, e: any) => fmtV(x, e.unit), color: (x, e: any) => e.survey != null && x != null ? (x > e.survey ? C.up : x < e.survey ? C.down : C.white) : C.white },
+            { k: 'period', label: S.c.period, fmt: (x: any) => <span className="whitespace-nowrap" title={x || undefined}>{ecoPeriod(x, lg)}</span>, color: () => C.muted },
+            ...(showSurvey ? [{ k: 'survey', label: S.c.survey, align: 'r' as const, fmt: (x: any, e: any) => fmtV(x, e.unit), color: () => C.purple }] : []),
+            { k: 'actual', label: S.c.actual, align: 'r', fmt: (x, e: any) => fmtV(x, e.unit), color: (_x, e: any) => actColor(e) },
             { k: 'prior', label: S.c.prior, align: 'r', fmt: (x, e: any) => fmtV(x, e.unit) },
-            { k: 'unit', label: S.c.unit, color: () => C.muted },
+            { k: 'unit', label: S.c.unit, fmt: (x: any) => ecoUnit(x, lg), color: () => C.muted },
             { k: 'agency', label: S.c.agency, color: () => C.muted },
           ]} />}
       </Panel>

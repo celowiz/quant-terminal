@@ -9,7 +9,7 @@ Cada etapa é independente e mantém o JSON anterior se a fonte falhar."""
 import io, re, sys, os, json, math, datetime as dt, urllib.parse, html as htmlmod
 from zoneinfo import ZoneInfo
 import pandas as pd
-import eco_sources
+import eco_sources, eco_actuals, requests, time
 from common import save, get, get_json, load_prev, clean, step, now_iso, today_brt, cached, OUT, TZ, fred_csv, CACHE
 
 TODAY = today_brt()
@@ -778,6 +778,7 @@ def eco():
     a, b = TODAY - dt.timedelta(days=21), TODAY + dt.timedelta(days=45)
     rows, status = [], {}
     prev = load_prev('eco.json') or {}
+    focus = focus_monthly(('IPCA', 'IGP-M', 'Taxa de desocupação'), a - dt.timedelta(days=60))
     # --- Brasil: IBGE
     try:
         ec = load_out('ecst.json') or {}
@@ -785,12 +786,7 @@ def eco():
         en = load_out('econ.json') or {}
         s433 = next((s for s in en.get('series', []) if s['id'] == 'SGS433'), None)
         sgs433 = {p[0][:4] + p[0][5:7]: p[1] for p in s433['points']} if s433 else {}
-        focus_m = {}
-        try:
-            u = (OL + 'ExpectativaMercadoMensais?' + urllib.parse.urlencode({'$top': 3000, '$format': 'json', '$orderby': 'Data asc',
-                 '$filter': f"Indicador eq 'IPCA' and baseCalculo eq 0 and Data ge '{(a - dt.timedelta(days=60)).isoformat()}'", '$select': 'Data,DataReferencia,Mediana'}, quote_via=urllib.parse.quote))
-            for r in get_json(u)['value']: focus_m.setdefault(r['DataReferencia'], []).append((r['Data'], r['Mediana']))
-        except Exception as e: print('focus mensal', e)
+        focus_m = focus.get('IPCA', {})
         items, cached_at = ibge_events(a, b)
         lo, hi = a.isoformat(), b.isoformat()
         br = [r for r in ibge_rows(items, sidra, sgs433, focus_m) if lo <= r['time'][:10] <= hi]
@@ -843,17 +839,58 @@ def eco():
     rows += bls_actuals(extra, fred)
     if not rows: raise RuntimeError('calendário vazio')
     rows = dedupe(rows)
+    try:
+        series, st2 = eco_series(a)
+        rows, n = eco_actuals.enrich(rows, series, focus, TODAY)
+        status['official_series'] = {'filled': n, **{k: len(v) for k, v in st2.items()}}
+        if st2['cached']: status['official_series_cached'] = st2['cached']
+    except Exception as e: print('eco actuals', e); status['official_series'] = 0
     rows.sort(key=lambda r: (r['time'], -(r.get('tier') or 1)))
     save('eco.json', {'generated_at': now_iso(), 'from': a.isoformat(), 'to': b.isoformat(), 'events': rows, 'status': status,
                       'note': 'Times in Brasília time (BRT); "all day" means the releaser publishes the date but not the time, and "≈" marks an approximate time. '
-                              'Importance (1–3 dots) is our own rough ranking by indicator type. Survey: market survey median for IPCA (month) and per-meeting Selic; '
-                              'no consensus is shown for other releases.',
+                              'Importance (1–3 dots) is our own rough ranking by indicator type. Survey: market survey median for IPCA, IGP-M and the unemployment rate (month) and per-meeting Selic; '
+                              'other releases have no free consensus and show "—". Actual and prior come from the official series of each releaser.',
                       'note_pt': 'Horários de Brasília (BRT); "dia todo" indica que o órgão divulga a data mas não o horário, e "≈" marca horário aproximado. '
-                                 'A importância (1–3 pontos) é uma classificação nossa, aproximada, pelo tipo de indicador. Expectativa: mediana da pesquisa de mercado para o IPCA (mês) '
-                                 'e a Selic por reunião; não mostramos consenso para as demais divulgações.',
+                                 'A importância (1–3 pontos) é uma classificação nossa, aproximada, pelo tipo de indicador. Expectativa: mediana da pesquisa de mercado para o IPCA, o IGP-M e a taxa de desemprego (mês) '
+                                 'e a Selic por reunião; as demais divulgações não têm consenso gratuito e mostram "—". Atual e anterior vêm das séries oficiais de cada órgão.',
                       'source': 'IBGE – release calendar (API v3); IBGE SIDRA and BCB SGS (actuals); BCB Focus (survey); BCB Copom calendar; '
                                 'BEA release calendar (ICS); U.S. Census Bureau economic indicator calendar; FRED (US actuals); federalreserve.gov (FOMC); '
+                                'BCB SGS 189/7447/190/7456/24364, Eurostat API and StatCan WDS (actuals); '
                                 'calendars of BCB, FGV IBRE, MTE, MDIC, BLS, EIA, UMich, TreasuryDirect, S&P Global, Eurostat, ONS, StatCan, ECB, BoE, BoJ, BoC'})
+
+def focus_monthly(inds, since):
+    """{indicador: {'MM/YYYY': [(data, mediana)]}} da pesquisa Focus (mensal, baseCalculo 0); falha de um indicador não afeta os outros."""
+    out = {}
+    for ind in inds:
+        try:
+            u = (OL + 'ExpectativaMercadoMensais?' + urllib.parse.urlencode({'$top': 5000, '$format': 'json', '$orderby': 'Data asc',
+                 '$filter': f"Indicador eq '{ind}' and baseCalculo eq 0 and Data ge '{since.isoformat()}'", '$select': 'Data,DataReferencia,Mediana'}, quote_via=urllib.parse.quote))
+            d = out.setdefault(ind, {})
+            for r in get_json(u)['value']: d.setdefault(r['DataReferencia'], []).append((r['Data'], r['Mediana']))
+        except Exception as e: print('focus mensal', ind, e)
+    return out
+
+def _post_json(url, body, tries=3):
+    last = None
+    for t in range(tries):
+        try:
+            r = requests.post(url, json=body, headers={'User-Agent': 'quant-terminal-pipeline/1.0'}, timeout=60)
+            r.raise_for_status(); return r.json()
+        except Exception as e:
+            last = e; time.sleep(2 * (t + 1))
+    raise last
+
+def eco_series(a):
+    """Séries oficiais usadas no realizado/anterior da agenda (com último valor bom em cache)."""
+    start = a - dt.timedelta(days=800)
+    fetchers = {
+        'sgs': lambda ids: {i: eco_actuals.fetch_sgs(i.split(':')[1], get_json, start) for i in ids},
+        'fred': lambda ids: eco_actuals.fetch_fred(ids, fred, start),
+        'es': lambda ids: {i: eco_actuals.fetch_eurostat(i, get_json, start) for i in ids},
+        'sc': lambda ids: eco_actuals.fetch_statcan(ids, _post_json),
+    }
+    paths = [os.path.join(CACHE, eco_actuals.SERIES_FILE), os.path.join(OUT, eco_actuals.SERIES_FILE)]
+    return eco_actuals.fetch_all(eco_actuals.series_ids(), fetchers, now_iso(), paths)
 
 # Realizado/anterior das divulgações do BLS (série do FRED; período = mês anterior ao da divulgação, como no calendário do BLS).
 BLS_ACT = {'CPI inflation': ('CPIAUCSL', 'yoy', '%', 'CPI YoY', 'CPI (var. em 12 meses)'),
