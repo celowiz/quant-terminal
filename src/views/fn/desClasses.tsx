@@ -1,10 +1,10 @@
 'use client'
 // DES de FIIs, ETFs (B3 e EUA) e BDRs: des/<ticker>.json (pipeline/build_des.py). Campo sem dado na origem → "—".
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { FnScreen, Panel, Grid, KV, Loading, C, nf, pf, big, dBR, clr, short, useJSON, isoMinus } from '../../components/fn/kit'
 import FnChart from '../../components/fn/FnChart'
 import { usePrices } from './tech'
-import { href, tickerKey } from '../../lib/static'
+import { href, tickerKey, tickerMeta, type TickerMeta } from '../../lib/static'
 import { L, fyEnd, isoDate } from './desLabels'
 import { lang } from '../../lib/settings'
 import { safeSite } from '../../lib/safe.mjs'
@@ -195,15 +195,23 @@ const FORM_EN: Record<string, [string, string]> = {
   '24F-2NT': ['Annual fee notice', 'Aviso anual de taxas'], '10-K': ['Annual report', 'Relatório anual'], '10-Q': ['Quarterly report', 'Relatório trimestral'], '8-K': ['Current report', 'Fato relevante'],
 }
 function ETFUS({ d, ticker }: { d: any; ticker: string }) {
-  const note = L(`The registrant is the trust that issues the ETF; one trust can issue many ETFs, so registrant fields are shared. The latest filing of each type is shown. Expense ratio and benchmark index are not available, so they show —.`,
-    `O registrante é o trust que emite o ETF; um trust pode emitir vários ETFs, então os campos do registrante são compartilhados. Mostra o registro mais recente de cada tipo. Taxa de administração e índice de referência não estão disponíveis, por isso aparecem como —.`)
+  // ETFs setoriais: nome do fundo, setor e índice replicado vêm do cadastro do universo (tickers.json)
+  const [m, setM] = useState<TickerMeta | null>(null)
+  useEffect(() => { let on = true; tickerMeta(ticker).then(x => on && setM(x)).catch(() => {}); return () => { on = false } }, [ticker])
+  const note = m?.tracks
+    ? L(`The registrant is the trust that issues the ETF; one trust can issue many ETFs (here, one per S&P 500 sector), so registrant fields are shared. The latest filing of each type is shown. Expense ratio is not available, so it shows —.`,
+      `O registrante é o trust que emite o ETF; um trust pode emitir vários ETFs (aqui, um por setor do S&P 500), então os campos do registrante são compartilhados. Mostra o registro mais recente de cada tipo. Taxa de administração não está disponível, por isso aparece como —.`)
+    : L(`The registrant is the trust that issues the ETF; one trust can issue many ETFs, so registrant fields are shared. The latest filing of each type is shown. Expense ratio and benchmark index are not available, so they show —.`,
+      `O registrante é o trust que emite o ETF; um trust pode emitir vários ETFs, então os campos do registrante são compartilhados. Mostra o registro mais recente de cada tipo. Taxa de administração e índice de referência não estão disponíveis, por isso aparecem como —.`)
   const fil: any[] = d.filings || []
+  const title = m?.sector ? `${L('Description', 'Descrição')} — ${(pt() && m.name_pt) || m.name}` : TITLE(d)
   return (
-    <FnScreen code="DES" ticker={ticker} title={TITLE(d)} note={note}>
+    <FnScreen code="DES" ticker={ticker} title={title} note={note}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1.3fr 1fr 1fr' }}>
         <Panel title={L('Fund profile', 'Perfil do fundo')}>
-          <KV rows={[[L('Ticker', 'Ticker'), short(ticker), C.amber], ...secRows(d), ...(d.series_id ? [[L('Series ID', 'ID da série'), d.series_id], [L('Class ID', 'ID da classe'), S(d.class_id)]] as [string, string][] : []),
-            [L('Expense ratio', 'Taxa de administração'), '—'], [L('Benchmark index', 'Índice de referência'), '—']]} />
+          <KV rows={[[L('Ticker', 'Ticker'), short(ticker), C.amber], ...(m?.sector ? [[L('Fund', 'Fundo'), m.name], [L('Sector', 'Setor'), S(pt() ? m.sector_pt : m.sector)]] as [string, string][] : []),
+            ...secRows(d), ...(d.series_id ? [[L('Series ID', 'ID da série'), d.series_id], [L('Class ID', 'ID da classe'), S(d.class_id)]] as [string, string][] : []),
+            [L('Expense ratio', 'Taxa de administração'), '—'], [L('Benchmark index', 'Índice de referência'), S(m?.tracks)]]} />
         </Panel>
         <PricePanel ticker={ticker} ccy="US$" />
         <Panel title={L('Latest filings', 'Registros mais recentes')}>

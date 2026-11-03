@@ -35,6 +35,8 @@ export type TickerMeta = {
   ticker: string; key: string; name: string; first: string; last: string; n: number
   class?: AssetClass; currency?: string; unit?: string; index?: string[]; corp?: boolean
   link?: string; ref?: string; close_only?: boolean; official?: string; cov?: string[]
+  /** ETFs setoriais: nome PT, setor EN/PT e índice que o fundo replica */
+  name_pt?: string; sector?: string; sector_pt?: string; tracks?: string
   /** cobertura ampliada (S&P 500, FIIs, BDRs, ETFs B3, criptos): sem página estática por ticker, abre pelo 404.html */
   ext?: boolean
 }

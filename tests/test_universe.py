@@ -102,6 +102,18 @@ def test_build_universe_cobertura_ampliada():
     assert len({bp.key(t) for t in U}) == len(U)
 
 
+def test_etfs_setoriais_spdr():
+    U = bp.build_universe([('PETR4', 'PETROBRAS PN')], [])
+    sec = ['XLK', 'XLF', 'XLE', 'XLV', 'XLY', 'XLP', 'XLI', 'XLB', 'XLU', 'XLRE', 'XLC']
+    assert list(bp.SECTOR) == sec
+    for t in sec:
+        m = U[t]
+        assert m['class'] == 'etf' and m['currency'] == 'USD' and not m.get('ext') and bp.key(t) == t
+        assert m['name'].endswith('Select Sector SPDR') and m['name_pt'].startswith('SPDR Setorial') and m['sector'] and m['sector_pt']
+    assert U['XLK']['tracks'] == 'Technology Select Sector Index' and U['XLI']['tracks'] == 'Industrial Select Sector Index'
+    assert U['XLK']['sector'] == 'Technology' and U['XLC']['sector_pt'] == 'Serviços de Comunicação'
+
+
 def test_fontes_cobertura_ampliada():
     csv = 'Symbol,Security,GICS Sector\nBRK.B,Berkshire Hathaway,Financials\nMMM,3M,Industrials\n'
     assert bp.parse_sp500(csv) == [('BRK-B', 'Berkshire Hathaway'), ('MMM', '3M')]

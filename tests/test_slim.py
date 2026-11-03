@@ -75,14 +75,15 @@ def test_weekly_through_descarta_barra_parcial():
 
 def test_slim_pacote_us_separado_e_portao(tmp_path, monkeypatch):
     p = tmp_path / 'prices'; p.mkdir()
-    for k in ('PETR4', 'AAPL', 'IDX_GSPC'): (p / f'{k}.json').write_text(json.dumps(_cols()))
-    (tmp_path / 'tickers.json').write_text(json.dumps({'tickers': [{'ticker': 'AAPL', 'key': 'AAPL', 'class': 'us_equity'}]}))
+    for k in ('PETR4', 'AAPL', 'XLK', 'IDX_GSPC'): (p / f'{k}.json').write_text(json.dumps(_cols()))
+    (tmp_path / 'tickers.json').write_text(json.dumps({'tickers': [{'ticker': 'AAPL', 'key': 'AAPL', 'class': 'us_equity'},
+                                                                    {'ticker': 'XLK', 'key': 'XLK', 'class': 'etf'}]}))
     cut = _cols()['t'][-3]
     monkeypatch.setattr(bs, 'OUT', str(tmp_path))
     monkeypatch.setattr(bs, 'us_closed_through', lambda now=None: cut)
     bs.slim()
     br = json.loads((tmp_path / 'rrg.json').read_text())
     us = json.loads((tmp_path / 'rrg_us.json').read_text())
-    assert sorted(br['series']) == ['IDX_GSPC', 'PETR4'] and sorted(us['series']) == ['AAPL', 'IDX_GSPC']
-    assert us['series']['AAPL']['last'] == cut and us['last'] == cut          # EUA: só até o último pregão encerrado
+    assert sorted(br['series']) == ['IDX_GSPC', 'PETR4'] and sorted(us['series']) == ['AAPL', 'IDX_GSPC', 'XLK']
+    assert us['series']['AAPL']['last'] == cut and us['series']['XLK']['last'] == cut and us['last'] == cut          # EUA: só até o último pregão encerrado
     assert json.loads((tmp_path / 'weekly/PETR4.json').read_text())['last'] == _cols()['t'][-1]   # BR não passa pelo portão

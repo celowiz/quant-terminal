@@ -33,6 +33,18 @@ INDEX = {'^BVSP': 'IBOVESPA', '^GSPC': 'S&P 500', '^NDX': 'Nasdaq 100', '^IXIC':
 ETF = {'SPY': 'SPDR S&P 500 ETF', 'QQQ': 'Invesco QQQ (Nasdaq 100)', 'IWM': 'iShares Russell 2000', 'EWZ': 'iShares MSCI Brazil',
        'EEM': 'iShares MSCI Emerging Markets', 'TLT': 'iShares 20+ Year Treasury', 'BOVA11.SA': 'iShares Ibovespa (BOVA11)',
        'SMAL11.SA': 'iShares Small Cap (SMAL11)', 'IVVB11.SA': 'iShares S&P 500 BRL (IVVB11)'}
+# ETFs setoriais SPDR (um por setor GICS do S&P 500): nome EN do fundo, nome PT e setor EN/PT (RRG de setores, DES, COMP)
+SECTOR = {'XLK': ('Technology Select Sector SPDR', 'SPDR Setorial de Tecnologia', 'Technology', 'Tecnologia'),
+          'XLF': ('Financial Select Sector SPDR', 'SPDR Setorial Financeiro', 'Financials', 'Financeiro'),
+          'XLE': ('Energy Select Sector SPDR', 'SPDR Setorial de Energia', 'Energy', 'Energia'),
+          'XLV': ('Health Care Select Sector SPDR', 'SPDR Setorial de Saúde', 'Health Care', 'Saúde'),
+          'XLY': ('Consumer Discretionary Select Sector SPDR', 'SPDR Setorial de Consumo Discricionário', 'Consumer Discretionary', 'Consumo Discricionário'),
+          'XLP': ('Consumer Staples Select Sector SPDR', 'SPDR Setorial de Consumo Básico', 'Consumer Staples', 'Consumo Básico'),
+          'XLI': ('Industrial Select Sector SPDR', 'SPDR Setorial Industrial', 'Industrials', 'Industrial'),
+          'XLB': ('Materials Select Sector SPDR', 'SPDR Setorial de Materiais', 'Materials', 'Materiais'),
+          'XLU': ('Utilities Select Sector SPDR', 'SPDR Setorial de Utilidades Públicas', 'Utilities', 'Utilidades Públicas'),
+          'XLRE': ('Real Estate Select Sector SPDR', 'SPDR Setorial Imobiliário', 'Real Estate', 'Imobiliário'),
+          'XLC': ('Communication Services Select Sector SPDR', 'SPDR Setorial de Serviços de Comunicação', 'Communication Services', 'Serviços de Comunicação')}
 COMMODITY = {'BZ=F': ('Brent Crude Oil', 'USD/bbl'), 'CL=F': ('WTI Crude Oil', 'USD/bbl'), 'GC=F': ('Gold', 'USD/oz t'),
              'SI=F': ('Silver', 'USD/oz t'), 'HG=F': ('Copper', 'USD/lb'), 'NG=F': ('Natural Gas (Henry Hub)', 'USD/MMBtu'),
              'ZS=F': ('Soybeans', 'USc/bu'), 'ZC=F': ('Corn', 'USc/bu'), 'KC=F': ('Coffee (Arabica)', 'USc/lb'),
@@ -133,6 +145,8 @@ def build_universe(ibov, smll, ext=None):
     for t, n in US.items(): U[t] = {'name': n, 'class': 'us_equity', 'currency': 'USD'}
     for t, n in INDEX.items(): U[t] = {'name': n, 'class': 'index', 'currency': 'BRL' if t == '^BVSP' else ('' if t == 'DX-Y.NYB' else None)}
     for t, n in ETF.items(): U[t] = {'name': n, 'class': 'etf', 'currency': 'BRL' if t.endswith('.SA') else 'USD'}
+    for t, (n, npt, sec, spt) in SECTOR.items(): U[t] = {'name': n, 'name_pt': npt, 'class': 'etf', 'currency': 'USD',
+                                                         'sector': sec, 'sector_pt': spt, 'tracks': n.replace(' SPDR', ' Index')}
     for t, (n, unit) in COMMODITY.items(): U[t] = {'name': n, 'class': 'commodity', 'currency': unit.split('/')[0], 'unit': unit}
     for t, n in CRYPTO.items(): U[t] = {'name': n, 'class': 'crypto', 'currency': 'USD'}
     for t, n in FX.items(): U[t] = {'name': n, 'class': 'fx'}
