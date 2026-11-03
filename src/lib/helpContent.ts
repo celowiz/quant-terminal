@@ -34,9 +34,13 @@ export const HELP: Record<string, HelpDoc> = {
     ],
   },
   GIP: {
-    en: 'Intraday chart from delayed bars (1-minute bars cover ~5–7 sessions; 5-minute bars ~60 days), Brasília time. VWAP accumulates from the session open.',
-    pt: 'Gráfico intradiário com barras atrasadas (1 min cobre ~5–7 pregões; 5 min ~60 dias), horário de Brasília. O VWAP acumula desde a abertura.',
-    formulas: [{ tex: R`\mathrm{VWAP}_t = \frac{\sum_{i \le t} \tfrac{H_i+L_i+C_i}{3}\, V_i}{\sum_{i \le t} V_i}`, en: 'Volume-weighted average of the typical price.', pt: 'Média do preço típico ponderada pelo volume.' }],
+    en: 'Intraday chart from delayed bars, Brasília time: 1-minute bars cover the last 2 sessions and 5-minute bars about the last 60 days. Lines: VWAP (volume-weighted average price, restarting at each session open) with ±1σ and ±2σ bands, the session open and the previous session close; the price scale always includes these levels. The Ibovespa index has no traded volume, so it shows no VWAP or volume. A bar still forming when the data was collected (flat, with zero volume) is dropped. Session = All shows every session in the file with dividers and a per-session table (change against the previous session close in the file). Stocks without intraday data show a note with links to the daily charts (GP, GPC).',
+    pt: 'Gráfico intradiário com barras atrasadas, horário de Brasília: barras de 1 minuto cobrem os 2 últimos pregões e de 5 minutos cerca dos últimos 60 dias. Linhas: VWAP (preço médio ponderado pelo volume, reiniciado na abertura de cada pregão) com bandas de ±1σ e ±2σ, a abertura do pregão e o fechamento do pregão anterior; a escala de preço sempre inclui esses níveis. O índice Ibovespa não tem volume negociado, por isso não mostra VWAP nem volume. Uma barra ainda em formação na coleta (plana e com volume zero) é descartada. Pregão = Todos mostra todos os pregões do arquivo com divisórias e uma tabela por pregão (variação contra o fechamento do pregão anterior no arquivo). Ativos sem dados intradiários mostram um aviso com links para os gráficos diários (GP, GPC).',
+    formulas: [
+      { tex: R`p_i = \tfrac{H_i+L_i+C_i}{3},\qquad \mathrm{VWAP}_t = \frac{\sum_{i \le t} p_i V_i}{\sum_{i \le t} V_i}`, en: 'Volume-weighted average of the typical price p, summed from the first bar of the session to bar t.', pt: 'Média do preço típico p ponderada pelo volume, somada da primeira barra do pregão até a barra t.' },
+      { tex: R`\sigma_t^2 = \frac{\sum_{i \le t} p_i^2 V_i}{\sum_{i \le t} V_i} - \mathrm{VWAP}_t^2,\qquad \text{bands} = \mathrm{VWAP}_t \pm k\,\sigma_t,\ k \in \{1, 2\}`, en: 'Volume-weighted standard deviation of the typical price around the VWAP, over the same bars.', pt: 'Desvio-padrão do preço típico em torno do VWAP, ponderado pelo volume, nas mesmas barras.' },
+      { tex: R`\Delta\% = \frac{C_{\text{last}}}{C^{\text{prev}}_{\text{close}}} - 1,\qquad \text{Last vs VWAP} = \frac{C_{\text{last}}}{\mathrm{VWAP}} - 1`, en: 'Change against the previous session close; distance of the last price from the session VWAP.', pt: 'Variação contra o fechamento do pregão anterior; distância do último preço ao VWAP do pregão.' },
+    ],
   },
   MACD: {
     en: 'Moving Average Convergence Divergence on the close. Arrows mark MACD/Signal crossovers.',

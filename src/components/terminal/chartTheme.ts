@@ -8,7 +8,7 @@ export const T = {
   text: tc('#d9d9d9'),
   amber: tc('#FFA028'),
   up: tc('#FFFFFF'),          // candle de alta: contorno/pavio branco, corpo vazio
-  down: tc('#2F7BFF'),        // candle de baixa: corpo e pavio azuis
+  down: tc('#007FFE'),        // candle de baixa: corpo e pavio azuis (#007ffe, definido pelo Marcelo)
   line: tc('#FFFFFF'),
   mountain: tc('rgba(47,123,255,0.28)'),
   high: tc('#3DDC84'),
