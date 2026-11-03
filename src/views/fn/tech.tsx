@@ -1,7 +1,10 @@
 'use client'
 import { tc } from '../../lib/themeRuntime'
 import React, { useEffect, useMemo, useState } from 'react'
-import { getPrices, type Price, listTickers, RECENT_PERIODS } from '../../lib/static'
+import { getPrices, type Price, RECENT_PERIODS } from '../../lib/static'
+import { TickerPicker } from '../../components/fn/TickerPicker'
+import { withTicker } from '../../lib/tickerPicker.mjs'
+import { lang } from '../../lib/settings'
 import { FnScreen, Panel, Grid, Btns, Field, KV, Loading, C, nf, pf, dBR, clr, short, isoMinus, inputCls, inputStyle, PALETTE, defaultBench, benchLabel, vsLabel, benchChoices, usePeers } from '../../components/fn/kit'
 import FnChart, { type PaneDef } from '../../components/fn/FnChart'
 import XYChart from '../../components/fn/XYChart'
@@ -320,8 +323,7 @@ export function BETAView({ ticker }: { ticker: string }) {
 export function GRView({ ticker }: { ticker: string }) {
   const [other, setOther] = useState(ticker.startsWith('PETR4') ? 'VALE3.SA' : defaultBench(ticker))
   const [period, setPeriod] = useState('2A')
-  const [list, setList] = useState<string[]>([])
-  useEffect(() => { listTickers().then(setList) }, [])
+  const { peers } = usePeers(ticker, 8)
   const a = usePrices(ticker), b = usePrices(other)
   const calc = useMemo(() => {
     if (!a.rows?.length || !b.rows?.length) return null
@@ -344,7 +346,7 @@ export function GRView({ ticker }: { ticker: string }) {
   }, [a.rows, b.rows, period, ticker, other])
   return (
     <FnScreen code="GR" ticker={ticker} title="Graph Relationship (ratio / regression)"
-      right={<><Field label="vs"><select className={inputCls} style={inputStyle} value={other} onChange={e => setOther(e.target.value)}>{Array.from(new Set([...benchChoices(ticker, other), ...list])).filter(t => t !== ticker).map(t => <option key={t} value={t}>{benchLabel(t) === short(t) ? t : `${benchLabel(t)} (${t})`}</option>)}</select></Field><Btns opts={PERIODS} value={period} onChange={setPeriod} /></>}
+      wrap right={<><Field label="vs"><TickerPicker value={other} onChange={setOther} label={lang() === 'pt' ? 'Comparar com' : 'Compare with'} testId="gr-vs" suggested={Array.from(new Set([...benchChoices(ticker, other), ...peers])).filter(t => t !== ticker)} exclude={[ticker]} display={t => withTicker(benchLabel(t), t)} /></Field><Btns opts={PERIODS} value={period} onChange={setPeriod} /></>}
       source={SRC_PX} note="Pane 1: prices rebased to 100 at the start of the period. Pane 2: price ratio with mean and ±2 standard-deviation bands. Regression statistics on daily returns.">
       {!calc ? <Loading err={a.err || b.err} /> : (
         <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 260px' }}>
