@@ -249,6 +249,26 @@ export function Grid<R = any>({ cols, rows, dense = true, onRow, maxH, rowStyle 
   return <div className="relative">{body}{more && <div className="pointer-events-none absolute top-0 right-0 bottom-0 w-8" style={{ zIndex: 5, background: tc('linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.9))') }} />}</div>
 }
 
+/** Lista de manchetes em cartões de uma coluna (mobile, <1024px): manchete no topo com quebra de linha
+ *  (até 3 linhas) e uma linha discreta de metadados (hora/data + publicador ou tipo). Sem rolagem horizontal. */
+export type NewsCard = { title: string; link?: string; meta: React.ReactNode; hot?: boolean }
+export function NewsCards({ items, empty }: { items: NewsCard[]; empty?: string }) {
+  if (!items.length) return <div className="px-2 py-2 text-[12px]" style={{ color: C.muted }}>{empty}</div>
+  return (
+    <ul data-news-cards className="overflow-y-auto overflow-x-hidden border-t" style={{ maxHeight: '70vh', overscrollBehavior: 'contain', borderColor: C.line }}>
+      {items.map((n, i) => (
+        <li key={i} data-news-card data-hot={n.hot ? '1' : undefined} className="min-w-0 px-2 py-[6px] border-b"
+          style={{ borderColor: tc('#1a1a1a'), background: n.hot ? tc('#1a1205') : i % 2 ? tc('#0a0a0a') : 'transparent', boxShadow: n.hot ? `inset 2px 0 0 ${C.down}` : undefined }}>
+          <a href={n.link} target="_blank" rel="noopener noreferrer" title={n.title}
+            className="whitespace-normal break-words line-clamp-3 text-[13px] leading-[1.35]"
+            style={{ color: n.hot ? C.white : C.text, fontWeight: n.hot ? 700 : 400 }}>{n.title}</a>
+          <div data-news-meta className="mt-[2px] text-[11px] leading-[1.3] truncate" style={{ color: C.muted }}>{n.meta}</div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 /** rótulo de período: códigos internos em PT (1S, 1A, 5A) exibidos como 1W, 1Y, 5Y */
 export const perLabel = (x: any) => String(x).replace(/^(\d+)A$/, '$1Y').replace(/^(\d+)S$/, '$1W')
 export function Btns({ opts, value, onChange }: { opts: { v: any; l: string }[] | (string | number)[]; value: any; onChange: (v: any) => void }) {
