@@ -186,8 +186,6 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
             setFilteredTickers={setFilteredTickers}
             selectedTicker={selectedTicker}
             setSelectedTicker={setSelectedTicker}
-            tickerName={tickerName}
-            tickerLogo={tickerLogo}
             onTickerSelect={handleTickerSelect}
             disabled={isTickerDisabled()}
             disabledHint={t('hdr.tickerUnused')}
@@ -199,7 +197,18 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
             </div>
           )}
         </div>
-        <div className="flex-1 h-10 max-lg:h-11 max-lg:pr-3 border-0 flex items-center justify-end pr-4" style={{ backgroundImage: 'linear-gradient(to right, #8E0D0D, #4D0A0A)' }}>
+        <div className="flex-1 min-w-0 h-10 max-lg:h-11 max-lg:pr-3 border-0 flex items-center gap-2 max-lg:gap-[6px] pr-4" style={{ backgroundImage: 'linear-gradient(to right, #8E0D0D, #4D0A0A)' }}>
+          {/* Nome do ativo no fluxo flex: ocupa o espaço livre e trunca antes do grupo de ícones. */}
+          {selectedTicker && tickerName ? (
+            <div data-ticker-unused={isTickerDisabled() ? '' : undefined} title={tickerName} className="ticker-name-label flex-1 min-w-0 pl-2 flex items-center gap-2 whitespace-nowrap font-bold text-white max-lg:text-[12px]">
+              <span className="truncate min-w-0">{tickerName}</span>
+              {tickerLogo && (
+                <img src={tickerLogo} alt={`${selectedTicker} logo`} className="w-6 h-6 object-contain rounded-sm shrink-0 max-lg:w-5 max-lg:h-5"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+              )}
+            </div>
+          ) : <div className="flex-1" />}
+          <div data-topbar-icons className="shrink-0 flex items-center">
 
           <button type="button" data-help-toggle aria-label={t('help.open')} title={t('help.open')} aria-haspopup="dialog" aria-expanded={showHelp} aria-controls="qt-help"
             className={`p-1 mr-2 max-lg:mr-1 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA028] ${showHelp ? 'text-white' : 'text-[#FFA028] hover:text-white'}`}
@@ -216,6 +225,7 @@ export default function TopBar({ defaultFunction = '', onFunctionChange, onTicke
             onClick={() => { toggleSettings(!showSettings); setShowShare(false) }}>
             <Settings className="w-5 h-5" aria-hidden strokeWidth={2} />
           </button>
+          </div>
         </div>
       </div>
       {showSettings && <SettingsPanel onClose={closeSettings} />}

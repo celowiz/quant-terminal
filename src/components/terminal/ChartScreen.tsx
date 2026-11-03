@@ -157,9 +157,11 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
         <span className="ml-auto text-[#FFA028] text-[12px]">{mode === 'candle' ? 'GPC · Candle Chart' : 'GP · Line Chart'}</span>
       </div>
       {/* Barra de ferramentas */}
-      <div className="flex items-center gap-3 flex-wrap px-3 py-1 border-b border-[#3a3a3a] bg-[#0a0a0a] text-[12px] fn-strip max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:[&>*]:shrink-0 max-lg:whitespace-nowrap">
-        <div className="flex gap-[2px]">{PERIODS.map(p => <button key={p.k} className={btn(period === p.k)} onClick={() => pickPeriod(p.k)}>{p.label}</button>)}</div>
-        <div className="flex items-center gap-1 text-[#8a8a8a]">
+      {/* No mobile: períodos numa linha; datas no início da segunda linha (rolável), sempre visíveis. No desktop `contents` mantém uma linha só. */}
+      <div className="flex items-center gap-3 flex-wrap px-3 py-1 border-b border-[#3a3a3a] bg-[#0a0a0a] text-[12px] max-lg:gap-y-1 max-lg:whitespace-nowrap">
+        <div data-gp-periods className="flex gap-[2px] max-lg:w-full max-lg:overflow-x-auto fn-strip max-lg:[&>*]:shrink-0">{PERIODS.map(p => <button key={p.k} className={btn(period === p.k)} onClick={() => pickPeriod(p.k)}>{p.label}</button>)}</div>
+        <div data-gp-tools className="contents max-lg:flex max-lg:items-center max-lg:gap-3 max-lg:w-full max-lg:overflow-x-auto fn-strip max-lg:[&>*]:shrink-0">
+        <div data-gp-dates className="flex items-center gap-1 text-[#8a8a8a]">
           <input type="date" value={start} onChange={e => { setStart(e.target.value); setPeriod('') }} className="bg-black text-[#FFA028] border border-[#5a3d12] px-1 py-[1px] outline-none focus:border-[#FFA028]" />
           <span>–</span>
           <input type="date" value={end} onChange={e => { setEnd(e.target.value); setPeriod('') }} className="bg-black text-[#FFA028] border border-[#5a3d12] px-1 py-[1px] outline-none focus:border-[#FFA028]" />
@@ -174,6 +176,7 @@ export default function ChartScreen({ ticker, mode }: { ticker: string; mode: 'l
         <div className="flex gap-[2px] ml-auto">
           <button className={btn(mode === 'line')} onClick={() => mode !== 'line' && go(`/gp/${encodeURIComponent(ticker)}/`)}>{lang() === 'pt' ? 'Linha' : 'Line'} (GP)</button>
           <button className={btn(mode === 'candle')} onClick={() => mode !== 'candle' && go(`/gpc/${encodeURIComponent(ticker)}/`)}>Candle (GPC)</button>
+        </div>
         </div>
       </div>
       {/* Gráfico: ocupa o resto da viewport */}

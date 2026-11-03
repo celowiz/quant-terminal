@@ -34,8 +34,6 @@ type TickerSelectorProps = {
   setFilteredTickers: (value: TickerRecord[]) => void
   selectedTicker: string
   setSelectedTicker: (value: string) => void
-  tickerName?: string
-  tickerLogo?: string
   onTickerSelect?: (ticker: string) => void
   disabled?: boolean
   /** função atual não usa ativo: o ativo guardado aparece esmaecido com esta dica */
@@ -48,10 +46,7 @@ export default function TickerSelector({
   setTickerSearch,
   filteredTickers,
   setFilteredTickers,
-  selectedTicker,
   setSelectedTicker,
-  tickerName,
-  tickerLogo,
   onTickerSelect,
   disabled = false,
   disabledHint,
@@ -120,7 +115,7 @@ export default function TickerSelector({
 		<div ref={containerRef} className="ticker-selector-combo relative inline-flex items-center">
 			<input
 				ref={inputRef}
-				className={`ticker-combo-box font-bold h-10 px-3 rounded-none border-0 focus:outline-none focus:ring-2 min-w-[160px] max-lg:min-w-0 max-lg:w-[96px] max-lg:h-11 max-lg:px-2 ${
+				className={`ticker-combo-box font-bold h-10 px-3 rounded-none border-0 focus:outline-none focus:ring-2 min-w-[160px] max-lg:min-w-0 max-lg:w-[96px] max-[400px]:w-[80px]! max-lg:h-11 max-lg:px-2 ${
 					disabled 
 						? 'bg-gray-600 text-gray-300 placeholder:text-gray-500 cursor-not-allowed opacity-70' 
 						: 'bg-[#FFA028] text-black placeholder:text-black focus:ring-bb-blue/40'
@@ -166,23 +161,6 @@ export default function TickerSelector({
 			)}
 			{!disabled && tickerSearch && filteredTickers.length === 0 && searching && (
 				<div className="absolute left-0 top-full mt-1 z-50 w-[240px] px-2 py-1 bg-black border border-[#3a3a3a] text-[12px] text-[#8a8a8a]">{t('hdr.noMatch')}</div>
-			)}
-			{selectedTicker && tickerName && (
-				<div data-ticker-unused={disabled ? '' : undefined} className="ticker-name-label absolute left-full ml-2 whitespace-nowrap pointer-events-none font-bold text-white flex items-center gap-2 max-lg:max-w-[calc(100vw-120px-96px-8px-104px)] md:max-lg:max-w-[calc(100vw-220px-96px-8px-104px)] max-lg:overflow-hidden max-lg:text-[12px]">
-					<span className="max-lg:truncate max-lg:min-w-0">{tickerName}</span>
-					{tickerLogo && (
-						<img 
-							src={tickerLogo} 
-							alt={`${selectedTicker} logo`}
-							className="w-6 h-6 object-contain rounded-sm max-lg:shrink-0 max-lg:w-5 max-lg:h-5"
-							onError={(e) => {
-								// Hide image if it fails to load
-								const target = e.target as HTMLImageElement;
-								target.style.display = 'none';
-							}}
-						/>
-					)}
-				</div>
 			)}
 		</div>
 	)
