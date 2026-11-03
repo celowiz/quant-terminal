@@ -200,7 +200,7 @@ def econ():
 def wfi():
     curve_ids = ['DGS1MO', 'DGS3MO', 'DGS6MO', 'DGS1', 'DGS2', 'DGS3', 'DGS5', 'DGS7', 'DGS10', 'DGS20', 'DGS30']
     tenors = [1/12, .25, .5, 1, 2, 3, 5, 7, 10, 20, 30]
-    from build_macro import treasury_yields, UST_CURVE, UST_SOURCE, oecd_lt, OECD_SRC
+    from build_macro import treasury_yields, UST_CURVE, UST_SOURCE, oecd_lt, OECD_SRC, bcrp_daily, BCRP_PE10, prev_country
     start = (TODAY - dt.timedelta(days=800)).isoformat()
     # fonte primária: CSV do próprio Tesouro dos EUA (sai no fim do mesmo dia); FRED (H.15, 1 dia depois) só se falhar
     try:
@@ -215,7 +215,7 @@ def wfi():
     us = {'tenors': tenors, 'labels': ['1M', '3M', '6M', '1Y', '2Y', '3Y', '5Y', '7Y', '10Y', '20Y', '30Y'], 'source': us_src,
           'now': at(last), 'w1': at(last - pd.Timedelta(days=7)), 'm1': at(last - pd.Timedelta(days=30)), 'y1': at(last - pd.Timedelta(days=365))}
     gov = [('DE', 'Germany'), ('GB', 'United Kingdom'), ('JP', 'Japan'), ('FR', 'France'), ('IT', 'Italy'), ('ES', 'Spain'), ('CA', 'Canada'),
-           ('AU', 'Australia'), ('CH', 'Switzerland'), ('KR', 'South Korea'), ('MX', 'Mexico'), ('CO', 'Colombia'), ('ZA', 'South Africa')]
+           ('AU', 'Australia'), ('CH', 'Switzerland'), ('KR', 'South Korea'), ('MX', 'Mexico'), ('CL', 'Chile'), ('CO', 'Colombia'), ('ZA', 'South Africa')]
     s0 = TODAY - dt.timedelta(days=4000)
     # OCDE: API SDMX da própria OCDE (primária); FRED (IRLTLT01*) por país só se a OCDE não tiver a série ou estiver mais atrasada
     try: o = oecd_lt([c for c, _ in gov] + ['US'], s0.isoformat()[:7])
@@ -226,6 +226,17 @@ def wfi():
     for (c, n), i in zip(gov, ids):
         s, sid = (o[c], f'OECD IRLT ({c})') if c in o else (g.get(i), i)
         if s is not None and len(s): sov.append({'country': c, 'name': n, 'id': sid, 'points': [[d.date().isoformat(), clean(v, 3)] for d, v in s.dropna().items()]})
+    # Peru: a OCDE não cobre; média mensal da série diária do BCRP (só meses fechados, como as séries da OCDE).
+    # Se a API falhar, mantém o último dado publicado.
+    try:
+        pe = bcrp_daily(BCRP_PE10, s0.isoformat()).resample('MS').mean().dropna()
+        pe = pe[pe.index < pd.Timestamp(TODAY.year, TODAY.month, 1)]
+        if not len(pe): raise RuntimeError('PE: sem mês fechado')
+        sov.insert(next((k for k, x in enumerate(sov) if x['country'] == 'CO'), len(sov)),
+                   {'country': 'PE', 'name': 'Peru', 'id': f'BCRP {BCRP_PE10} (monthly average)', 'points': [[d.date().isoformat(), clean(v, 3)] for d, v in pe.items()]})
+    except Exception as e:
+        print('wfi PE', e); prev = prev_country('wfi.json', 'PE', key='sovereign10y', field='country')
+        if prev: sov.append(prev)
     us10 = o.get('US')
     if us10 is None: us10 = fred(['DGS10'], s0.isoformat())['DGS10'].dropna().resample('MS').mean()
     sov.insert(0, {'country': 'US', 'name': 'United States', 'id': 'OECD IRLT (US)' if 'US' in o else 'DGS10 (monthly average)', 'points': [[d.date().isoformat(), clean(v, 3)] for d, v in us10.items()]})
@@ -244,7 +255,7 @@ def wfi():
     except Exception as e: print('br', e)
     if not {'selic', 'cdi_aa'} <= br.keys():  # mantém o valor anterior se o BCB falhar
         br = {**((load_prev('wfi.json') or {}).get('br') or {}), **br}
-    save('wfi.json', {'generated_at': now_iso(), 'source': f'{us_src}; OECD SDMX API (10-year sovereigns, monthly); FRED (ICE BofA total return indices and OAS); BCB SGS (Selic/CDI)',
+    save('wfi.json', {'generated_at': now_iso(), 'source': f'{us_src}; OECD SDMX API (10-year sovereigns, monthly); BCRP (Peru 10Y, monthly average of daily); FRED (ICE BofA total return indices and OAS); BCB SGS (Selic/CDI)',
                       'us_curve': us, 'sovereign10y': sov, 'indexes': indexes, 'spreads': spreads, 'br': br})
 
 if __name__ == '__main__':

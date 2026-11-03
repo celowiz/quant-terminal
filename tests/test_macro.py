@@ -273,3 +273,36 @@ def test_eco_bls_actuals_e_dedupe():
     a = es.row('US', dt.date(2026, 11, 10), 'CPI YoY', 'x', 'BLS', approx=True, src='fred_bls')
     b = dict(out[-1])
     assert bm.dedupe([a, b]) == [b] and len(bm.dedupe([b, b])) == 1
+
+
+BCRP_SAMPLE = {'config': {'title': 'Tasas de interés'}, 'periods': [
+    {'name': '29.Set.26', 'values': ['6.81']}, {'name': '30.Oct.26', 'values': ['6.73']},
+    {'name': '02.Nov.26', 'values': ['n.d.']}, {'name': 'lixo', 'values': ['1']}, {'name': '29.Oct.26', 'values': ['6.74']}]}
+
+
+def test_parse_bcrp_peru_10y():
+    s = bm.parse_bcrp(BCRP_SAMPLE)
+    assert [d.strftime('%Y-%m-%d') for d in s.index] == ['2026-09-29', '2026-10-29', '2026-10-30']   # 'Set' = setembro; n.d. fora; ordenada
+    assert s.iloc[-1] == 6.73
+    assert bm.parse_bcrp({}).empty and bm.parse_bcrp(None).empty
+    st = bm.series_stats(s, 'D')
+    assert st['freq'] == 'D' and st['yld'] == 6.73 and st['d1'] == -1.0 and st['date'] == '2026-10-30'
+
+
+def test_bcrp_daily_url_e_vazio(monkeypatch):
+    seen = []
+    monkeypatch.setattr(bm, 'get_json', lambda url, **kw: seen.append(url) or BCRP_SAMPLE)
+    s = bm.bcrp_daily(bm.BCRP_PE10, '2026-09-01', '2026-11-03')
+    assert seen == ['https://estadisticas.bcrp.gob.pe/estadisticas/series/api/PD31893DD/json/2026-09-01/2026-11-03/ing'] and len(s) == 3
+    monkeypatch.setattr(bm, 'get_json', lambda url, **kw: {'periods': [{'name': '02.Nov.26', 'values': ['n.d.']}]})
+    with pytest.raises(RuntimeError): bm.bcrp_daily(bm.BCRP_PE10, '2026-11-01')
+
+
+def test_prev_country_last_good(monkeypatch):
+    pub = {'wb.json': {'countries': [{'cc': 'US'}, {'cc': 'PE', 'tenors': {'10Y': {'yld': 6.7}}}]},
+           'wfi.json': {'sovereign10y': [{'country': 'PE', 'points': [['2026-09-01', 6.8]]}]}}
+    monkeypatch.setattr(bm, 'load_prev', lambda rel: pub.get(rel))
+    assert bm.prev_country('wb.json', 'PE')['tenors']['10Y']['yld'] == 6.7
+    assert bm.prev_country('wfi.json', 'PE', key='sovereign10y', field='country')['points'][0][1] == 6.8
+    assert bm.prev_country('wb.json', 'AR') is None and bm.prev_country('nada.json', 'PE') is None
+    assert bm.REGION['PE'] == 'Americas'

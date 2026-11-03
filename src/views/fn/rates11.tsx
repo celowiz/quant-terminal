@@ -1,5 +1,6 @@
 'use client'
 import { tc } from '../../lib/themeRuntime'
+import { lang } from '@/lib/settings'
 /** WIRP (probabilidades de juros), FOMC (calendário Fed/Copom), TAYL (regra de Taylor), WB (títulos soberanos). Strings em inglês por tela. */
 import React, { useEffect, useMemo, useState } from 'react'
 import FnChart from '@/components/fn/FnChart'
@@ -242,52 +243,78 @@ export function TAYLView() {
 }
 
 // ======================= WB =======================
-const S_WB = {
+const S_WB_EN = {
   title: 'World Bonds – sovereign yields', tenor: 'Tenor', region: 'Region', all: 'All',
   c: { name: 'Country', yld: 'Yield', d1: '1D', w1: '1W', m1: '1M', m3: '3M', ytd: 'YTD', y1: '1Y', rng: '3M range', spark: '3M', date: 'Date', freq: 'Freq' },
-  chg: 'Changes in bp', chart: 'Yield history', detail: 'Details', src: 'Source', br: 'Brazil local curve history (pipeline snapshots)',
+  chg: 'Changes in bp', chart: 'Yield history', detail: 'Details', avg3m: '3M avg', src: 'Source', br: 'Brazil local curve history (pipeline snapshots)',
+  daily: 'Daily', monthly: 'Monthly average', noTenor: 'no data for this tenor',
+  na: 'Not available: Argentina and China (no free official yield series that can be updated reliably).',
+  note: 'D = daily series published by the central bank or treasury; M = monthly average (1D/1W blank; the latest month appears a few weeks after it ends). Countries with only a 10-year yield are listed with "—" on the other tenors. Brazil = local-currency fixed-rate government bond curve (may lag a few days), not USD bonds.',
 }
-/** selo de frequência: D = série diária (BC/Tesouro), M = média mensal da OCDE */
+const S_WB_PT: typeof S_WB_EN = {
+  title: 'Títulos soberanos mundiais', tenor: 'Prazo', region: 'Região', all: 'Todas',
+  c: { name: 'País', yld: 'Taxa', d1: '1D', w1: '1S', m1: '1M', m3: '3M', ytd: 'No ano', y1: '12M', rng: 'Faixa 3M', spark: '3M', date: 'Data', freq: 'Freq.' },
+  chg: 'Variações em pb', chart: 'Histórico da taxa', detail: 'Detalhes', avg3m: 'Média 3M', src: 'Fonte', br: 'Histórico da curva local do Brasil (snapshots do pipeline)',
+  daily: 'Diária', monthly: 'Média mensal', noTenor: 'sem dado neste prazo',
+  na: 'Indisponíveis: Argentina e China (sem série oficial gratuita de taxas que possa ser atualizada com confiabilidade).',
+  note: 'D = série diária publicada pelo banco central ou Tesouro; M = média mensal (1D/1S em branco; o último mês aparece algumas semanas depois de terminar). Países só com a taxa de 10 anos aparecem com "—" nos outros prazos. Brasil = curva prefixada local dos títulos públicos (pode atrasar alguns dias), não títulos em dólar.',
+}
+const wbS = () => (lang() === 'pt' ? S_WB_PT : S_WB_EN)
+const WB_REGION_PT: Record<string, string> = { All: 'Todas', Americas: 'Américas', EMEA: 'EMEA', 'Asia/Pacific': 'Ásia/Pacífico' }
+const WB_NAME_PT: Record<string, string> = {
+  US: 'Estados Unidos', CA: 'Canadá', DE: 'Alemanha', GB: 'Reino Unido', JP: 'Japão', AU: 'Austrália', BR: 'Brasil (local, BRL)', PE: 'Peru',
+  FR: 'França', IT: 'Itália', ES: 'Espanha', NL: 'Países Baixos', PT: 'Portugal', GR: 'Grécia', BE: 'Bélgica', AT: 'Áustria', IE: 'Irlanda',
+  SE: 'Suécia', CH: 'Suíça', NO: 'Noruega', DK: 'Dinamarca', PL: 'Polônia', CZ: 'Tchéquia', HU: 'Hungria', MX: 'México', CL: 'Chile',
+  CO: 'Colômbia', ZA: 'África do Sul', KR: 'Coreia do Sul', NZ: 'Nova Zelândia', IL: 'Israel', IN: 'Índia',
+}
+const wbName = (cc: string, name: string) => (lang() === 'pt' ? WB_NAME_PT[cc] || name : name)
+const wbRegion = (r: string) => (lang() === 'pt' ? WB_REGION_PT[r] || r : r)
+/** selo de frequência: D = série diária (BC/Tesouro), M = média mensal */
 const FreqBadge = ({ f }: { f: string }) => (
-  <span title={f === 'M' ? 'Monthly average' : 'Daily'} className="inline-block px-[3px] text-[9px] leading-[12px] border rounded-sm"
+  <span title={f === 'M' ? wbS().monthly : wbS().daily} className="inline-block px-[3px] text-[9px] leading-[12px] border rounded-sm"
     style={{ color: f === 'M' ? C.yellow : C.muted, borderColor: f === 'M' ? C.yellow : tc('#444') }}>{f === 'M' ? 'M' : 'D'}</span>)
+const wbFreq = (c: any) => (Object.values(c.tenors as any).some((x: any) => x.freq === 'D') ? 'D' : 'M')
 export function WBView() {
   const { data: d, err } = useJSON<any>('wb.json')
   const [ten, setTen] = useState('10Y'), [reg, setReg] = useState('All'), [sel, setSel] = useState('US')
-  const S = S_WB
-  const rows = useMemo(() => !d ? [] : (d.countries as any[]).filter(c => c.tenors[ten] && (reg === 'All' || c.region === reg))
-    .map(c => ({ cc: c.cc, name: c.name, region: c.region, src: c.source, ...c.tenors[ten], all: c.tenors }))
-    .sort((a, b) => a.region.localeCompare(b.region) || (b.yld ?? 0) - (a.yld ?? 0)), [d, ten, reg])
+  const S = wbS()
+  // países sem o prazo escolhido (ex.: só 10 anos) ficam na lista com "—", depois dos que têm dado
+  const rows = useMemo(() => !d ? [] : (d.countries as any[]).filter(c => reg === 'All' || c.region === reg)
+    .map(c => ({ cc: c.cc, name: c.name, region: c.region, src: c.source, ...(c.tenors[ten] || { freq: wbFreq(c), missing: true }), all: c.tenors }))
+    .sort((a, b) => (a.missing ? 1 : 0) - (b.missing ? 1 : 0) || a.region.localeCompare(b.region) || (a.missing ? a.name.localeCompare(b.name) : (b.yld ?? 0) - (a.yld ?? 0))), [d, ten, reg])
   if (!d) return <FnScreen code="WB" title={S.title}><Loading2 err={err} /></FnScreen>
   const s = (d.countries as any[]).find(c => c.cc === sel)
   const regions = ['All', ...Array.from(new Set((d.countries as any[]).map(c => c.region)))]
   const rngBar = (x: any) => { if (x.lo3m == null || x.hi3m == null || x.yld == null) return '—'; const f = Math.max(0, Math.min(1, (x.yld - x.lo3m) / ((x.hi3m - x.lo3m) || 1))); return <span className="inline-flex items-center gap-1"><span style={{ color: C.muted }}>{n(x.lo3m, 2)}</span><span className="relative inline-block w-12 h-[6px]" style={{ background: tc('#333') }}><span className="absolute top-[-2px] w-[3px] h-[10px]" style={{ left: `calc(${f * 100}% - 1px)`, background: C.amber }} /></span><span style={{ color: C.muted }}>{n(x.hi3m, 2)}</span></span> }
   return (
     <FnScreen code="WB" title={S.title}
-      right={<><Field label={S.tenor}><Btns opts={d.tenors} value={ten} onChange={setTen} /></Field><Field label={S.region}><Btns opts={regions.map(r => ({ v: r, l: r === 'All' ? S.all : r }))} value={reg} onChange={setReg} /></Field></>}
-      source={d.source} note={d.note}>
+      right={<><Field label={S.tenor}><Btns opts={d.tenors} value={ten} onChange={setTen} /></Field><Field label={S.region}><Btns opts={regions.map(r => ({ v: r, l: r === 'All' ? S.all : wbRegion(r) }))} value={reg} onChange={setReg} /></Field></>}
+      note={S.note}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.55fr) minmax(0,1fr)' }}>
+        <div className="min-w-0">
         <Panel title={`${ten} · ${S.chg}`}>
           <Grid maxH={600} rows={rows} onRow={(x: any) => setSel(x.cc)} rowStyle={(x: any) => x.cc === sel ? { background: tc('#1f2a44') } : undefined} cols={[
-            { k: 'region', label: S.region, color: () => C.muted },
-            { k: 'name', label: S.c.name, color: () => C.amber, fmt: (x: any, r: any) => <span className="inline-flex items-center gap-1">{x}<FreqBadge f={r.freq} /></span> },
+            { k: 'region', label: S.region, color: () => C.muted, fmt: (x: any) => wbRegion(x) },
+            { k: 'name', label: S.c.name, color: (_: any, r: any) => r.missing ? C.muted : C.amber, fmt: (x: any, r: any) => <span className="inline-flex items-center gap-1" title={r.missing ? S.noTenor : undefined}>{wbName(r.cc, x)}<FreqBadge f={r.freq} /></span> },
             { k: 'yld', label: S.c.yld, align: 'r', fmt: x => n(x, 3), color: () => C.white },
             ...(['d1', 'w1', 'm1', 'm3', 'ytd', 'y1'] as const).map(k => ({ k, label: S.c[k], align: 'r' as const, fmt: (x: any) => bps(x, 0), color: (x: any) => cl(x) })),
             { k: 'rng', label: S.c.rng, align: 'c', fmt: (_, x: any) => rngBar(x) },
             { k: 'spark', label: S.c.spark, fmt: x => <Spark data={x || []} w={70} h={14} /> },
-            { k: 'date', label: S.c.date, fmt: (x: any, r: any) => r.freq === 'M' ? mLab(x) : dUS(x) },
+            { k: 'date', label: S.c.date, fmt: (x: any, r: any) => x == null ? '—' : r.freq === 'M' ? mLab(x) : dUS(x) },
           ]} />
         </Panel>
+        {(d.unavailable || ['AR', 'CN']).length ? <div className="px-1 pt-1 text-[11px] leading-snug" style={{ color: C.muted }} data-wb-na>{S.na}</div> : null}
+        </div>
         <div className="min-w-0">
           {s ? <>
-            <Panel title={<span className="inline-flex items-center gap-1">{`${s.name} – ${S.chart} (%)`}<FreqBadge f={Object.values(s.tenors as any).some((x: any) => x.freq === 'D') ? 'D' : 'M'} /></span>}>
+            <Panel title={<span className="inline-flex items-center gap-1">{`${wbName(s.cc, s.name)} – ${S.chart} (%)`}<FreqBadge f={wbFreq(s)} /></span>}>
               <FnChart height={300} panes={[{ series: Object.entries(s.tenors).map(([t, x]: any, i) => ({ kind: 'line' as const, data: (x.series || []).map((p: any) => ({ time: p[0], value: p[1] })), color: [C.amber, C.cyan, C.white, C.purple][i % 4], title: t, decimals: 3 })) }]} />
             </Panel>
             <Panel title={S.detail} className="mt-2">
               <Grid rows={Object.entries(s.tenors).map(([t, x]: any) => ({ t, ...x }))} cols={[
                 { k: 't', label: S.tenor, color: () => C.amber }, { k: 'yld', label: S.c.yld, align: 'r', fmt: x => n(x, 3), color: () => C.white },
                 ...(['d1', 'w1', 'm1', 'ytd', 'y1'] as const).map(k => ({ k, label: S.c[k], align: 'r' as const, fmt: (x: any) => bps(x, 0), color: (x: any) => cl(x) })),
-                { k: 'avg3m', label: '3M avg', align: 'r', fmt: x => n(x, 3) }, { k: 'date', label: S.c.date, fmt: (x: any, r: any) => r.freq === 'M' ? mLab(x) : dUS(x) },
+                { k: 'avg3m', label: S.avg3m, align: 'r', fmt: x => n(x, 3) }, { k: 'date', label: S.c.date, fmt: (x: any, r: any) => r.freq === 'M' ? mLab(x) : dUS(x) },
               ]} />
             </Panel>
           </> : null}
