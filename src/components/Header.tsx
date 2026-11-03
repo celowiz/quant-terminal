@@ -126,7 +126,7 @@ export default function Header({ functionInput, setFunctionInput, onFunctionEnte
   }, [functionInput])
 
   return (
-    <div className="terminal-header bg-bb-panel border-b-bb-border border-b px-0 py-0 relative max-lg:w-[120px] md:max-lg:w-[220px] max-lg:shrink-0 max-lg:border-b-0">
+    <div className="terminal-header bg-bb-panel border-b-bb-border border-b px-0 py-0 relative max-lg:w-[120px] max-[480px]:w-[96px]! md:max-lg:w-[220px] max-lg:shrink-0 max-lg:border-b-0">
       <div className="flex items-center w-full relative">
         <div className="function-autocomplete relative my-2 w-[360px] max-lg:w-full max-lg:my-0">
           <input

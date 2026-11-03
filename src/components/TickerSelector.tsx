@@ -115,7 +115,7 @@ export default function TickerSelector({
 		<div ref={containerRef} className="ticker-selector-combo relative inline-flex items-center">
 			<input
 				ref={inputRef}
-				className={`ticker-combo-box font-bold h-10 px-3 rounded-none border-0 focus:outline-none focus:ring-2 min-w-[160px] max-lg:min-w-0 max-lg:w-[96px] max-[400px]:w-[80px]! max-lg:h-11 max-lg:px-2 ${
+				className={`ticker-combo-box font-bold h-10 px-3 rounded-none border-0 focus:outline-none focus:ring-2 min-w-[160px] max-lg:min-w-0 max-lg:w-[96px] max-[480px]:w-[80px]! max-lg:h-11 max-lg:px-2 ${
 					disabled 
 						? 'bg-gray-600 text-gray-300 placeholder:text-gray-500 cursor-not-allowed opacity-70' 
 						: 'bg-[#FFA028] text-black placeholder:text-black focus:ring-bb-blue/40'
