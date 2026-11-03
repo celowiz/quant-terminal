@@ -128,6 +128,9 @@ const EN = {
   'cal.close': 'Close',
   'cal.post': 'Post mode',
   'cal.postHint': 'Post mode: hide status colours, show only logo, ticker and name (for sharing)',
+  'news.title': 'Top News — headlines',
+  'news.time': 'Time', 'news.source': 'Source', 'news.headline': 'Headline', 'news.date': 'Date', 'news.type': 'Type',
+  'news.search': 'Search', 'news.all': 'All', 'news.matFact': 'MAT FACT', 'news.notice': 'NOTICE', 'news.empty': 'No headlines match.',
 }
 type Key = keyof typeof EN
 
@@ -256,6 +259,9 @@ const PT: Record<Key, string> = {
   'cal.close': 'Fechar',
   'cal.post': 'Modo post',
   'cal.postHint': 'Modo post: esconde as cores de status e mostra só logo, ticker e nome (para compartilhar)',
+  'news.title': 'Principais notícias — manchetes',
+  'news.time': 'Hora', 'news.source': 'Fonte', 'news.headline': 'Manchete', 'news.date': 'Data', 'news.type': 'Tipo',
+  'news.search': 'Buscar', 'news.all': 'Todas', 'news.matFact': 'FATO RELEVANTE', 'news.notice': 'COMUNICADO', 'news.empty': 'Nenhuma manchete encontrada.',
 }
 
 export function t(k: Key): string { return (lang() === 'pt' ? PT : EN)[k] }

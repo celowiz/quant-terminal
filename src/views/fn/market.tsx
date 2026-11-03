@@ -2,12 +2,13 @@
 import { tc } from '../../lib/themeRuntime'
 import { lastValid } from '@/lib/dataFix.mjs'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useFit, FnScreen, Panel, Grid, Btns, Field, KV, Loading, Spark, C, nf, pf, big, dBR, dBRfull, clr, useJSON, retSince, isoMinus, inputCls, inputStyle, PALETTE } from '../../components/fn/kit'
+import { useFit, useDesktop, NewsCards, FnScreen, Panel, Grid, Btns, Field, KV, Loading, Spark, C, nf, pf, big, dBR, dBRfull, clr, useJSON, retSince, isoMinus, inputCls, inputStyle, PALETTE } from '../../components/fn/kit'
 import FnChart from '../../components/fn/FnChart'
 import XYChart from '../../components/fn/XYChart'
 import { href } from '../../lib/static'
 import { en } from '../../lib/enText'
 import { lang } from '../../lib/settings'
+import { t } from '../../lib/i18n'
 import { fmtDayMonth, fmtMonth, brToIso } from '../../lib/dates'
 import { mean, std, maxDrawdown, regress } from '../../lib/quant'
 import { safeUrl, readStoredJSON, validPortfolio, validLocalAlerts } from '../../lib/safe.mjs'
@@ -235,14 +236,19 @@ export function TOPView() {
 export function NEWSView() {
   const { data: d, err } = useJSON<any>('news.json')
   const [src, setSrc] = useState('All'); const [q, setQ] = useState('')
+  const desk = useDesktop()
   if (!d) return <FnScreen code="NEWS"><Loading err={err} /></FnScreen>
+  // filtros por publicador (atribuição por manchete); 'All' é o valor interno, rótulo traduzido
   const srcs = ['All', ...Array.from(new Set(d.items.map((n: any) => n.source))) as string[]]
   const rows = d.items.filter((n: any) => (src === 'All' || n.source === src) && (!q || n.title.toLowerCase().includes(q.toLowerCase())))
+  const when = (v: string) => `${fmtDayMonth(v)} ${v.slice(11, 16)}`
   return (
-    <FnScreen code="NEWS" title="Top News — headlines" right={<Field label="Search"><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
-      source={<>Open-license RSS feeds: {Array.from(new Set(d.items.map((n: any) => `${n.source.split('–')[0].trim()} (${n.license})`))).join(', ')}. Headline + link only (no text reproduced).</>} note="No paid news agency. Time = feed publication time, converted to Brasília time.">
-      <div className="flex flex-wrap gap-0 pb-2">{srcs.map(s => <button key={s} onClick={() => setSrc(s)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: src === s ? C.amber : 'transparent', color: src === s ? tc('#000') : C.amber }}>{s}</button>)}</div>
-      <Grid maxH={700} cols={[{ k: 'date', label: 'Time', w: '110px', fmt: (v: string) => `${fmtDayMonth(v)} ${v.slice(11, 16)}` }, { k: 'source', label: 'Source', w: '220px', color: () => C.amber, fmt: (v: string) => v.length > 30 ? v.slice(0, 29) + '…' : v }, { k: 'title', label: 'Headline', fmt: (v: string, r: any) => <a href={safeUrl(r.link)} target="_blank" rel="noopener noreferrer" style={{ color: C.text }}>{v}</a> }]} rows={rows} />
+    <FnScreen code="NEWS" title={t('news.title')} right={<Field label={t('news.search')}><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
+      source={<>Open-license RSS feeds. Headline + link only (no text reproduced).</>} note="No paid news agency. Time = feed publication time, converted to Brasília time.">
+      <div className="flex flex-wrap gap-0 pb-2">{srcs.map(s => <button key={s} onClick={() => setSrc(s)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: src === s ? C.amber : 'transparent', color: src === s ? tc('#000') : C.amber }}>{s === 'All' ? t('news.all') : s}</button>)}</div>
+      {desk
+        ? <Grid maxH={700} cols={[{ k: 'date', label: t('news.time'), w: '110px', fmt: when }, { k: 'source', label: t('news.source'), w: '220px', color: () => C.amber, fmt: (v: string) => v.length > 30 ? v.slice(0, 29) + '…' : v }, { k: 'title', label: t('news.headline'), fmt: (v: string, r: any) => <a href={safeUrl(r.link)} target="_blank" rel="noopener noreferrer" style={{ color: C.text }}>{v}</a> }]} rows={rows} />
+        : <NewsCards empty={t('news.empty')} items={rows.map((r: any) => ({ title: r.title, link: safeUrl(r.link), meta: <>{when(r.date)} · <span style={{ color: C.amber }}>{r.source}</span></> }))} />}
     </FnScreen>
   )
 }

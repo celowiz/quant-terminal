@@ -1,7 +1,7 @@
 'use client'
 import { tc } from '../../lib/themeRuntime'
 import React, { useEffect, useMemo, useState } from 'react'
-import { FitBox, FnScreen, Panel, Grid, Btns, Field, KV, Loading, NA, C, nf, pf, big, dBR, dBRfull, clr, short, useJSON, corpPath, hasData, isEquity, inputCls, inputStyle, isoMinus } from '../../components/fn/kit'
+import { FitBox, useDesktop, NewsCards, FnScreen, Panel, Grid, Btns, Field, KV, Loading, NA, C, nf, pf, big, dBR, dBRfull, clr, short, useJSON, corpPath, hasData, isEquity, inputCls, inputStyle, isoMinus } from '../../components/fn/kit'
 import FnChart, { type PaneDef } from '../../components/fn/FnChart'
 import { usePrices } from './tech'
 import { getJSON, tickerKey } from '../../lib/static'
@@ -10,6 +10,7 @@ import { DESClassView } from './desClasses'
 import { DESMarket, marketMeta } from './desMarket'
 import { MARKET_CLASSES } from '../../lib/activeTicker.mjs'
 import { safeUrl } from '../../lib/safe.mjs'
+import { t } from '../../lib/i18n'
 
 const SRC_CVM = 'CVM Open Data (DFP/ITR, FCA, IPE) + Yahoo Finance (profile, raw price, distributions). Scripts: tools/pipeline/build_corp.py.'
 const SRC_SEC = 'SEC EDGAR (XBRL companyfacts, submissions) + Yahoo Finance (profile, raw price, distributions). Script: pipeline/build_sec.py.'
@@ -296,6 +297,7 @@ export function CFView({ ticker }: { ticker: string }) {
 export function CNView({ ticker }: { ticker: string }) {
   const { data: d, err } = useCorp(ticker)
   const news = useJSON<any>('news.json')
+  const desk = useDesktop()
   return <Guard code="CN" ticker={ticker}>{!d ? <FnScreen code="CN" ticker={ticker}><Loading err={err} /></FnScreen> : (() => {
     const k = tickerKey(ticker), nm = (d.profile?.longName || '').split(/[ .-]/)[0]
     const us = isUS(d)
@@ -304,10 +306,12 @@ export function CNView({ ticker }: { ticker: string }) {
       : (d.filings as any[]).filter(f => /Fato Relevante|Comunicado|Aviso|Assembleia|Dados Econ/i.test(f.cat)).map(f => ({ date: f.date, src: f.cat === 'Fato Relevante' ? 'MAT FACT' : 'NOTICE', title: f.subject || f.type, link: f.link, hot: f.cat === 'Fato Relevante' }))
     const nw = (news.data?.items || []).filter((n: any) => n.tags?.includes(k) || (nm.length > 3 && n.title.toLowerCase().includes(nm.toLowerCase()))).map((n: any) => ({ date: n.date.slice(0, 10), src: n.source.split('–')[0].trim(), title: n.title, link: n.link, hot: false }))
     const rows = [...nw, ...fil].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 200)
+    const typ = (v: string) => v === 'MAT FACT' ? t('news.matFact') : v === 'NOTICE' ? t('news.notice') : v
     return (
-      <FnScreen code="CN" ticker={ticker} title="Company News" source={us ? 'SEC EDGAR – Form 8-K current reports + open-license RSS filtered by company name.' : 'CVM IPE (Material Facts, Market Notices, Notices) + open-license RSS (Agência Brasil, CC BY 4.0) filtered by company name.'}
+      <FnScreen code="CN" ticker={ticker} title="Company News" source={us ? 'Official current reports (Form 8-K) + open-license RSS filtered by company name.' : 'Official regulatory filings (Material Facts, Market Notices, Notices) + open-license RSS filtered by company name.'}
         note={us ? 'No paid news-agency feed: the stream is the company\'s official regulatory news (Form 8-K, official item titles). Earnings releases (item 2.02) highlighted.' : 'No paid news-agency feed: the stream is the company\'s official regulatory news. Material Facts highlighted.'}>
-        <Grid maxH={700} rowStyle={(r: any) => r.hot ? { background: tc('#1a1205') } : undefined} cols={[{ k: 'date', label: 'Date', fmt: dBR, w: '70px' }, { k: 'src', label: 'Type', w: '90px', color: (_, r: any) => r.hot ? C.down : C.amber }, { k: 'title', label: 'Headline', fmt: (v, r: any) => <a href={safeUrl(r.link)} target="_blank" rel="noopener noreferrer" style={{ color: r.hot ? C.white : C.text, fontWeight: r.hot ? 700 : 400 }}>{v}</a> }]} rows={rows} />
+        {desk ? <Grid maxH={700} rowStyle={(r: any) => r.hot ? { background: tc('#1a1205') } : undefined} cols={[{ k: 'date', label: t('news.date'), fmt: dBR, w: '70px' }, { k: 'src', label: t('news.type'), w: '90px', fmt: typ, color: (_, r: any) => r.hot ? C.down : C.amber }, { k: 'title', label: t('news.headline'), fmt: (v, r: any) => <a href={safeUrl(r.link)} target="_blank" rel="noopener noreferrer" style={{ color: r.hot ? C.white : C.text, fontWeight: r.hot ? 700 : 400 }}>{v}</a> }]} rows={rows} />
+          : <NewsCards empty={t('news.empty')} items={rows.map((r: any) => ({ title: r.title, link: safeUrl(r.link), hot: r.hot, meta: <>{dBR(r.date)} · <span style={{ color: r.hot ? C.down : C.amber, fontWeight: r.hot ? 700 : 400 }}>{typ(r.src)}</span></> }))} />}
       </FnScreen>)
   })()}</Guard>
 }
