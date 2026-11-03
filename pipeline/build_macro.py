@@ -129,7 +129,7 @@ OECD = [('FR', 'France', 'IRLTLT01FRM156N'), ('IT', 'Italy', 'IRLTLT01ITM156N'),
         ('DK', 'Denmark', 'IRLTLT01DKM156N'), ('PL', 'Poland', 'IRLTLT01PLM156N'), ('CZ', 'Czechia', 'IRLTLT01CZM156N'), ('HU', 'Hungary', 'IRLTLT01HUM156N'),
         ('MX', 'Mexico', 'IRLTLT01MXM156N'), ('CL', 'Chile', 'IRLTLT01CLM156N'), ('CO', 'Colombia', 'IRLTLT01COM156N'), ('ZA', 'South Africa', 'IRLTLT01ZAM156N'),
         ('KR', 'South Korea', 'IRLTLT01KRM156N'), ('NZ', 'New Zealand', 'IRLTLT01NZM156N'), ('IL', 'Israel', 'IRLTLT01ILM156N'), ('IN', 'India', 'INDIRLTLT01STM')]
-REGION = {'US': 'Americas', 'CA': 'Americas', 'BR': 'Americas', 'MX': 'Americas', 'CL': 'Americas', 'CO': 'Americas',
+REGION = {'US': 'Americas', 'CA': 'Americas', 'BR': 'Americas', 'MX': 'Americas', 'CL': 'Americas', 'CO': 'Americas', 'PE': 'Americas',
           'JP': 'Asia/Pacific', 'AU': 'Asia/Pacific', 'NZ': 'Asia/Pacific', 'KR': 'Asia/Pacific', 'IN': 'Asia/Pacific'}
 
 ISO3 = {'FR': 'FRA', 'IT': 'ITA', 'ES': 'ESP', 'NL': 'NLD', 'PT': 'PRT', 'GR': 'GRC', 'BE': 'BEL', 'AT': 'AUT', 'IE': 'IRL', 'SE': 'SWE', 'CH': 'CHE',
@@ -153,6 +153,36 @@ def oecd_lt(ccs, start_month):
     r = get(f'https://sdmx.oecd.org/public/rest/data/OECD.SDD.STES,DSD_STES@DF_FINMARK,4.0/{keys}.M.IRLT.PA.....'
             f'?startPeriod={start_month}&dimensionAtObservation=AllDimensions&format=csvfile', timeout=120)
     return parse_oecd_csv(r.text)
+
+# Peru: Banco Central de Reserva del Perú (API de séries estatísticas, grátis e sem chave), diária.
+# PD31893DD = rendimento do título do governo peruano de 10 anos em soles. A OCDE não cobre o Peru.
+BCRP_PE10 = 'PD31893DD'
+BCRP_SRC = 'Banco Central de Reserva del Perú – statistics API, series PD31893DD (10-year sovereign bond yield, PEN, daily)'
+BCRP_MON = {'jan': 1, 'ene': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'abr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'aug': 8, 'ago': 8,
+            'sep': 9, 'set': 9, 'oct': 10, 'nov': 11, 'dec': 12, 'dic': 12}
+
+def parse_bcrp(d):
+    """JSON da API do BCRP ({periods: [{name: '20.Oct.26', values: ['6.7']}]}) → pd.Series diária; 'n.d.' = sem valor."""
+    vals = {}
+    for p in (d or {}).get('periods') or []:
+        m = re.match(r'^(\d{1,2})\.([A-Za-z]{3})\.(\d{2})$', str(p.get('name', '')).strip())
+        v = (p.get('values') or [None])[0]
+        if not m or m.group(2).lower() not in BCRP_MON: continue
+        try: x = float(v)
+        except (TypeError, ValueError): continue
+        vals[pd.Timestamp(2000 + int(m.group(3)), BCRP_MON[m.group(2).lower()], int(m.group(1)))] = x
+    return pd.Series(vals, dtype=float).sort_index()
+
+def bcrp_daily(code, start, end=None):
+    """Série diária do BCRP (get_json já repete em erro/HTML); RuntimeError se vier vazia."""
+    end = end or TODAY.isoformat()
+    s = parse_bcrp(get_json(f'https://estadisticas.bcrp.gob.pe/estadisticas/series/api/{code}/json/{start}/{end}/ing', timeout=60))
+    if not len(s): raise RuntimeError(f'BCRP {code}: série vazia')
+    return s
+
+def prev_country(rel, cc, key='countries', field='cc'):
+    """Último dado bom de um país no JSON já publicado (quando a fonte falha nesta execução)."""
+    return next((c for c in ((load_prev(rel) or {}).get(key) or []) if c.get(field) == cc), None)
 
 def series_stats(s, freq):
     """s: pd.Series diária ou mensal (índice datetime). Variações em pb."""
@@ -244,6 +274,11 @@ def wb():
         ser = {t: pd.Series({pd.Timestamp(d): v.get(t) for d, v in acc.items()}, dtype=float) for t in ('2Y', '5Y', '10Y')}
         add('BR', 'Brazil (local, BRL)', 'Tesouro Direto (Tesouro Transparente) – fixed-rate LTN/NTN-F rates, linearly interpolated by maturity', ser, 'D')
     except Exception as e: print('wb BR', e)
+    # Peru (BCRP, diário); se a API falhar, mantém o último dado publicado
+    try: add('PE', 'Peru', BCRP_SRC, {'10Y': bcrp_daily(BCRP_PE10, start)}, 'D')
+    except Exception as e:
+        print('wb PE', e); pe = prev_country('wb.json', 'PE')
+        if pe: countries.append(pe)
     # Demais países: OCDE, mensal. A API SDMX da própria OCDE é a fonte primária (o espelho do FRED atrasa e
     # parou de atualizar alguns países, ex.: Colômbia); fica a série mais recente das duas.
     s0 = (TODAY - dt.timedelta(days=900)).isoformat()
@@ -261,7 +296,8 @@ def wb():
     save('wb.json', {'generated_at': now_iso(), 'tenors': TENORS, 'countries': countries, 
                      'note': 'D = daily series published by the central bank / treasury; M = monthly average (1D/1W blank; the latest month is published with a lag of a few weeks). '
                              'Brazil = local-currency fixed-rate curve from Tesouro Direto rates (may lag a few days), not USD bonds.',
-                     'source': 'US Treasury (FRED fallback), Bank of Canada, Deutsche Bundesbank, Bank of England, MoF Japan, RBA, Tesouro Transparente, OECD SDMX API (FRED fallback)'})
+                     'unavailable': ['AR', 'CN'],
+                     'source': 'US Treasury (FRED fallback), Bank of Canada, Deutsche Bundesbank, Bank of England, MoF Japan, RBA, Tesouro Transparente, BCRP (Peru), OECD SDMX API (FRED fallback)'})
 
 # =====================================================================================
 # FOMC / Copom – datas e decisões
