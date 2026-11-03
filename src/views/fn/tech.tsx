@@ -8,7 +8,7 @@ import { lang } from '../../lib/settings'
 import { FnScreen, Panel, Grid, Btns, Field, KV, Loading, C, nf, pf, dBR, clr, short, isoMinus, inputCls, inputStyle, PALETTE, defaultBench, benchLabel, vsLabel, benchChoices, usePeers } from '../../components/fn/kit'
 import FnChart, { type PaneDef } from '../../components/fn/FnChart'
 import XYChart from '../../components/fn/XYChart'
-import { macd, rsi, logret, rollStd, regress, weekly, monthlyReturns, quantile, mean, align, corr } from '../../lib/quant'
+import { macd, rsi, logret, rollStd, regress, weekly, quantile, mean, align, corr } from '../../lib/quant'
 
 const PERIODS = [{ v: '6M', l: '6M' }, { v: '1A', l: '1Y' }, { v: '2A', l: '2Y' }, { v: '5A', l: '5Y' }, { v: 'MAX', l: 'Max' }]
 const since = (last: string, p: string) => p === '6M' ? isoMinus(last, 0, 6) : p === '1A' ? isoMinus(last, 0, 0, 1) : p === '2A' ? isoMinus(last, 0, 0, 2) : p === '5A' ? isoMinus(last, 0, 0, 5) : '0000'
@@ -149,42 +149,6 @@ export function SEAGView({ ticker }: { ticker: string }) {
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 280px' }}>
         <XYChart series={calc.series} height={600} zeroLine xTicks={MONTHS.map((m, i) => ({ v: doy(`2021-${String(i + 1).padStart(2, '0')}-01`), l: m }))} xFmt={v => { const d = new Date(Date.UTC(2021, 0, Math.round(v))); return `${String(d.getUTCDate()).padStart(2, '0')}/${MONTHS[d.getUTCMonth()]}` }} yFmt={v => nf(v, 1) + '%'} />
         <Panel title="Return by year"><Grid cols={[{ k: 'y', label: 'Year' }, { k: 'ytd', label: 'Year ret.', align: 'r', fmt: v => pf(v), color: clr }, { k: 'max', label: 'Max', align: 'r', fmt: v => pf(v, 1) }, { k: 'min', label: 'Min', align: 'r', fmt: v => pf(v, 1) }]} rows={calc.table} /></Panel>
-      </div>
-    </FnScreen>
-  )
-}
-
-// ---------------- SEAH ----------------
-const heat = (v: number | null, s = 8) => {
-  if (v == null) return 'transparent'
-  const a = Math.min(1, Math.abs(v) / s)
-  return v >= 0 ? `rgba(61,220,132,${0.12 + a * 0.75})` : `rgba(255,77,77,${0.12 + a * 0.75})`
-}
-export function SEAHView({ ticker }: { ticker: string }) {
-  const { rows, err } = usePrices(ticker)
-  const calc = useMemo(() => {
-    if (!rows?.length) return null
-    const mr = monthlyReturns(rows.map(r => ({ time: r.time, value: r.close })))
-    const years = Array.from(new Set(mr.map(x => x.y))).sort().reverse()
-    const cell = (y: number, m: number) => mr.find(x => x.y === y && x.m === m)?.r ?? null
-    const yr = (y: number) => { const v = mr.filter(x => x.y === y); return v.length ? (v.reduce((p, x) => p * (1 + x.r / 100), 1) - 1) * 100 : null }
-    const col = (m: number) => mr.filter(x => x.m === m).map(x => x.r)
-    return { years, cell, yr, avg: MONTHS.map((_, i) => mean(col(i + 1))), med: MONTHS.map((_, i) => quantile(col(i + 1), 0.5)), pos: MONTHS.map((_, i) => { const c = col(i + 1); return (c.filter(v => v > 0).length / c.length) * 100 }), sd: MONTHS.map((_, i) => { const c = col(i + 1); const m = mean(c); return Math.sqrt(c.reduce((s, v) => s + (v - m) ** 2, 0) / Math.max(1, c.length - 1)) }) }
-  }, [rows])
-  if (!calc) return <FnScreen code="SEAH" ticker={ticker}><Loading err={err} /></FnScreen>
-  const td = 'px-2 py-[3px] text-right border border-[#1a1a1a] text-[12px]'
-  return (
-    <FnScreen code="SEAH" ticker={ticker} title="Seasonality Heatmap" source={SRC_PX} note="Monthly return (%) = month close / previous month close − 1. Statistics rows at the bottom: mean, median, standard deviation and % of positive months.">
-      <div className="overflow-auto">
-        <table className="w-full border-collapse">
-          <thead><tr><th className="px-2 py-1 text-left text-[12px] font-normal" style={{ color: C.amber }}>Year</th>{MONTHS.map(m => <th key={m} className="px-2 py-1 text-right text-[12px] font-normal" style={{ color: C.amber }}>{m}</th>)}<th className="px-2 py-1 text-right text-[12px] font-normal" style={{ color: C.amber }}>Year</th></tr></thead>
-          <tbody>
-            {calc.years.map(y => <tr key={y}><td className="px-2 py-[3px] text-[12px]" style={{ color: C.amber }}>{y}</td>{MONTHS.map((_, i) => { const v = calc.cell(y, i + 1); return <td key={i} className={td} style={{ background: heat(v), color: tc('#fff') }}>{v == null ? '' : nf(v, 1)}</td> })}<td className={td} style={{ background: heat(calc.yr(y), 30), fontWeight: 700 }}>{nf(calc.yr(y), 1)}</td></tr>)}
-            {([['Average', calc.avg], ['Median', calc.med], ['Std. dev.', calc.sd], ['% Positive', calc.pos]] as [string, number[]][]).map(([l, arr]) => (
-              <tr key={l} style={{ background: tc('#151515') }}><td className="px-2 py-[3px] text-[12px] font-bold" style={{ color: C.amber }}>{l}</td>{arr.map((v, i) => <td key={i} className={td} style={{ color: l === '% Positive' ? (v >= 50 ? C.up : C.down) : l === 'Std. dev.' ? C.text : clr(v) }}>{nf(v, 1)}</td>)}<td className={td}></td></tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </FnScreen>
   )

@@ -1,5 +1,5 @@
 'use client'
-import { SEAHView } from '@/views/fn/tech'
+import { SEAHView } from '@/views/fn/seah'
 import { usePageTitle } from '@/hooks/usePageTitle'
 
 export default function View({ ticker }: { ticker: string }) {
