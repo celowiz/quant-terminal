@@ -10,6 +10,7 @@ import { tc } from '../../lib/themeRuntime'
 import { numLocale } from '../../lib/settings'
 import { useEffect, useRef } from 'react'
 import type { RulerStats } from '../../lib/ruler.mjs'
+import type { HABar, BollPt, VolumeProfile } from '../../lib/studies.mjs'
 import {
   createChart, createSeriesMarkers, PriceScaleMode, TrackingModeExitMode, CandlestickSeries, AreaSeries, LineSeries, HistogramSeries, LineStyle, CrosshairMode,
   type IChartApi, type MouseEventParams, type Time,
@@ -44,13 +45,24 @@ type Props = {
   log?: boolean
   /** marcadores de eventos corporativos (EVTS) */
   markers?: { time: string; text: string; color: string; shape: 'arrowDown' | 'arrowUp' | 'circle' | 'square'; position: 'aboveBar' | 'belowBar' }[]
-  /** clique/toque numa barra (time da barra, shift pressionado) — régua */
-  onPick?: (time: string, shift: boolean) => void
+  /** clique/toque numa barra (time da barra, shift pressionado, tipo de ponteiro) — régua e fixar barra no toque */
+  onPick?: (time: string, shift: boolean, pointer: string) => void
+  /** casas decimais do eixo/rótulos (mesma regra em GP, GPL e GPC) */
+  dec?: number
+  /** GPC: velas Heikin-Ashi no lugar das velas reais */
+  ha?: HABar[] | null
+  /** Bandas de Bollinger (20, 2σ) */
+  boll?: BollPt[] | null
+  /** perfil de volume (histograma lateral por faixa de preço) */
+  vp?: VolumeProfile | null
+  /** títulos POC/área de valor no eixo (EN/PT) */
+  vpTitles?: [string, string]
   /** régua: faixa entre as duas barras */
   ruler?: Pick<RulerStats, 'from' | 'to' | 'up'> | null
 }
 
 const VOL = tc('#7189aa')
+export const BOLL = tc('#26C6DA')
 /** lightweight-charts não expõe peso de fonte: deixa em negrito só os canvases do eixo direito (valores de preço). */
 function boldRightAxis(root: HTMLElement) {
   root.querySelectorAll('tr').forEach(tr => {
@@ -71,7 +83,7 @@ function boldRightAxis(root: HTMLElement) {
 const isoOf = (t: Time | undefined) => !t ? '' : typeof t === 'string' ? t
   : typeof t === 'object' ? `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}` : ''
 
-export default function PriceChart({ rows, history, mode, showVolume, smas, onHover, highLow, hlTitles, log, markers, onPick, ruler }: Props) {
+export default function PriceChart({ rows, history, mode, showVolume, smas, onHover, highLow, hlTitles, log, markers, onPick, ruler, dec = 2, ha, boll, vp, vpTitles }: Props) {
   const ref = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const bandRef = useRef<HTMLDivElement | null>(null)
@@ -94,6 +106,35 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
     band.style.borderColor = r.up ? tc('#3ddc84') : tc('#FF4D4D')
   }
   const placeRef = useRef(place); placeRef.current = place
+  // perfil de volume: barras horizontais à direita do painel de preço, alinhadas pelas coordenadas do eixo
+  const vpRef = useRef<HTMLDivElement | null>(null)
+  const seriesRef = useRef<any>(null)
+  const vpData = useRef(vp); vpData.current = vp
+  const placeVp = () => {
+    const box = vpRef.current, chart = chartRef.current, s = seriesRef.current, d = vpData.current
+    if (!box) return
+    if (!chart || !s || !d) { box.style.display = 'none'; box.replaceChildren(); return }
+    const w = chart.timeScale().width()
+    const max = Math.max(...d.bins.map(b => b.vol)) || 1
+    const full = Math.max(40, w * 0.22)
+    box.style.display = 'block'
+    box.style.left = `${Math.max(0, w - full)}px`
+    box.style.width = `${full}px`
+    box.style.height = `${chart.panes()[0]?.getHeight() ?? 0}px`
+    const kids: HTMLElement[] = []
+    d.bins.forEach((b, j) => {
+      const y0 = s.priceToCoordinate(b.to), y1 = s.priceToCoordinate(b.from)
+      if (y0 == null || y1 == null) return
+      const el = document.createElement('div')
+      const top = Math.min(y0, y1), hgt = Math.max(1, Math.abs(y1 - y0) - 1)
+      el.style.cssText = `position:absolute;right:0;top:${top}px;height:${hgt}px;width:${(b.vol / max) * 100}%;background:${
+        j === d.poc ? tc('rgba(255,160,40,0.55)') : b.inVA ? tc('rgba(113,137,170,0.42)') : tc('rgba(113,137,170,0.18)')}`
+      el.dataset.vpBin = String(j)
+      kids.push(el)
+    })
+    box.replaceChildren(...kids)
+  }
+  const placeVpRef = useRef(placeVp); placeVpRef.current = placeVp
 
   useEffect(() => {
     const el = ref.current
@@ -126,7 +167,8 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
     })
     chartRef.current = chart
 
-    const pf = { type: 'custom', minMove: 0.0001, formatter: (v: number) => v.toLocaleString(numLocale(), { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(v) < 10 ? 4 : 2 }) } as any
+    // mesmas casas decimais em toda a série (antes: 4 casas só abaixo de 10, ex.: mínima 7,6446 no GPL 5Y)
+    const pf = { type: 'custom', minMove: dec === 4 ? 0.0001 : 0.01, formatter: (v: number) => v.toLocaleString(numLocale(), { minimumFractionDigits: dec, maximumFractionDigits: dec }) } as any
     const price = mode === 'candle'
       ? chart.addSeries(CandlestickSeries, {
           upColor: T.up, borderUpColor: T.up, wickUpColor: T.up,
@@ -139,8 +181,9 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
           lineColor: T.line, lineWidth: 2, topColor: T.mountain, bottomColor: tc('rgba(47,123,255,0.02)'),
           priceLineColor: T.amber, priceLineStyle: LineStyle.Dotted, lastValueVisible: false, priceFormat: pf,
         })
+    seriesRef.current = price
     if (mode === 'candle') {
-      (price as any).setData(rows.map(r => ({ time: r.time, open: r.open, high: r.high, low: r.low, close: r.close })))
+      (price as any).setData(ha?.length ? ha : rows.map(r => ({ time: r.time, open: r.open, high: r.high, low: r.low, close: r.close })))
     } else {
       (price as any).setData(rows.map(r => ({ time: r.time, value: r.close })))
     }
@@ -164,6 +207,20 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
       const s = chart.addSeries(LineSeries, { color: colors[n] || tc('#aaa'), lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, priceFormat: pf })
       s.setData(data)
     })
+
+    if (boll?.length) {
+      const line = (k: 'upper' | 'mid' | 'lower') => {
+        const s = chart.addSeries(LineSeries, { color: BOLL, lineWidth: 1, lineStyle: k === 'mid' ? LineStyle.Dashed : LineStyle.Solid, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: pf })
+        s.setData(boll.map(p => ({ time: p.time, value: p[k] })))
+      }
+      line('upper'); line('mid'); line('lower')
+    }
+    if (vp) {
+      const mid = (j: number) => vp.lo + (j + 0.5) * vp.step
+      price.createPriceLine({ price: mid(vp.poc), color: tc('#FFA028'), lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: vpTitles?.[0] ?? 'POC' })
+      price.createPriceLine({ price: vp.lo + (vp.vaHi + 1) * vp.step, color: tc('#7189aa'), lineWidth: 1, lineStyle: LineStyle.SparseDotted, axisLabelVisible: false, title: '' })
+      price.createPriceLine({ price: vp.lo + vp.vaLo * vp.step, color: tc('#7189aa'), lineWidth: 1, lineStyle: LineStyle.SparseDotted, axisLabelVisible: false, title: vpTitles?.[1] ?? 'VA' })
+    }
 
     if (showVolume) {
       const vol = chart.addSeries(HistogramSeries, {
@@ -203,22 +260,28 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
       if (x < 0 || x > ts.width() || y < 0 || y > r.height - ts.height()) return
       const lg = ts.coordinateToLogical(x)
       if (lg == null || !rows.length) return
-      pickRef.current(rows[Math.max(0, Math.min(rows.length - 1, Math.round(lg)))].time, e.shiftKey)
+      pickRef.current(rows[Math.max(0, Math.min(rows.length - 1, Math.round(lg)))].time, e.shiftKey, e.pointerType)
     }
     el.addEventListener('pointerdown', onDown)
     el.addEventListener('pointerup', onUp)
-    const onRange = () => placeRef.current()
+    const onRange = () => { placeRef.current(); placeVpRef.current() }
     chart.subscribeCrosshairMove(onMove)
     chart.timeScale().subscribeVisibleLogicalRangeChange(onRange)
     chart.timeScale().subscribeSizeChange(onRange)
     placeRef.current()
+    // o eixo de preço só fica pronto depois do 1º desenho
+    const raf = requestAnimationFrame(() => placeVpRef.current())
+    const onWheel = () => requestAnimationFrame(() => placeVpRef.current())
+    el.addEventListener('wheel', onWheel, { passive: true })
+    el.addEventListener('pointerup', onWheel)
     return () => {
+      cancelAnimationFrame(raf); el.removeEventListener('wheel', onWheel); el.removeEventListener('pointerup', onWheel)
       chart.unsubscribeCrosshairMove(onMove); el.removeEventListener('pointerdown', onDown); el.removeEventListener('pointerup', onUp)
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange); chart.timeScale().unsubscribeSizeChange(onRange)
-      chart.remove(); chartRef.current = null
+      chart.remove(); chartRef.current = null; seriesRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, history, mode, showVolume, smas.join(','), highLow, log, markers, hlTitles?.join('|')])
+  }, [rows, history, mode, showVolume, smas.join(','), highLow, log, markers, hlTitles?.join('|'), dec, ha, boll, vp, vpTitles?.join('|')])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { place() }, [ruler?.from, ruler?.to, ruler?.up])
@@ -227,6 +290,8 @@ export default function PriceChart({ rows, history, mode, showVolume, smas, onHo
     <>
       <div ref={ref} className="absolute inset-0" />
       {/* faixa da régua: só visual, não intercepta o mouse (a mira e o clique continuam no gráfico) */}
+      {/* perfil de volume: só visual */}
+      <div ref={vpRef} data-gpc-vp="" className="absolute top-0 z-[4] pointer-events-none overflow-hidden" style={{ display: 'none' }} />
       <div ref={bandRef} data-gp-ruler-band="" className="absolute top-0 bottom-[26px] z-[5] pointer-events-none border-x" style={{ display: 'none' }} />
     </>
   )
