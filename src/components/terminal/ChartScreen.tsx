@@ -11,9 +11,11 @@ import '../../lib/coverage'
 import { covers } from '../../lib/activeTicker.mjs'
 import { EVENT_KINDS, buildEvents, eventsByBar, eventMarkers, type Ev, type EvKind } from '../../lib/chartEvents.mjs'
 import { rulerStats, rulerNext } from '../../lib/ruler.mjs'
+import { heikinAshi, bollinger, volumeProfile, priceDecimals } from '../../lib/studies.mjs'
 import { putCarry, takeCarry } from '../../lib/chartCarry'
 import { trackPeriod } from '../../lib/track'
 import { T, MONO } from './chartTheme'
+const BOLL = tc('#26C6DA')
 import { safeUrl } from '../../lib/safe.mjs'
 
 const PriceChart = dynamic(() => import('./PriceChart'), { ssr: false })
@@ -62,7 +64,13 @@ export default function ChartScreen({ ticker, mode, log = false }: { ticker: str
   const [rulerOn, setRulerOn] = useState(false)
   const [pts, setPts] = useState<string[]>([])
   // eventos corporativos (mesma montagem do EVTS); só ações com corp/<t>.json
-  const evOk = mode !== 'candle' && covers('EVTS', ticker)
+  const evOk = covers('EVTS', ticker)
+  // GPC: estudos opcionais (Heikin-Ashi, Bollinger 20/2σ, perfil de volume)
+  const [haOn, setHaOn] = useState(false)
+  const [bollOn, setBollOn] = useState(false)
+  const [vpOn, setVpOn] = useState(false)
+  // toque numa vela fixa O/H/L/C dela no cabeçalho; novo toque volta à última barra
+  const [pinned, setPinned] = useState<Price | null>(null)
   const [evOn, setEvOn] = useState(false)
   const [evs, setEvs] = useState<Ev[] | null>(null)
   const [evErr, setEvErr] = useState(false)
@@ -147,7 +155,7 @@ export default function ChartScreen({ ticker, mode, log = false }: { ticker: str
 
   const last = rows[rows.length - 1]
   const prev = rows[rows.length - 2]
-  const obs = hover || last
+  const obs = hover || pinned || last
   const obsIdx = obs ? rows.indexOf(obs) : -1
   const obsPrev = obsIdx > 0 ? rows[obsIdx - 1] : prev
   const chg = obs && obsPrev ? obs.close - obsPrev.close : null
@@ -159,7 +167,16 @@ export default function ChartScreen({ ticker, mode, log = false }: { ticker: str
     let s = 0; for (let k = i - n + 1; k <= i; k++) s += history[k].close
     return s / n
   }
-  const dec = (last?.close ?? 10) < 10 ? 4 : 2
+  // casas decimais pela série exibida inteira (não pelo último preço): eixo, rótulos e legenda iguais em GP/GPL/GPC
+  const dec = useMemo(() => priceDecimals(rows), [rows])
+  const first = rows[0]?.time
+  const haAll = useMemo(() => (mode === 'candle' && haOn ? heikinAshi(history) : null), [mode, haOn, history])
+  const ha = useMemo(() => (haAll && first ? haAll.filter(b => b.time >= first) : null), [haAll, first])
+  const haMap = useMemo(() => (ha ? new Map(ha.map(b => [b.time, b])) : null), [ha])
+  const boll = useMemo(() => (mode === 'candle' && bollOn && first ? bollinger(history, 20, 2).filter(p => p.time >= first) : null), [mode, bollOn, history, first])
+  const bollMap = useMemo(() => (boll ? new Map(boll.map(p => [p.time, p])) : null), [boll])
+  const vp = useMemo(() => (mode === 'candle' && vpOn ? volumeProfile(rows, 24, 0.7) : null), [mode, vpOn, rows])
+  const vpTitles = useMemo(() => ['POC', L('Value area', 'Área de valor')] as [string, string], [])
 
   // eventos: carrega corp + calendário só quando o botão é ligado
   useEffect(() => {
@@ -175,14 +192,17 @@ export default function ChartScreen({ ticker, mode, log = false }: { ticker: str
   const hoverEvs = hover && byBar ? byBar.get(hover.time) || [] : []
 
   const ruler = useMemo(() => (pts.length === 2 ? rulerStats(rows, pts[0], pts[1]) : null), [pts, rows])
-  const onPick = (time: string, shift: boolean) => { if (shift || rulerOn) setPts(p => rulerNext(p, time)) }
+  const onPick = (time: string, shift: boolean, pointer: string) => {
+    if (shift || rulerOn) { setPts(p => rulerNext(p, time)); return }
+    if (pointer === 'touch') setPinned(p => (p ? null : rows.find(r => r.time === time) || null))
+  }
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { setPts([]); setRulerOn(false) } }
     window.addEventListener('keydown', k)
     return () => window.removeEventListener('keydown', k)
   }, [])
   // período/timeframe novos: a régua antiga deixa de valer
-  useEffect(() => { setPts([]) }, [start, end, tf])
+  useEffect(() => { setPts([]); setPinned(null) }, [start, end, tf])
   const hlTitles = useMemo(() => [L('High', 'Máx'), L('Low', 'Mín')] as [string, string], [])
 
   const goTo = (path: string) => {
@@ -195,11 +215,21 @@ export default function ChartScreen({ ticker, mode, log = false }: { ticker: str
     `px-2 py-[2px] text-[12px] leading-5 border ${active ? 'bg-[#FFA028] text-black border-[#FFA028] font-bold' : 'bg-black text-[#FFA028] border-[#5a3d12] hover:border-[#FFA028]'}`
 
   const legend: { c: string; l: string; v: string }[] = stats && obs ? [
-    { c: mode === 'candle' ? T.up : T.line, l: hover ? `${L('Close', 'Fechamento')} ${df(obs.time)}` : L('Last Price', 'Último preço'), v: nf(obs.close, dec) },
+    { c: mode === 'candle' ? T.up : T.line, l: hover || pinned ? `${L('Close', 'Fechamento')} ${df(obs.time)}` : L('Last Price', 'Último preço'), v: nf(obs.close, dec) },
     { c: T.high, l: `${L('High on', 'Máxima em')} ${df(stats.hi.time)}`, v: nf(stats.hiV, dec) },
     { c: tc('#9e9e9e'), l: L('Average', 'Média'), v: nf(stats.avg, dec) },
     { c: T.low, l: `${L('Low on', 'Mínima em')} ${df(stats.lo.time)}`, v: nf(stats.loV, dec) },
     ...smaOn.map(n => ({ c: n === 50 ? T.sma50 : T.sma200, l: L(`SMAVG (${n}) on Close`, `SMAVG (${n}) do fechamento`), v: nf(smaVal(n) ?? NaN, dec) })),
+    ...(haMap && obs && haMap.get(obs.time) ? [{ c: T.up, l: L('Heikin-Ashi O / H / L / C', 'Heikin-Ashi A / M / m / F'), v: (b => [b.open, b.high, b.low, b.close].map(x => nf(x, dec)).join(' / '))(haMap.get(obs.time)!) }] : []),
+    ...(bollMap ? (b => [
+      { c: BOLL, l: L('Bollinger (20, 2σ) upper', 'Bollinger (20, 2σ) superior'), v: nf(b?.upper ?? NaN, dec) },
+      { c: BOLL, l: L('Bollinger (20) middle', 'Bollinger (20) média'), v: nf(b?.mid ?? NaN, dec) },
+      { c: BOLL, l: L('Bollinger (20, 2σ) lower', 'Bollinger (20, 2σ) inferior'), v: nf(b?.lower ?? NaN, dec) },
+    ])(obs ? bollMap.get(obs.time) : undefined) : []),
+    ...(vp ? [
+      { c: tc('#FFA028'), l: L('Volume profile POC (approx.)', 'Perfil de volume POC (aprox.)'), v: nf(vp.lo + (vp.poc + 0.5) * vp.step, dec) },
+      { c: tc('#7189aa'), l: L('Value area 70%', 'Área de valor 70%'), v: `${nf(vp.lo + vp.vaLo * vp.step, dec)} – ${nf(vp.lo + (vp.vaHi + 1) * vp.step, dec)}` },
+    ] : []),
     // eventos ligados: chave dos marcadores com a contagem no período exibido
     ...(byBar ? (['R', 'F', 'D', 'S'] as EvKind[]).map(k => ({ c: tc(EVENT_KINDS[k].color), l: `${k} · ${L(EVENT_KINDS[k].en, EVENT_KINDS[k].pt)}`, v: String(Array.from(byBar.values()).reduce((n, es) => n + es.filter(e => e.kind === k).length, 0)) })) : []),
   ] : []
@@ -219,6 +249,7 @@ export default function ChartScreen({ ticker, mode, log = false }: { ticker: str
         <span className="text-[#8a8a8a]">L <b className="text-[#d9d9d9] font-normal">{nf(obs?.low, dec)}</b></span>
         <span className="text-[#8a8a8a]">C <b className="text-[#d9d9d9] font-normal">{nf(obs?.close, dec)}</b></span>
         <span className="text-[#8a8a8a]">Vol <b className="text-[#d9d9d9] font-normal">{obs?.volume ? vf(obs.volume) : '—'}</b></span>
+        {pinned && !hover && <button type="button" data-gpc-pin className="text-[#FFA028] text-[12px] underline" onClick={() => setPinned(null)}>{L('Pinned · tap again for the last bar', 'Fixado · toque de novo para a última barra')}</button>}
         {meta?.close_only && <span className="text-[#8a8a8a] italic" data-close-only="">{t('asset.closeOnly')}</span>}
         {safeUrl(meta?.link) && <a className="text-[#8a8a8a] underline hover:text-[#FFA028]" href={safeUrl(meta?.link)} target="_blank" rel="noopener noreferrer">{t('asset.official')}</a>}
         {safeUrl(meta?.ref) && <a className="text-[#8a8a8a] underline hover:text-[#FFA028]" href={safeUrl(meta?.ref)} target="_blank" rel="noopener noreferrer">{t('asset.reference')}</a>}
@@ -241,8 +272,21 @@ export default function ChartScreen({ ticker, mode, log = false }: { ticker: str
           <button className={btn(showVol)} onClick={() => setShowVol(v => !v)}>Volume</button>
           {[50, 200].map(n => <button key={n} className={btn(smaOn.includes(n))} onClick={() => setSmaOn(s => s.includes(n) ? s.filter(x => x !== n) : [...s, n].sort((a, b) => a - b))}>SMAVG {n}</button>)}
         </div>
-        {mode === 'line' && (
-          <div className="flex gap-[2px]" data-gp-studies>
+        {mode === 'candle' && (
+          <div className="flex flex-wrap gap-[2px]" data-gpc-studies>
+            <button className={btn(haOn)} data-gpc-ha aria-pressed={haOn}
+              title={L('Heikin-Ashi candles: close = (O+H+L+C)/4, open = average of the previous HA open and close. Smooths the trend; the header keeps the real prices.', 'Velas Heikin-Ashi: fechamento = (A+M+m+F)/4, abertura = média da abertura e do fechamento HA anteriores. Suaviza a tendência; o cabeçalho mantém os preços reais.')}
+              onClick={() => setHaOn(v => !v)}>Heikin-Ashi</button>
+            <button className={btn(bollOn)} data-gpc-boll aria-pressed={bollOn}
+              title={L('Bollinger Bands: 20-bar average of the close ± 2 standard deviations. Wide bands = high volatility; touches of a band are not signals by themselves.', 'Bandas de Bollinger: média de 20 barras do fechamento ± 2 desvios-padrão. Bandas largas = volatilidade alta; tocar uma banda não é sinal por si só.')}
+              onClick={() => setBollOn(v => !v)}>Bollinger</button>
+            <button className={btn(vpOn)} data-gpc-vp-btn aria-pressed={vpOn}
+              title={L('Volume profile (approximation from daily bars): each bar\'s volume is spread evenly across its low–high range in 24 price bins. POC = busiest bin; value area = bins holding 70% of the volume.', 'Perfil de volume (aproximação a partir de barras diárias): o volume de cada barra é espalhado por igual entre a mínima e a máxima, em 24 faixas de preço. POC = faixa com mais volume; área de valor = faixas com 70% do volume.')}
+              onClick={() => setVpOn(v => !v)}>{L('Vol. profile', 'Perfil de vol.')}</button>
+          </div>
+        )}
+        {(
+          <div className="flex flex-wrap gap-[2px]" data-gp-studies>
             <button className={btn(rulerOn || pts.length > 0)} data-gp-ruler aria-pressed={rulerOn}
               title={L('Measure the change between two points: shift+click two points on the chart (or turn this on and click/tap twice). Esc clears.', 'Meça a variação entre dois pontos: shift+clique em dois pontos do gráfico (ou ligue este botão e clique/toque duas vezes). Esc limpa.')}
               onClick={() => { if (rulerOn || pts.length) { setRulerOn(false); setPts([]) } else setRulerOn(true) }}>{L('Ruler', 'Régua')}</button>
@@ -271,7 +315,7 @@ export default function ChartScreen({ ticker, mode, log = false }: { ticker: str
         {!err && !rows.length && <div className="absolute inset-0 flex items-center justify-center text-[#8a8a8a]">{L('Loading…', 'Carregando…')}</div>}
         {rows.length > 0 && (
           <PriceChart rows={rows} history={history} mode={mode} showVolume={showVol} smas={smaOn} onHover={setHover} highLow={highLow}
-            hlTitles={hlTitles} log={log} markers={markers} onPick={mode === 'line' ? onPick : undefined} ruler={ruler} />
+            hlTitles={hlTitles} log={log} markers={markers} onPick={onPick} ruler={ruler} dec={dec} ha={ha} boll={boll} vp={vp} vpTitles={vpTitles} />
         )}
         {legend.length > 0 && (
           <button type="button" className="lg:hidden absolute top-1 left-1 z-20 text-[11px] px-2 py-[1px]" style={{ background: tc('rgba(0,0,0,0.72)'), border: '1px solid #2a2a2a', color: tc('#FFA028') }} onClick={() => setLegOpen(o => !o)}>{lang() === 'pt' ? 'Legenda' : 'Legend'} {legOpen ? '▾' : '▸'}</button>
@@ -288,7 +332,7 @@ export default function ChartScreen({ ticker, mode, log = false }: { ticker: str
           </div>
         )}
         {/* régua: resumo da medição (ou instrução enquanto falta o 2º ponto) */}
-        {mode === 'line' && (ruler || rulerOn || pts.length === 1) && (
+        {(ruler || rulerOn || pts.length === 1) && (
           <div data-gp-ruler-box className="absolute top-2 right-[78px] z-20 text-[12px] leading-[17px] px-2 py-1 max-lg:top-1 max-lg:right-[64px] max-lg:text-[11px] max-lg:leading-[15px] max-w-[60%]"
             style={{ background: tc('rgba(0,0,0,0.8)'), border: `1px solid ${ruler ? (ruler.up ? tc('#3ddc84') : tc('#FF4D4D')) : tc('#5a3d12')}` }}>
             {ruler ? (
