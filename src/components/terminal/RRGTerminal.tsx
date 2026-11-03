@@ -12,6 +12,8 @@ import { computeRRG, getJSON, tickerKey, type TickersFile } from '../../lib/stat
 import type { RRGResponse } from '../../types/rrg'
 import { MONO } from './chartTheme'
 import { fmtDate } from '../../lib/dates'
+import { TickerPicker } from '../fn/TickerPicker'
+import { withTicker } from '../../lib/tickerPicker.mjs'
 
 const Q: Record<string, { c: string; n: string; d: string }> = {
   Leading:   { c: tc('#3DDC84'), n: 'LEADING',   d: 'Relative strength and momentum above 100' },
@@ -68,6 +70,8 @@ type Hover = { x: number; y: number; t: string; date: string; r: number; m: numb
 
 export default function RRGTerminal() {
   const [available, setAvailable] = useState<string[]>([])
+  /** chave do pacote (PETR4, IDX_BVSP, BRL_X) ↔ ticker do universo (PETR4.SA, ^BVSP, BRL=X), para o seletor com busca */
+  const [k2t, setK2t] = useState<Record<string, string>>({})
   const [mkt, setMkt] = useState<Mkt>('br')
   const [bench, setBench] = useState(MKT.br.bench)
   const [sel, setSel] = useState<string[]>(MKT.br.sel)
@@ -86,11 +90,10 @@ export default function RRGTerminal() {
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const [focus, setFocus] = useState<string | null>(null)
   const [hover, setHover] = useState<Hover>(null)
-  const [q, setQ] = useState('')
   const boxRef = useRef<HTMLDivElement | null>(null)
   const [size, setSize] = useState({ w: 900, h: 600 })
 
-  useEffect(() => { getJSON<TickersFile>('tickers.json').then(f => setAvailable(f.tickers.map(t => t.key))) }, [])
+  useEffect(() => { getJSON<TickersFile>('tickers.json').then(f => { setAvailable(f.tickers.map(t => t.key)); setK2t(Object.fromEntries(f.tickers.map(t => [t.key, t.ticker]))) }) }, [])
   useEffect(() => {
     let alive = true
     computeRRG({ benchmark: bench, lookback_ratio: lbR, lookback_mom: lbM, tail: MAX_HIST, use_ema: ema, tickers: sel.filter(s => s !== bench).join(',') || undefined, bundle: MKT[mkt].bundle })
@@ -152,8 +155,14 @@ export default function RRGTerminal() {
   const dp = (st: number) => (st < 0.1 ? 2 : st < 1 ? 1 : 0)
 
   const pt = lang() === 'pt'
-  const qq = q.trim().toUpperCase()
-  const matches = qq ? available.filter(k => k !== bench && !sel.includes(k) && label(k).toUpperCase().includes(qq)).sort((a, b) => +!label(a).toUpperCase().startsWith(qq) - +!label(b).toUpperCase().startsWith(qq) || a.localeCompare(b)).slice(0, 16) : []
+  const tOf = (k: string) => k2t[k] || label(k)
+  const keyOf = (t: string) => tickerKey(t)
+  const availSet = useMemo(() => new Set(available), [available])
+  const inUni = useMemo(() => (m: { ticker: string }) => !availSet.size || availSet.has(tickerKey(m.ticker)), [availSet])
+  const benchText = (t: string) => { const k = keyOf(t); return BNAME[k] ? withTicker(bname(k), label(k)) : label(k) }
+  /** sugeridos para incluir: a seleção padrão do universo atual (o que foi removido volta fácil) e, nos EUA, os 11 setores */
+  const addSugg = Array.from(new Set([...selOf(mkt, uni), ...(mkt === 'us' ? Object.keys(SECTOR) : MKT.br.sel)])).map(tOf)
+  const benchSugg = Array.from(new Set([mktBench(mkt), MKT[mkt].bench, ...Object.keys(BNAME)])).map(tOf)
   const box = 'bg-black text-[#FFA028] border border-[#5a3d12] px-1 py-[1px] outline-none focus:border-[#FFA028]'
   const btn = (a: boolean) => `px-2 py-[2px] border text-[12px] ${a ? 'bg-[#FFA028] text-black border-[#FFA028] font-bold' : 'bg-black text-[#FFA028] border-[#5a3d12] hover:border-[#FFA028]'}`
 
@@ -178,9 +187,7 @@ export default function RRGTerminal() {
           {(['sec', 'stk'] as Uni[]).map(u => <button key={u} className={btn(uni === u)} aria-pressed={uni === u} onClick={() => pickUni(u)}>{u === 'sec' ? (lang() === 'pt' ? 'Setores' : 'Sectors') : (lang() === 'pt' ? 'Ações' : 'Stocks')}</button>)}
         </div>}
         <label className="flex items-center gap-1">Benchmark
-          <select className={box} value={bench} onChange={e => setBench(e.target.value)}>
-            {available.map(k => <option key={k} value={k}>{BNAME[k] ? `${bname(k)} (${label(k)})` : label(k)}</option>)}
-          </select>
+          <TickerPicker value={tOf(bench)} onChange={t => setBench(keyOf(t))} label="Benchmark" testId="rrg-bench" filter={inUni} suggested={benchSugg} display={benchText} />
         </label>
         <label className="flex items-center gap-1">RS {ema ? 'EMA' : 'SMA'}
           <input type="number" min={2} max={52} value={lbR} onChange={e => setLbR(Math.max(2, +e.target.value || 10))} className={`${box} w-12`} />
@@ -287,12 +294,10 @@ export default function RRGTerminal() {
                 <button key={k} className={btn(true)} title={pt ? 'Remover' : 'Remove'} onClick={() => setSel(s => s.filter(x => x !== k))}>{label(k)} ×</button>
               ))}
             </div>
-            <input className={`${box} w-full py-[3px]`} value={q} onChange={e => setQ(e.target.value)} placeholder={pt ? `Buscar ativo para adicionar (${available.length})` : `Search an asset to add (${available.length})`}
-              aria-label={pt ? 'Buscar ativo' : 'Search asset'} onKeyDown={e => { if (e.key === 'Enter' && matches[0]) { setSel(s => [...s, matches[0]]); setQ('') } }} />
-            {q && <div className="flex flex-wrap gap-1">
-              {matches.map(k => <button key={k} className={btn(false)} onClick={() => { setSel(s => [...s, k]); setQ('') }}>+ {label(k)}</button>)}
-              {!matches.length && <span className="text-[#8a8a8a]">{pt ? 'Nenhum ativo encontrado' : 'No asset found'}</span>}
-            </div>}
+            <TickerPicker value={null} label={pt ? 'Incluir ativo no RRG' : 'Add asset to the RRG'} testId="rrg-add" filter={inUni} block
+              addText={pt ? `+ Buscar ativo para incluir (${available.length})` : `+ Search an asset to add (${available.length})`}
+              suggested={addSugg} exclude={[bench, ...sel].map(tOf)} display={t => label(keyOf(t))}
+              onChange={t => { const k = keyOf(t); setSel(s => (s.includes(k) || k === bench ? s : [...s, k])) }} />
           </div>
           <div className="px-2 pt-3 pb-1 text-[#FFA028] font-bold border-b border-[#3a3a3a]">{pt ? 'QUADRANTES' : 'QUADRANTS'}</div>
           <div className="p-2 space-y-1 text-[#bdbdbd]">

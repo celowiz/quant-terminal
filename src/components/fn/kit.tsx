@@ -153,13 +153,15 @@ export function FitArea({ children, className = '' }: { children: React.ReactNod
 }
 
 // ---------- layout ----------
-export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, children, source, note, asOf, fill }: {
+export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, children, source, note, asOf, fill, wrap }: {
   code: string; ticker?: string; title?: string; tabs?: string[]; tab?: number; setTab?: (i: number) => void
   right?: React.ReactNode; children: React.ReactNode; source?: React.ReactNode; note?: React.ReactNode
   /** data de referência da tela quando não é a do último arquivo carregado (ex.: trimestre do balanço) */
   asOf?: string | null
   /** conteúdo ocupa a altura livre sem a escala do FitArea (ex.: painéis do Launchpad) */
   fill?: boolean
+  /** mobile: controles quebram em linhas em vez de rolar de lado (telas com muitos controles, ex.: HS) */
+  wrap?: boolean
 }) {
   const fi = FUNCTION_LIST.find(f => f.code === code)
   const desc = lang() === 'pt' && fi ? fi.pt : tx(title) || fi?.desc || code
@@ -175,7 +177,7 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
         <span className="px-2 py-1 text-[13px] font-bold max-lg:shrink-0" style={{ color: C.amber }}>{code}</span>
         <span className="px-2 py-1 text-[13px] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate" style={{ color: C.text }} title={desc}>{desc}</span>
         <AsOfChip asOf={asOf} />
-        <div className={`ml-auto flex items-center gap-2 pr-2 text-[12px] fn-strip max-lg:ml-0 max-lg:w-full max-lg:pl-2 max-lg:py-1 max-lg:border-t max-lg:border-[#2a2a2a] max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0 ${right ? '' : 'max-lg:hidden'}`}>{right}</div>
+        <div className={`ml-auto flex items-center gap-2 pr-2 text-[12px] fn-strip max-lg:ml-0 max-lg:w-full max-lg:pl-2 max-lg:py-1 max-lg:border-t max-lg:border-[#2a2a2a] ${wrap ? 'max-lg:flex-wrap max-lg:gap-y-1' : 'max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0'} ${right ? '' : 'max-lg:hidden'}`}>{right}</div>
       </div>
       {tabs && tabs.length > 0 && (
         <div className="flex flex-wrap gap-0 border-b shrink-0 fn-strip max-lg:flex-nowrap max-lg:overflow-x-auto" style={{ borderColor: C.line, background: tc('#050505') }}>
