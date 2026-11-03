@@ -13,18 +13,93 @@ def bars(df):
         out.append([int(i.timestamp()), clean(r['Open'], 4), clean(r['High'], 4), clean(r['Low'], 4), clean(r['Close'], 4), 0 if pd.isna(v) else int(v)])
     return out
 
-# ---------------- GIP: barras intradiárias (Yahoo: 1m só ~7 dias, 5m só 60 dias) ----------------
+# ---------------- GIP: barras intradiárias de todo o Ibovespa (Yahoo: 1m só ~7 dias, 5m só 60 dias) ----------------
+# Arquivo por ativo: {ticker, generated_at, tz, source, m1, m5}; barra = [unix UTC, o, h, l, c, v].
+# m1 = últimos M1_SESSIONS pregões; m5 = últimos M5_DAYS dias corridos. Cada execução une as barras novas às do arquivo
+# anterior (load_prev): se o download de um ativo falhar, o último arquivo bom continua publicado. Rodízio: os ativos
+# com arquivo mais antigo vão primeiro e o passo para em INTRA_BUDGET segundos; o que sobrar entra na próxima execução.
+M1_SESSIONS, M5_DAYS, INTRA_CHUNK, INTRA_BUDGET = 2, 60, 20, int(os.environ.get('QT_INTRA_BUDGET', '420'))
+INTRA_SOURCE = 'Yahoo Finance via yfinance (barras intradiárias com atraso; 1m: últimos 2 pregões; 5m: ~60 dias)'
+BRT = 3 * 3600
+
+def _session(u): return dt.datetime.fromtimestamp(u - BRT, dt.timezone.utc).date().isoformat()
+
+def drop_snapshot(B):
+    """Remove barras finais "instantâneo" (O=H=L=C e volume 0): a barra em formação, sem negócio."""
+    B = list(B)
+    while B and not (B[-1][5] or 0) > 0 and B[-1][1] == B[-1][2] == B[-1][3] == B[-1][4]: B.pop()
+    return B
+
+def merge_bars(prev, new):
+    """União por timestamp (a barra nova prevalece), em ordem; descarta barras malformadas."""
+    m = {}
+    for b in (prev or []) + (new or []):
+        if isinstance(b, list) and len(b) == 6 and all(isinstance(x, (int, float)) and math.isfinite(x) for x in b[1:5]): m[int(b[0])] = b
+    return [m[k] for k in sorted(m)]
+
+def trim_m1(B, n=M1_SESSIONS):
+    days = sorted({_session(b[0]) for b in B})[-n:]
+    return [b for b in B if _session(b[0]) in days]
+
+def trim_m5(B, days=M5_DAYS, now=None):
+    if not B: return B
+    t0 = (now or B[-1][0]) - days * 86400
+    return [b for b in B if b[0] >= t0]
+
+def ibov_members():
+    """Ações da carteira do Ibovespa no tickers.json (etapa prices) + núcleo fixo, e o próprio índice."""
+    try:
+        with open(os.path.join(OUT, 'tickers.json'), encoding='utf-8') as f: T = json.load(f)['tickers']
+        u = {t['ticker'] for t in T if t.get('class') == 'br_equity' and 'IBOV' in (t.get('index') or [])}
+    except Exception: u = set()
+    return sorted(u | set(EQUITIES)) + ['^BVSP']
+
+def rotation(tickers):
+    """Ordem do rodízio: sem arquivo primeiro, depois o arquivo mais antigo (generated_at)."""
+    def age(t):
+        p = load_prev(f'intraday/{key(t)}.json')
+        return (1, p.get('generated_at') or '') if p else (0, '')
+    return sorted(tickers, key=age)
+
+def _download(tks, iv, per):
+    """{ticker: barras} de um lote (yf.download em grupo); ativos sem dados ficam de fora."""
+    out = {}
+    try:
+        raw = yf.download(tks, interval=iv, period=per, auto_adjust=False, prepost=False, progress=False, group_by='ticker', threads=True)
+    except Exception as e:
+        print('intraday lote', iv, e); return out
+    for t in tks:
+        try:
+            df = raw[t] if isinstance(raw.columns, pd.MultiIndex) else raw
+            df = df.dropna(subset=['Close'])
+            if len(df): out[t] = bars(df)
+        except Exception: pass
+    return out
+
 def intraday():
-    ok = 0
-    for t in EQUITIES + ['^BVSP']:
-        o = {'ticker': t, 'generated_at': now_iso(), 'tz': 'America/Sao_Paulo',
-             'source': 'Yahoo Finance via yfinance (barras intradiárias com atraso; 1m: ~5 pregões; 5m: ~60 dias)'}
-        for lab, iv, per in [('m1', '1m', '5d'), ('m5', '5m', '60d')]:
-            try:
-                d = yf.Ticker(t).history(interval=iv, period=per, auto_adjust=False, prepost=False)
-                if len(d): d.index = d.index.tz_convert('America/Sao_Paulo'); o[lab] = bars(d)
-            except Exception as e: print('intraday', t, iv, e)
-        if o.get('m1') or o.get('m5'): save(f'intraday/{key(t)}.json', o); ok += 1
+    import time
+    U = rotation(ibov_members())
+    t_start, ok, kept, fresh = time.time(), 0, 0, 0
+    for i in range(0, len(U), INTRA_CHUNK):
+        lote = U[i:i + INTRA_CHUNK]
+        if time.time() - t_start > INTRA_BUDGET:
+            print(f'intraday: orçamento de {INTRA_BUDGET}s esgotado; {len(U) - i} ativos ficam para a próxima execução')
+            break
+        n1, n5 = _download(lote, '1m', '5d'), _download(lote, '5m', '60d')
+        for t in lote:
+            prev = load_prev(f'intraday/{key(t)}.json') or {}
+            m1 = trim_m1(drop_snapshot(merge_bars(prev.get('m1'), n1.get(t))))
+            m5 = trim_m5(drop_snapshot(merge_bars(prev.get('m5'), n5.get(t))))
+            if not (n1.get(t) or n5.get(t)):
+                if prev: kept += 1
+                continue  # nada novo: o arquivo anterior (último bom) fica como está
+            if m1 or m5:
+                save(f'intraday/{key(t)}.json', {'ticker': t, 'generated_at': now_iso(), 'tz': 'America/Sao_Paulo', 'source': INTRA_SOURCE, 'm1': m1, 'm5': m5})
+                fresh += 1
+        time.sleep(1)
+    have = sum(1 for t in U if os.path.exists(os.path.join(OUT, 'intraday', key(t) + '.json')))
+    print(f'intraday: {fresh} atualizados, {kept} mantidos do arquivo anterior, {have}/{len(U)} com arquivo')
+    ok = have
     if not ok: raise RuntimeError('nenhuma série intradiária')
 
 # ---------------- GLCO: futuros de commodities (contrato contínuo do Yahoo) ----------------
