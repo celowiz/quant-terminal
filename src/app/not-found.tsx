@@ -62,7 +62,7 @@ export default function NotFound() {
   useEffect(() => { setRoute(fallbackRoute(pathParts())) }, [])
   if (route === undefined) return null
   // GIP/CF: sem cobertura a View mostra a página amigável (atalhos para GP/GPC ou DES/GP) em vez do aviso genérico
-  if (route?.covered || route?.code === 'GIP' || route?.code === 'CF' || route?.code === 'FUND') { const View = VIEWS[route.code]; return <View ticker={route.ticker} /> }
+  if (route?.covered || route?.code === 'GIP' || route?.code === 'CF' || route?.code === 'FUND' || route?.code === 'FA') { const View = VIEWS[route.code]; return <View ticker={route.ticker} /> }
   return (
     <div className="px-6 py-10 text-[#FFA028] font-mono">
       <div className="text-2xl font-bold">{route ? `${route.code} · ${route.ticker}` : '404'}</div>

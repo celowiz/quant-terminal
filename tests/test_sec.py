@@ -105,3 +105,39 @@ def test_da_from_components_when_no_combined_tag():
     assert r2['da'] is None and r2['ebitda'] is None          # só uma parcela: não inventa D&A
     g3 = dict(g); g3['DepreciationDepletionAndAmortization'] = F(30)
     assert bs.build_us_fund(g3)['annual'][-1]['da'] == 30   # conceito agregado vence
+
+
+def _fund_row(**kw):
+    base = {k: None for k in list(bs.FLOW) + list(bs.INST)}
+    base.update({'period': '2025-12-31', **kw})
+    return base
+
+
+def test_fa_rows_signs_and_derived_subtotals():
+    r = _fund_row(revenue=100, cost=60, rnd=10, sga=5, ebit=20, pretax=22, tax=4, assets=50, cur_assets=20, cash=5, receivables=5, stinv=None)
+    out = bs.fa_rows({'annual': [r], 'quarterly': []}, {})['annual'][0]
+    assert out['cost'] == -60 and out['tax'] == -4 and out['rnd'] == -10      # despesas em negativo
+    assert out['gross'] == 40 and 'gross' in out['_d']                         # lucro bruto calculado e marcado
+    assert out['opex'] == -20 and out['opex_other'] == -5
+    assert out['nonop'] == 2
+    assert out['nca'] == 30
+    assert out['ca_other'] == 10                                               # linhas nunca publicadas contam 0
+
+
+def test_fa_rows_never_estimates_when_a_reported_part_is_missing():
+    r1 = _fund_row(cur_assets=20, cash=5, receivables=5, inventory=None)
+    r0 = _fund_row(period='2024-12-31', inventory=3)
+    out = bs.fa_rows({'annual': [r0, r1], 'quarterly': []}, {})['annual'][1]
+    assert out['ca_other'] is None
+
+
+def test_fa_rows_bank_drops_derived_operating_income():
+    r = _fund_row(pretax=30, interest=70, ebit=100, ebit_derived=True)
+    out = bs.fa_rows({'annual': [r], 'quarterly': [], 'bank_format': True}, {})['annual'][0]
+    assert out['ebit'] is None and out['nonop'] is None
+
+
+def test_fa_doc_has_no_source_wording():
+    d = bs.fa_doc('X', '1', {'annual': [_fund_row(revenue=1, net=1)], 'quarterly': []}, {})
+    txt = str(d).lower()
+    assert 'xbrl' not in txt and 'us-gaap' not in txt and 'sec ' not in txt and 'source' not in d
