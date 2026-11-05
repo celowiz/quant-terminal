@@ -12,7 +12,7 @@ export const TICKERS = (tickers as unknown as { tickers: TickerMeta[] }).tickers
 export const EXT_PAGES = new Set(['GP', 'GPL', 'HP', 'SEAH'])
 /** Funções com página para todo o núcleo (não-`ext`) mesmo sem dados: a View mostra uma página amigável em vez do 404
  *  (GIP: ativos sem barras intradiárias apontam para GP/GPC; CF: ativos sem documentos apontam para DES/GP). */
-export const ALL_CORE_PAGES = new Set(['GIP', 'CF', 'FUND', 'FA'])
+export const ALL_CORE_PAGES = new Set(['GIP', 'CF', 'FUND', 'FA', 'VAL'])
 export function staticParams(code: string) {
   const C = code.toUpperCase()
   const own = ALL_CORE_PAGES.has(C) ? undefined : (FUNCTION_UNIVERSE as Record<string, string[]>)[C]
