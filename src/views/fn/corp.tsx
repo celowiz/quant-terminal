@@ -1,10 +1,10 @@
 'use client'
 import { tc } from '../../lib/themeRuntime'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { FitBox, useDesktop, NewsCards, FnScreen, Panel, Grid, Btns, Field, KV, Loading, NA, C, nf, pf, big, dBR, dBRfull, clr, short, useJSON, corpPath, hasData, isEquity, isoMinus } from '../../components/fn/kit'
 import FnChart, { type PaneDef } from '../../components/fn/FnChart'
 import { usePrices } from './tech'
-import { getJSON, tickerKey } from '../../lib/static'
+import { tickerKey } from '../../lib/static'
 import { L, regLabel, regValue, sectorEN, fyEnd, isoDate } from './desLabels'
 import { DESClassView } from './desClasses'
 import { DESMarket, marketMeta } from './desMarket'
@@ -114,72 +114,8 @@ function DESCorp({ ticker }: { ticker: string }) {
 // FUND: movido para views/fn/fund.tsx
 export { FUNDView } from './fund'
 
-// ---------------- VAL ----------------
-/** Pares do VAL: mesmo subsetor (senão setor) no screener (IBOV/CVM ou EUA/SEC), com dados; até 5, maior valor de mercado primeiro. */
-function usePeers(ticker: string) {
-  const us = !ticker.toUpperCase().endsWith('.SA')
-  const { data: sc } = useJSON<any>(us ? 'screener_us.json' : 'screener.json')
-  const [rows, setRows] = useState<[string, any][]>([])
-  const [sector, setSector] = useState('')
-  useEffect(() => {
-    if (!sc) return
-    const tk = (r: any) => us ? String(r.cod) : `${r.cod}.SA`
-    const all = sc.rows as any[], me = all.find(r => tk(r) === ticker.toUpperCase())
-    const pick = (k: 'subsector' | 'sector') => me ? all.filter(r => me[k] && r[k] === me[k] && tk(r) !== ticker.toUpperCase() && hasData('VAL', tk(r))) : []
-    let list = pick('subsector'), label = me?.subsector || ''
-    if (list.length < 2) { list = pick('sector'); label = me?.sector || '' }
-    if (!me) { list = all.filter(r => (us ? ['AAPL', 'MSFT', 'GOOGL', 'AMZN'] : ['PETR4', 'VALE3', 'ITUB4', 'B3SA3']).includes(r.cod) && tk(r) !== ticker.toUpperCase()); label = '' }
-    const top = list.sort((a, b) => (b.mcap || 0) - (a.mcap || 0)).slice(0, 5).map(tk)
-    let alive = true
-    Promise.all(top.map(t => getJSON<any>(`corp/${tickerKey(t)}.json`).then(x => [t, x] as [string, any]).catch(() => null)))
-      .then(r => { if (alive) { setRows(r.filter(Boolean) as [string, any][]); setSector(label) } })
-    return () => { alive = false }
-  }, [sc, ticker])
-  return { rows, sector }
-}
-export function VALView({ ticker }: { ticker: string }) {
-  const { data: d, err } = useCorp(ticker)
-  const peerData = usePeers(ticker)
-  const [metric, setMetric] = useState<'pe' | 'pb' | 'dy'>('pe')
-  return <Guard code="VAL" ticker={ticker}>{!d ? <FnScreen code="VAL" ticker={ticker}><Loading err={err} /></FnScreen> : (() => {
-    const v = valuation(d)
-    // histórico: P/L e P/VPA com fundamentos vigentes em cada data (trimestre publicado ~45d depois)
-    const q = d.fundamentals.quarterly as any[]
-    const shares = v.shares || 0
-    const hist = (d.raw_close as [string, number][]).filter(x => x[0] >= isoMinus(v.px[0], 0, 0, 3)).map(([t, px]) => {
-      const avail = q.filter(r => isoMinus(r.period, -45) <= t)
-      const l4 = avail.slice(-4), bs = avail[avail.length - 1]
-      const net = l4.length === 4 && l4.every(r => r.net != null) ? l4.reduce((s, r) => s + r.net, 0) : null
-      const dv = (d.dividends_full as [string, number][]).filter(x => x[0] <= t && x[0] > isoMinus(t, 0, 0, 1)).reduce((s, x) => s + x[1], 0)
-      const mc = px * shares
-      return { time: t, pe: net && net > 0 ? mc / net : null, pb: bs?.equity ? mc / bs.equity : null, dy: dv ? dv / px * 100 : null }
-    })
-    const ser = hist.filter(h => h[metric] != null).map(h => ({ time: h.time, value: h[metric] as number }))
-    const avg = ser.reduce((s, x) => s + x.value, 0) / (ser.length || 1)
-    const ys = d.yahoo_stats || {}
-    const peerRows = [[ticker, d] as [string, any], ...peerData.rows].map(([t, x]) => ({ t: short(t), ...valuation(x), cur: t === ticker }))
-    return (
-      <FnScreen code="VAL" ticker={ticker} title="Valuation — multiples and history" source={srcOf(d)}
-        note={isUS(d) ? `Multiples computed from raw price × share count (10-K/10-Q cover) and trailing 4-quarter results (10-K/10-Q XBRL; latest fiscal year when 4 quarters are not available, shown as ${v.basis}). History assumes results are released 45 days after quarter end. Ref. column shown for cross-checking; differences come from share-count/LTM criteria.` : 'Multiples computed in the pipeline from raw price × share count and trailing 4-quarter results (DFP/ITR). History assumes results are released 45 days after quarter end. Ref. column shown for cross-checking; differences come from share-count/LTM criteria.'}>
-        <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '300px 1fr' }}>
-          <Panel title="Current multiples" asOf={v.px[0]}>
-            <Grid cols={[{ k: 'l', label: 'Indicator' }, { k: 'v', label: 'Computed', align: 'r', color: () => C.amber }, { k: 'y', label: 'Ref.', align: 'r', color: () => C.muted }]} rows={[
-              { l: 'Price (raw)', v: nf(v.px[1]), y: '—' }, { l: 'Market cap', v: big(v.mcap), y: big(ys.marketCap) }, { l: 'EV', v: big(v.ev), y: '—' },
-              { l: `P/E ${v.basis}`, v: nf(v.pe), y: nf(ys.trailingPE) }, { l: 'P/B', v: nf(v.pb), y: nf(ys.priceToBook) }, { l: 'EV/EBITDA', v: nf(v.evEbitda), y: nf(ys.enterpriseToEbitda) },
-              { l: 'Div. yield 12m', v: pf(v.dy, 2, false), y: pf(ys.dividendYield, 2, false) }, { l: 'ROE', v: pf(v.roe, 1, false), y: '—' }, { l: 'Net debt/EBITDA', v: nf(v.ndEbitda), y: '—' },
-            ]} />
-          </Panel>
-          <div>
-            <div className="flex items-center gap-2 pb-1 text-[12px]"><span style={{ color: C.amber }}>3-year history</span><Btns opts={[{ v: 'pe', l: 'P/E' }, { v: 'pb', l: 'P/B' }, { v: 'dy', l: 'DY %' }] as any} value={metric} onChange={setMetric as any} /><span style={{ color: C.muted }}>average {nf(avg)}</span></div>
-            <FnChart height={330} panes={[{ series: [{ kind: 'line', data: ser, color: C.amber, title: metric.toUpperCase(), lines: [{ price: avg, color: tc('#888'), title: 'Average' }] }] }]} />
-          </div>
-        </div>
-        <div className="mt-2"><Panel title={`Peer comparison (same methodology)${peerData.sector ? ` — ${peerData.sector}` : ''}`}>
-          <Grid cols={[{ k: 't', label: 'Ticker', color: (_, r: any) => r.cur ? C.amber : C.text }, { k: 'mcap', label: 'Mkt cap', align: 'r', fmt: (v: any) => big(v) }, { k: 'pe', label: 'P/E', align: 'r', fmt: (v: any) => nf(v) }, { k: 'pb', label: 'P/B', align: 'r', fmt: (v: any) => nf(v) }, { k: 'evEbitda', label: 'EV/EBITDA', align: 'r', fmt: (v: any) => nf(v) }, { k: 'dy', label: 'DY %', align: 'r', fmt: v => nf(v) }, { k: 'roe', label: 'ROE %', align: 'r', fmt: v => nf(v, 1) }, { k: 'margin', label: 'Net mg. %', align: 'r', fmt: v => nf(v, 1) }]} rows={peerRows} />
-        </Panel></div>
-      </FnScreen>)
-  })()}</Guard>
-}
+// VAL: movido para views/fn/val.tsx
+export { VALView } from './val'
 
 // ---------------- DY / DVD / SPLIT ----------------
 export function DYView({ ticker }: { ticker: string }) {
