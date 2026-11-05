@@ -111,39 +111,8 @@ function DESCorp({ ticker }: { ticker: string }) {
   })()}</Guard>
 }
 
-// ---------------- FUND ----------------
-const FROWS: [string, string, boolean?][] = [['revenue', 'Net revenue'], ['gross', 'Gross profit'], ['ebit', 'EBIT'], ['da', 'D&A'], ['ebitda', 'EBITDA'], ['fin', 'Financial result'], ['pretax', 'Pre-tax income'], ['net', 'Net income', true]]
-const BROWS: [string, string, boolean?][] = [['assets', 'Total assets'], ['cash', 'Cash and equivalents'], ['stinv', 'Financial investments'], ['debt', 'Gross debt'], ['netdebt', 'Net debt', true], ['minority', 'Non-controlling interests'], ['equity', 'Shareholders\' equity', true]]
-const CROWS: [string, string, boolean?][] = [['cfo', 'Operating cash flow'], ['capex', 'Capex (PP&E + intangibles)'], ['fcf', 'Free cash flow', true]]
-export function FUNDView({ ticker }: { ticker: string }) {
-  const { data: d, err } = useCorp(ticker)
-  const [tab, setTab] = useState(0)
-  const [per, setPer] = useState<'a' | 'q'>('a')
-  return <Guard code="FUND" ticker={ticker}>{!d ? <FnScreen code="FUND" ticker={ticker}><Loading err={err} /></FnScreen> : (() => {
-    const src = (per === 'a' ? d.fundamentals.annual : d.fundamentals.quarterly.slice(-10)).map((r: any) => ({ ...r, fcf: r.cfo != null && r.capex != null ? r.cfo + r.capex : null, mg: r.net && r.revenue ? r.net / r.revenue * 100 : null, mge: r.ebitda && r.revenue ? r.ebitda / r.revenue * 100 : null, roe: r.net && r.equity ? r.net / r.equity * 100 * (per === 'q' ? 4 : 1) : null, lev: r.netdebt != null && r.equity ? r.netdebt / r.equity : null }))
-    const IROWS: [string, string, boolean?][] = [['mge', 'EBITDA margin %'], ['mg', 'Net margin %'], ['roe', `ROE % ${per === 'q' ? '(annualized)' : ''}`], ['lev', 'Net debt / Equity']]
-    const rowsDef = [FROWS, BROWS, CROWS, IROWS][tab]
-    const lbl = (p: string) => per === 'a' ? p.slice(0, 4) : `Q${Math.ceil(+p.slice(5, 7) / 3)}'${p.slice(2, 4)}`
-    const isRatio = tab === 3
-    return (
-      <FnScreen code="FUND" ticker={ticker} asOf={src.length ? src[src.length - 1].period : null} title="Fundamentals — financial statements" tabs={['Income Statement', 'Balance Sheet', 'Cash Flow', 'Ratios']} tab={tab} setTab={setTab}
-        right={<Btns opts={[{ v: 'a', l: 'Yearly' }, { v: 'q', l: 'Quarterly' }] as any} value={per} onChange={setPer as any} />}
-        source={srcOf(d)} note={<>{d.fundamentals.note}{isUS(d) ? ` ${US_NOTE}` : ''} Values in {ccy(d)} millions. Amber figures = reported (no consensus estimates in this version).{d.fundamentals.bank_format ? ' Bank: financial-institution layout — EBIT/EBITDA/debt do not apply.' : ''}{d.fundamentals.basis === 'individual' && !isUS(d) ? ' Individual (parent-only) statements: the company does not file consolidated statements with CVM.' : ''}</>}>
-        <div className="overflow-auto border" style={{ borderColor: C.line }}>
-          <table className="w-full border-collapse text-[12px]">
-            <thead><tr style={{ background: C.panel2 }}><th className="px-2 py-1 text-left font-normal" style={{ color: C.amber }}>{ccy(d)} mn</th>{src.map((r: any) => <th key={r.period} className="px-2 py-1 text-right font-normal" style={{ color: C.amber }}>{lbl(r.period)}</th>)}</tr></thead>
-            <tbody>{rowsDef.map(([k, l, bold]) => (
-              <tr key={k} className="border-t" style={{ borderColor: tc('#1a1a1a') }}><td className="px-2 py-[3px]" style={{ fontWeight: bold ? 700 : 400 }}>{l}</td>
-                {src.map((r: any) => <td key={r.period} className="px-2 py-[3px] text-right" style={{ color: r[k] == null ? C.muted : r[k] < 0 ? C.down : C.amber, fontWeight: bold ? 700 : 400 }}>{r[k] == null ? '—' : isRatio ? nf(r[k], k === 'lev' ? 2 : 1) : nf(r[k] / 1e6, 0)}</td>)}</tr>))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mt-2">
-          <FnChart height={260} panes={[{ series: rowsDef.slice(0, 3).map(([k, l], i) => ({ kind: i === 0 ? 'hist' as const : 'line' as const, data: src.filter((r: any) => r[k] != null).map((r: any) => ({ time: r.period, value: isRatio ? r[k] : r[k] / 1e9 })), color: [C.amber, C.white, C.blue][i], title: l, decimals: isRatio ? 2 : 1 })) }]} />
-        </div>
-      </FnScreen>)
-  })()}</Guard>
-}
+// FUND: movido para views/fn/fund.tsx
+export { FUNDView } from './fund'
 
 // ---------------- VAL ----------------
 /** Pares do VAL: mesmo subsetor (senão setor) no screener (IBOV/CVM ou EUA/SEC), com dados; até 5, maior valor de mercado primeiro. */
