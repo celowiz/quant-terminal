@@ -58,7 +58,7 @@ INST = {
     'receivables': ['AccountsReceivableNetCurrent'],
     'inventory': ['InventoryNet'],
     'cur_assets': ['AssetsCurrent'],
-    'ppe': ['PropertyPlantAndEquipmentNet'],
+    'ppe': ['PropertyPlantAndEquipmentNet', 'PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization'],
     'goodwill': ['Goodwill'],
     'intang': ['IntangibleAssetsNetExcludingGoodwill'],
     'assets': ['Assets'],
@@ -166,31 +166,125 @@ def build_us_fund(g):
         return r
     return {'annual': [row(e, 0, epsA) for e in ends_a], 'quarterly': [row(e, 1, epsQ) for e in ends_q]}
 
+# FA: conceitos extras só para as demonstrações completas (não entram no corp/FUND)
+FA_FLOW = {
+    'nonop_other': ['OtherNonoperatingIncomeExpense'],
+    'int_income': ['InvestmentIncomeInterest', 'InterestIncomeOther', 'InvestmentIncomeInterestAndDividend'],
+    'sbc': ['ShareBasedCompensation', 'AllocatedShareBasedCompensationExpense'],
+    'deftax': ['DeferredIncomeTaxExpenseBenefit', 'DeferredIncomeTaxesAndTaxCredits'],
+    'acq': ['PaymentsToAcquireBusinessesNetOfCashAcquired'],
+    'inv_buy': ['PaymentsToAcquireInvestments', 'PaymentsToAcquireMarketableSecurities', 'PaymentsToAcquireAvailableForSaleSecuritiesDebt'],
+    'inv_sell': ['ProceedsFromSaleMaturityAndCollectionsOfInvestments', 'ProceedsFromMaturitiesPrepaymentsAndCallsOfAvailableForSaleSecurities'],
+    'debt_iss': ['ProceedsFromIssuanceOfLongTermDebt', 'ProceedsFromIssuanceOfDebt', 'ProceedsFromDebtNetOfIssuanceCosts'],
+    'debt_rep': ['RepaymentsOfLongTermDebt', 'RepaymentsOfDebt'],
+    'fx': ['EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents', 'EffectOfExchangeRateOnCashAndCashEquivalents'],
+    'netchg': ['CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect',
+               'CashAndCashEquivalentsPeriodIncreaseDecrease'],
+}
+FA_INST = {
+    'rou': ['OperatingLeaseRightOfUseAsset'],
+    'ap': ['AccountsPayableCurrent'],
+    'accrued': ['AccruedLiabilitiesCurrent'],
+    'liab_nc': ['LiabilitiesNoncurrent'],
+    'apic': ['CommonStocksIncludingAdditionalPaidInCapital', 'AdditionalPaidInCapitalCommonStock', 'AdditionalPaidInCapital'],
+    'retained': ['RetainedEarningsAccumulatedDeficit'],
+    'aoci': ['AccumulatedOtherComprehensiveIncomeLossNetOfTax'],
+    'treasury': ['TreasuryStockValue', 'TreasuryStockCommonValue'],
+}
+FA_NEG = {'cost', 'rnd', 'sga', 'interest', 'tax', 'acq', 'inv_buy', 'debt_rep', 'treasury'}   # despesas e saídas em negativo (como na DRE/DFC brasileira)
+
+def _sub(r, a, *bs):
+    """a − Σ bs só quando TODAS as parcelas existem no período (nunca estima)."""
+    v = [r.get(a)] + [r.get(b) for b in bs]
+    return None if any(x is None for x in v) else v[0] - sum(v[1:])
+
+def fa_rows(fund, g):
+    """Linhas do FA dos EUA: FUND + conceitos extras; despesas/saídas com sinal negativo; subtotais calculados (lista _d)."""
+    X = {k: flow(g, v) for k, v in FA_FLOW.items()}
+    XI = {k: inst(g, v) for k, v in FA_INST.items()}
+    out = {}
+    ever = {k for per in ('annual', 'quarterly') for r0 in fund[per] for k, v in r0.items() if v is not None}
+    ever |= {k for k in FA_INST if XI[k]}
+    opt = lambda r, k: r.get(k) if r.get(k) is not None or k in ever else 0   # linha que a empresa nunca publica conta 0; publicada mas ausente no período → sem subtotal
+    for i, per in enumerate(('annual', 'quarterly')):
+        L = []
+        for r0 in fund[per]:
+            e = r0['period']; r = dict(r0); d = []
+            for k in FA_FLOW: r[k] = clean(X[k][i].get(e), 0)
+            for k in FA_INST: r[k] = clean(XI[k].get(e), 0)
+            if r.get('ebit_derived'):
+                if fund.get('bank_format'): r['ebit'] = None   # banco: "resultado operacional" não se aplica (o FUND usa IR + juros só p/ não-financeiras)
+                else: d.append('ebit')
+            if r.get('da_derived'): d.append('da')
+            for k in FA_NEG:
+                if r.get(k) is not None: r[k] = -r[k]   # despesa positiva no relatório → negativa (um benefício fica positivo)
+            if r.get('gross') is None and r.get('revenue') is not None and r.get('cost') is not None:
+                r['gross'] = r['revenue'] + r['cost']; d.append('gross')
+            # despesas operacionais = lucro bruto − resultado operacional (quando há lucro bruto); "outras" = total − P&D − VG&A
+            if r.get('gross') is not None and r.get('ebit') is not None:
+                r['opex'] = r['ebit'] - r['gross']; d.append('opex')
+                if r.get('rnd') is not None and r.get('sga') is not None:
+                    r['opex_other'] = r['opex'] - r['rnd'] - r['sga']; d.append('opex_other')
+            else: r['opex'] = None
+            r['nonop'] = _sub(r, 'pretax', 'ebit');  d += ['nonop'] if r['nonop'] is not None else []
+            o = {k: opt(r, k) for k in ('stinv', 'receivables', 'inventory', 'intang', 'goodwill', 'accrued', 'ap')}
+            r['ca_other'] = _sub({**r, **o}, 'cur_assets', 'cash', 'stinv', 'receivables', 'inventory')
+            r['nca'] = _sub(r, 'assets', 'cur_assets')
+            r['nca_other'] = _sub({**r, **o, 'rou': opt(r, 'rou')}, 'nca', 'ppe', 'rou', 'goodwill', 'intang')
+            if r.get('liab_nc') is None: r['liab_nc'] = _sub(r, 'liab', 'cur_liab'); d += ['liab_nc'] if r['liab_nc'] is not None else []
+            r['cl_other'] = _sub({**r, **o}, 'cur_liab', 'ap', 'accrued')
+            r['lt_debt'] = r.get('ltd_nc')
+            r['ncl_other'] = _sub(r, 'liab_nc', 'lt_debt')
+            r['fcf'] = clean(r['cfo'] + r['capex'], 0) if r.get('cfo') is not None and r.get('capex') is not None else None
+            if r['fcf'] is not None: d.append('fcf')
+            for k in ('ca_other', 'nca', 'nca_other', 'cl_other', 'ncl_other'):
+                if r.get(k) is not None: d.append(k)
+            r['_d'] = d; L.append(r)
+        out[per] = L
+    return out
+
+# (código, nome EN, nível); os nomes em PT ficam no frontend (glossário curado)
 FA_LAYOUT = [
-    ('IS', 'Income statement', [('revenue', 'Revenue', 1), ('cost', 'Cost of revenue', 2), ('gross', 'Gross profit', 1), ('rnd', 'Research & development', 2),
-                                ('sga', 'Selling, general & administrative', 2), ('ebit', 'Operating income', 1), ('interest', 'Interest expense', 2),
-                                ('pretax', 'Income before taxes', 1), ('tax', 'Income tax', 2), ('net', 'Net income', 1)]),
+    ('IS', 'Income statement', [('revenue', 'Revenue', 1), ('cost', 'Cost of revenue', 2), ('gross', 'Gross profit', 1), ('opex', 'Operating expenses', 2),
+                                ('rnd', 'Research & development', 3), ('sga', 'Selling, general & administrative', 3), ('opex_other', 'Other operating expenses, net', 3),
+                                ('ebit', 'Operating income', 1), ('nonop', 'Non-operating result, net', 2), ('int_income', 'Interest income', 3), ('interest', 'Interest expense', 3),
+                                ('nonop_other', 'Other non-operating income (expense)', 3), ('pretax', 'Income before taxes', 1), ('tax', 'Income tax', 2), ('net', 'Net income', 1)]),
     ('BSA', 'Balance sheet – assets', [('assets', 'Total assets', 1), ('cur_assets', 'Current assets', 2), ('cash', 'Cash & equivalents', 3), ('stinv', 'Short-term investments', 3),
-                                       ('receivables', 'Accounts receivable', 3), ('inventory', 'Inventory', 3), ('ppe', 'Property, plant & equipment (net)', 2),
-                                       ('goodwill', 'Goodwill', 2), ('intang', 'Intangible assets', 2)]),
+                                       ('receivables', 'Accounts receivable', 3), ('inventory', 'Inventory', 3), ('ca_other', 'Other current assets', 3),
+                                       ('nca', 'Non-current assets', 2), ('ppe', 'Property, plant & equipment (net)', 3), ('rou', 'Operating lease right-of-use assets', 3),
+                                       ('goodwill', 'Goodwill', 3), ('intang', 'Intangible assets', 3), ('nca_other', 'Other non-current assets', 3)]),
     ('BSL', 'Balance sheet – liabilities & equity', [('liab_total', 'Total liabilities & equity', 1), ('liab', 'Total liabilities', 2), ('cur_liab', 'Current liabilities', 3),
-                                                     ('debt', 'Debt (long-term + commercial paper + short-term borrowings)', 3), ('equity', "Shareholders' equity", 2), ('minority', 'Noncontrolling interest', 2)]),
-    ('CF', 'Cash flow', [('cfo', 'Operating cash flow', 1), ('da', 'Depreciation & amortization', 2), ('cfi', 'Investing cash flow', 1), ('capex', 'Capital expenditures', 2),
-                         ('cff', 'Financing cash flow', 1), ('buyback', 'Share repurchases', 2), ('divpaid', 'Dividends paid', 2)]),
+                                                     ('ap', 'Accounts payable', 3), ('accrued', 'Accrued liabilities', 3), ('cl_other', 'Other current liabilities', 3),
+                                                     ('liab_nc', 'Non-current liabilities', 3), ('lt_debt', 'Long-term debt', 3), ('ncl_other', 'Other non-current liabilities', 3),
+                                                     ('debt', 'Total debt', 2), ('equity', "Shareholders' equity", 2), ('apic', 'Common stock & paid-in capital', 3),
+                                                     ('retained', 'Retained earnings (accumulated deficit)', 3), ('aoci', 'Accumulated other comprehensive income', 3),
+                                                     ('treasury', 'Treasury stock', 3), ('minority', 'Non-controlling interests', 2)]),
+    ('CF', 'Cash flow', [('cfo', 'Operating cash flow', 1), ('net', 'Net income', 2), ('da', 'Depreciation & amortization', 2), ('sbc', 'Share-based compensation', 2),
+                         ('deftax', 'Deferred income taxes', 2), ('cfi', 'Investing cash flow', 1), ('capex', 'Capital expenditures', 2), ('acq', 'Acquisitions, net of cash acquired', 2),
+                         ('inv_buy', 'Purchases of investments', 2), ('inv_sell', 'Sales and maturities of investments', 2), ('cff', 'Financing cash flow', 1),
+                         ('debt_iss', 'Debt issued', 2), ('debt_rep', 'Debt repaid', 2), ('buyback', 'Share repurchases', 2), ('divpaid', 'Dividends paid', 2),
+                         ('fx', 'Effect of exchange rates on cash', 1), ('netchg', 'Net change in cash', 1), ('fcf', 'Free cash flow (operating cash flow + capex)', 1)]),
 ]
 
-def fa_doc(t, cik, fund):
+def fa_doc(t, cik, fund, g=None):
+    R = fa_rows(fund, g or {})
     st = {}
     for k, name, rows in FA_LAYOUT:
         blk = {}
         for per in ('annual', 'quarterly'):
-            L = fund[per]
-            rr = [{'code': c, 'name': n, 'level': lv, 'vals': [x.get(c) for x in L]} for c, n, lv in rows]
-            blk[per] = {'periods': [x['period'] for x in L], 'rows': [r for r in rr if any(v is not None for v in r['vals'])]}
+            L = R[per]
+            rr = []
+            for c, n, lv in rows:
+                vals = [x.get(c) for x in L]
+                if not any(v is not None for v in vals): continue
+                o = {'code': c, 'name': n, 'level': lv, 'vals': vals}
+                der = [c in x['_d'] and x.get(c) is not None for x in L]
+                if any(der): o['derived'] = der
+                rr.append(o)
+            blk[per] = {'periods': [x['period'] for x in L], 'rows': rr}
         st[k] = {'name': name, **blk}
     return {'ticker': t, 'cik': cik, 'country': 'US', 'currency': 'USD', 'generated_at': now_iso(), 'stmts': st,
-            'source': 'SEC EDGAR – XBRL companyfacts (us-gaap), 10-K/10-Q',
-            'note': 'Main us-gaap lines as filed in XBRL (10-K/10-Q).'}
+            'note': 'Consolidated statements (US GAAP) from the annual and quarterly reports.'}
 
 FIN_SIC = range(6000, 6800)   # bancos, seguradoras, holdings financeiras: layout de instituição financeira
 
@@ -368,7 +462,7 @@ def sec():
             fund['note'] += f" History before the reorganization from the predecessor registrant {osub.get('name')} (CIK {old})."
         o['source'] = 'SEC EDGAR – XBRL companyfacts (10-K/10-Q) and submissions (registry, filings); Yahoo Finance via yfinance (raw price, distributions, splits, profile)'
         save(f'corp/{key(t)}.json', o)
-        save(f'fa/{key(t)}.json', fa_doc(t, cik, fund))
+        save(f'fa/{key(t)}.json', fa_doc(t, cik, fund, cf['facts'].get('us-gaap') or {}))
         rows.append(us_row(t, o)); done[t] = cik
     if len(done) < len(U) // 2: raise RuntimeError(f'só {len(done)} de {len(U)} empresas dos EUA com dados da SEC')
     save('screener_us.json', {'generated_at': now_iso(), 'date': max((r.get('date') or '') for r in rows), 'rows': rows,

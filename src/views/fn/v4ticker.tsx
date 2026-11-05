@@ -402,30 +402,8 @@ export function HDSView({ ticker }: { ticker: string }) {
   )
 }
 
-// ======================= FA =======================
-const fiscalLabel = (iso: string, q: boolean) => q ? `Q${Math.ceil(+iso.slice(5, 7) / 3)}'${iso.slice(2, 4)}` : iso.slice(0, 4)
-export function FAView({ ticker }: { ticker: string }) {
-  const { data: f, err } = useJSON<any>(hasData('FA', ticker) ? `fa/${tickerKey(ticker)}.json` : null)
-  const [tab, setTab] = useState(0), [q, setQ] = useState(false), [sel, setSel] = useState<string | null>(null), [depth, setDepth] = useState(2)
-  if (!hasData('FA', ticker)) return <FnScreen code="FA" ticker={ticker}><NA ticker={ticker} what="Financial statements" code="FA" /></FnScreen>
-  if (!f) return <FnScreen code="FA" ticker={ticker}><Loading err={err} /></FnScreen>
-  const keys = Object.keys(f.stmts), st = f.stmts[keys[tab]] || f.stmts[keys[0]], blk = q ? st.quarterly : st.annual
-  const periods: string[] = blk.periods, rows = (blk.rows as any[]).filter(r => r.level <= depth)
-  const n = periods.length, cur = rows.find(r => r.code === sel) || rows[0]
-  const us = f.country === 'US', mn = us ? 'US$ mn' : en('R$ mi')
-  return (
-    <FnScreen code="FA" ticker={ticker} asOf={periods[n - 1]} title="Financial Analysis – financial statements" tabs={keys.map(k => f.stmts[k].name)} tab={tab} setTab={i => { setTab(i); setSel(null) }}
-      right={<><Btns opts={[{ v: false, l: 'Yearly' }, { v: true, l: 'Quarterly' }]} value={q} onChange={setQ} /><Field label="Detail"><Btns opts={[{ v: 1, l: '1' }, { v: 2, l: '2' }, { v: 3, l: '3' }]} value={depth} onChange={setDepth} /></Field></>}
-      source={f.source} note={us ? <>{f.note} Values in US$ millions, consolidated (US GAAP). Quarterly flows as filed, or the difference between consecutive year-to-date 10-Q figures (Q4 = fiscal year − 9 months); columns labelled by the calendar quarter in which the fiscal period ends; balance sheet = position at period end. Lines not tagged by the company show —. Click an account to chart it.</> : <>{f.note} Values in R$ millions, consolidated. Income-statement/cash-flow quarters derived from the cumulative ITR figures (Q4 = annual − 9 months); balance sheet = position at period end. Click an account to chart it.</>}>
-      <Grid maxH={470} onRow={(r: any) => setSel(r.code)} rowStyle={(r: any) => r.code === cur?.code ? { background: tc('#2a1d08') } : r.level === 1 ? { background: tc('#141414') } : undefined} rows={rows.map(r => ({ ...r, ...Object.fromEntries(r.vals.map((v: number | null, i: number) => [`p${i}`, v])), yoy: q ? (r.vals[n - 1] != null && r.vals[n - 5] ? (r.vals[n - 1] / Math.abs(r.vals[n - 5]) - Math.sign(r.vals[n - 5])) * 100 : null) : (r.vals[n - 1] != null && r.vals[n - 2] ? (r.vals[n - 1] / Math.abs(r.vals[n - 2]) - Math.sign(r.vals[n - 2])) * 100 : null) }))} cols={[
-        ...(us ? [] : [{ k: 'code', label: 'Account', color: () => C.muted }]), { k: 'name', label: 'Description', fmt: (x, r: any) => <span style={{ paddingLeft: (r.level - 1) * 12, fontWeight: r.level === 1 ? 700 : 400 }}>{en(x)}</span>, color: (_, r: any) => r.level === 1 ? C.amber : C.text },
-        ...periods.map((p, i) => ({ k: `p${i}`, label: fiscalLabel(p, q), align: 'r' as const, fmt: (x: any) => x == null ? '—' : nf(x / 1e6, 0), color: (x: any) => x < 0 ? C.down : C.text })),
-        { k: 'yoy', label: q ? 'Δ a/a' : 'Δ annual', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) },
-      ]} />
-      {cur && <Panel title={`${us ? '' : cur.code + ' '}${en(cur.name)} (${mn})`} className="mt-2"><FnChart height={200} panes={[{ series: [{ kind: 'hist', data: periods.map((p, i) => ({ time: p, value: cur.vals[i] == null ? 0 : cur.vals[i] / 1e6, color: (cur.vals[i] ?? 0) >= 0 ? C.amber : C.down })), title: cur.name.slice(0, 30), decimals: 0 }] }]} /></Panel>}
-    </FnScreen>
-  )
-}
+// ======================= FA (em ./fa.tsx) =======================
+export { FAView } from './fa'
 
 // ======================= MRR =======================
 export function MRRView({ ticker }: { ticker: string }) {
