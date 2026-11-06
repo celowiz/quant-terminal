@@ -217,7 +217,8 @@ export function OMONView({ ticker }: { ticker: string }) {
   const [side, setSide] = useState<'c' | 'p'>('c')
   const title = L('Options chain — end of day', 'Grade de opções — fechamento')
   return <Guard code="OMON" ticker={ticker}>{!d ? <FnScreen code="OMON" ticker={ticker} title={title} ownTitle><Loading err={err} /></FnScreen> : (() => {
-    const exps = d.expiries as any[]
+    const exps = (d.expiries || []) as any[]
+    if (!exps.length) return <FnScreen code="OMON" ticker={ticker} title={title} ownTitle><div data-omon-empty="" className="text-[12px] p-2" style={{ color: C.muted }}>{L('No traded option series at the latest close.', 'Nenhuma série de opção negociada no último fechamento.')}</div></FnScreen>
     const idx = ei ?? Math.max(0, exps.reduce((b: number, e: any, i: number) => (e.calls.length + e.puts.length) > (exps[b].calls.length + exps[b].puts.length) ? i : b, 0))
     const e = exps[idx]
     const strikes = Array.from(new Set([...e.calls, ...e.puts].map((o: any) => o.strike))).sort((a, b) => a - b)
