@@ -250,6 +250,11 @@ input[type="date"]::-webkit-calendar-picker {
   .fn-kpi { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
 }
 
+
+/* CAL modo post (?post=1): rodapé e painel fora; captura limpa p/ rotina de sexta no X */
+html[data-cal-post] footer { display: none !important; }
+html[data-cal-post] [data-cal-panel] { display: none !important; }
+html[data-cal-post] [data-capture-hide] { display: none !important; }
 /* CAL: layout de captura (Copiar como imagem) — painel recolhido, cards sem indicação de status */
 .qt-capturing [data-cal-panel] { display: none !important; }
 .qt-capturing [data-cal-card] { border-style: solid !important; border-color: #2a2a2a !important; }

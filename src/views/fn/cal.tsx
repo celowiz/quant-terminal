@@ -11,6 +11,7 @@ import { href } from '../../lib/static'
 import { trackShare } from '../../lib/track'
 import { toast } from '../../components/ShareMenu'
 import { safeUrl, safeLogo } from '../../lib/safe.mjs'
+import { calName, dayCols } from '../../lib/calNames.mjs'
 
 type Link = { date: string | null; link?: string | null; time?: string | null }
 export type CalRow = {
@@ -22,6 +23,8 @@ export type CalRow = {
 type CalData = { generated_at: string; as_of: string; quarter: string; coverage: Record<string, number>; rows: CalRow[] }
 
 const ST_COLOR: Record<string, string> = { expected: C.muted, confirmed: C.amber, released: C.up }
+/** contorno de 'hoje' (cor GP de baixa) — sem preenchimento âmbar */
+const TODAY_OUT = '#007FFE'
 
 // ---------- datas (strings ISO, sem fuso) ----------
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -75,16 +78,22 @@ const timeTxt = (r: CalRow) => {
   return [r.time, tm].filter(Boolean).join(' · ') || '—'
 }
 
-/** card: logo em destaque + ticker embaixo; borda = status (tracejada = prevista) */
-const cardDims = (size: number) => ({ w: size + 14, h: size + Math.max(12, Math.round(size * 0.26)) + 12 })
-function Card({ r, size, sel, onPick, plain }: { r: CalRow; size: number; sel?: boolean; onPick?: (r: CalRow) => void; plain?: boolean }) {
-  const st = !plain && r.status ? ST_COLOR[r.status] : C.line, { w, h } = cardDims(size)
+/** card: logo + ticker + nome; borda = status (tracejada = prevista). wide = nome ao lado. */
+const cardDims = (size: number, wide?: boolean) => wide
+  ? { w: Math.max(148, size + 110), h: size + 14 }
+  : { w: size + 14, h: size + Math.max(22, Math.round(size * 0.42)) + 14 }
+function Card({ r, size, sel, onPick, plain, wide }: { r: CalRow; size: number; sel?: boolean; onPick?: (r: CalRow) => void; plain?: boolean; wide?: boolean }) {
+  const st = !plain && r.status ? ST_COLOR[r.status] : C.line, { w, h } = cardDims(size, wide)
+  const nm = calName(r.ticker, r.name, lang() === 'pt')
   return (
-    <button type="button" onClick={() => onPick && onPick(r)} title={`${r.ticker} · ${r.name}${plain ? '' : ' · ' + (r.status ? t(`cal.st.${r.status}` as any) : '—')}`}
-      className="flex flex-col items-center justify-center gap-[3px] border hover:bg-[#1a1205]"
+    <button type="button" onClick={() => onPick && onPick(r)} title={`${r.ticker} · ${nm}${plain ? '' : ' · ' + (r.status ? t(`cal.st.${r.status}` as any) : '—')}`}
+      className={`flex ${wide ? 'flex-row items-center px-2 gap-2' : 'flex-col items-center justify-center gap-[3px]'} border hover:bg-[#1a1205] min-w-0`}
       style={{ width: w, height: h, borderColor: sel ? C.white : st, borderStyle: !plain && r.status === 'expected' ? 'dashed' : 'solid', background: sel ? tc('#1a1205') : tc('#080808') }}>
       <Logo r={r} size={size} />
-      <span className="font-bold leading-none" style={{ fontSize: Math.max(10, Math.round(size * 0.24)), color: !plain && r.status === 'released' ? C.up : C.white }}>{r.ticker}</span>
+      <span className={`min-w-0 flex flex-col ${wide ? 'items-start' : 'items-center'} leading-tight`}>
+        <span className="font-bold leading-none" style={{ fontSize: Math.max(10, Math.round(size * 0.24)), color: !plain && r.status === 'released' ? C.up : C.white }}>{r.ticker}</span>
+        <span className="truncate max-w-full" style={{ fontSize: Math.max(9, Math.round(size * 0.18)), color: C.muted }}>{nm}</span>
+      </span>
     </button>
   )
 }
@@ -126,37 +135,38 @@ function Cards({ rows, size, sel, onPick, onMore, all, gap = 4, plain }: { rows:
 }
 
 
-/** colunas por dia: até 6 empresas → 1; 7–12 → 2; mais → 3 */
-export const dayCols = (n: number) => (n <= 6 ? 1 : n <= 12 ? 2 : 3)
+/** re-export para testes/legado */
+export { dayCols }
 
 /** card fluido do dia: preenche a célula; horizontal (logo + ticker + nome) quando largo, vertical quando estreito.
  *  plain = exportação/captura: borda neutra, sem indicação de status. */
 function DayCard({ r, w, h, sel, onPick, plain }: { r: CalRow; w: number; h: number; sel?: boolean; onPick?: (r: CalRow) => void; plain?: boolean }) {
   const st = plain ? C.line : r.status ? ST_COLOR[r.status] : C.line
-  const horiz = w >= h * 2.1
-  const logo = Math.max(20, Math.floor(horiz ? Math.min(h - 10, w * 0.32, 88) : Math.min(h - Math.max(14, h * 0.2) - 10, w - 12, 88)))
-  const fs = Math.max(10, Math.min(18, Math.round(logo * (horiz ? 0.3 : 0.26))))
+  const horiz = w >= h * 1.6
+  const nm = calName(r.ticker, r.name, lang() === 'pt')
+  const logo = Math.max(20, Math.floor(horiz ? Math.min(h - 10, w * 0.28, 72) : Math.min(h - Math.max(22, h * 0.28) - 8, w - 12, 72)))
+  const fs = Math.max(10, Math.min(16, Math.round(logo * (horiz ? 0.3 : 0.26))))
   return (
-    <button type="button" data-cal-card="" onClick={() => onPick && onPick(r)} title={`${r.ticker} · ${r.name}${plain ? '' : ' · ' + (r.status ? t(`cal.st.${r.status}` as any) : '—')}`}
-      className={`flex ${horiz ? 'flex-row justify-start px-2 gap-2' : 'flex-col justify-center gap-[3px]'} items-center border hover:bg-[#1a1205] min-w-0 overflow-hidden`}
+    <button type="button" data-cal-card="" onClick={() => onPick && onPick(r)} title={`${r.ticker} · ${nm}${plain ? '' : ' · ' + (r.status ? t(`cal.st.${r.status}` as any) : '—')}`}
+      className={`flex ${horiz ? 'flex-row justify-start px-2 gap-2' : 'flex-col justify-center gap-[2px] px-1'} items-center border hover:bg-[#1a1205] min-w-0 overflow-hidden`}
       style={{ width: '100%', height: h, borderColor: sel ? C.white : st, borderStyle: !plain && r.status === 'expected' ? 'dashed' : 'solid', background: sel ? tc('#1a1205') : tc('#080808') }}>
       <Logo r={r} size={logo} />
-      <span className={`min-w-0 flex flex-col ${horiz ? 'items-start' : 'items-center'} leading-tight`}>
-        <span className="font-bold" style={{ fontSize: fs, color: !plain && r.status === 'released' ? C.up : C.white }}>{r.ticker}</span>
-        {horiz && <span className="truncate max-w-full" style={{ fontSize: Math.max(10, fs - 4), color: C.muted }}>{r.name}</span>}
+      <span className={`min-w-0 flex flex-col ${horiz ? 'items-start' : 'items-center'} leading-tight w-full`}>
+        <span className="font-bold truncate max-w-full" style={{ fontSize: fs, color: !plain && r.status === 'released' ? C.up : C.white }}>{r.ticker}</span>
+        <span className="truncate max-w-full" style={{ fontSize: Math.max(9, fs - 3), color: C.muted }}>{nm}</span>
       </span>
     </button>
   )
 }
 
 /** empresas de um dia num grid de 1–3 colunas; os cards crescem para preencher a célula e, se não couberem, a célula rola */
-function DayCards({ rows, sel, onPick, plain, minH = 54, fixedH }: { rows: CalRow[]; sel?: string | null; onPick?: (r: CalRow) => void; plain?: boolean; minH?: number; fixedH?: number }) {
+function DayCards({ rows, sel, onPick, plain, minH = 64, fixedH }: { rows: CalRow[]; sel?: string | null; onPick?: (r: CalRow) => void; plain?: boolean; minH?: number; fixedH?: number }) {
   const { ref, w, h } = useBox<HTMLDivElement>()
   const gap = 4, cols = dayCols(rows.length), nRows = Math.ceil(rows.length / cols)
   const slots = cols === 1 ? Math.max(nRows, 4) : nRows
   const cw = w ? (w - gap * (cols - 1)) / cols : 0
   const fit = h ? (h - gap * (slots - 1)) / slots : minH
-  const ch = fixedH ?? Math.floor(Math.max(minH, Math.min(fit, cols === 1 ? 110 : cw * 1.1, 140)))
+  const ch = fixedH ?? Math.floor(Math.max(minH, Math.min(fit, cols === 1 ? 96 : cw * 0.95, 120)))
   return (
     <div ref={ref} className="h-full min-h-0 overflow-y-auto fn-strip">
       {(w > 0 || fixedH) && (
@@ -173,7 +183,7 @@ function Detail({ r, plain }: { r: CalRow | null; plain?: boolean }) {
   const kv = (k: string, v: React.ReactNode) => <div className="flex justify-between gap-2 py-[2px] border-b" style={{ borderColor: tc('#1c1c1c') }}><span style={{ color: C.muted }}>{k}</span><span className="text-right">{v}</span></div>
   return (
     <div className="text-[12px] p-2 flex flex-col gap-1">
-      <div className="flex items-center gap-3 mb-1"><Logo r={r} size={72} /><div className="min-w-0"><div className="text-[18px] font-bold" style={{ color: C.amber }}>{r.ticker}</div><div className="truncate">{r.name}</div></div></div>
+      <div className="flex items-center gap-3 mb-1"><Logo r={r} size={72} /><div className="min-w-0"><div className="text-[18px] font-bold" style={{ color: C.amber }}>{r.ticker}</div><div className="truncate">{calName(r.ticker, r.name, lang() === 'pt')}</div></div></div>
       {kv(t('cal.sector'), r.sector || '—')}
       {kv(t('cal.date'), r.date ? `${dBRfull(r.date)} (${r.q})` : '—')}
       {kv(t('cal.time'), timeTxt(r))}
@@ -187,40 +197,50 @@ function Detail({ r, plain }: { r: CalRow | null; plain?: boolean }) {
   )
 }
 
-// ---------- semana: uma coluna por dia (seg–sex) ----------
+// ---------- semana: colunas por dia (seg–sex); vazios estreitos; omitidos no modo post ----------
 function WeekBoard({ mon, today, byDate, sel, onPick, exporting, post }: { mon: string; today: string; byDate: Map<string, CalRow[]>; sel: string | null; onPick: (r: CalRow) => void; exporting: boolean; post: boolean }) {
   const desk = useDesktop()
   const bodyH = useFitH(600, 220)
-  const days = [0, 1, 2, 3, 4].map(i => addDays(mon, i))
+  const all = [0, 1, 2, 3, 4].map(i => addDays(mon, i))
   const list = (d: string) => (byDate.get(d) || []).slice().sort(byTicker)
-  // destaque de 'hoje' some na exportação e no modo post (cabeçalhos idênticos)
+  // modo post: só dias com empresa; exportação e uso normal: todos, vazios estreitos
+  const days = (post && !exporting) ? all.filter(d => list(d).length > 0) : all
+  // destaque de 'hoje' some na exportação e no modo post (sem caixa âmbar)
   const isToday = (d: string) => d === today && !exporting && !post
-  const head = (d: string) => (
-    <div className="px-2 py-1 font-bold flex justify-between items-baseline" style={{ background: isToday(d) ? C.amber : C.panel2, color: isToday(d) ? tc('#000') : C.amber, fontSize: exporting ? 16 : 12 }}>
-      <span>{dayName(d).toUpperCase()} {fmtDayMonth(d)}</span><span style={{ opacity: 0.75 }}>{list(d).length || '—'}</span>
+  const head = (d: string, empty?: boolean) => (
+    <div className="px-2 py-1 font-bold flex justify-between items-baseline" style={{ background: C.panel2, color: isToday(d) ? TODAY_OUT : C.amber, fontSize: exporting ? 16 : 12, borderBottom: isToday(d) ? `2px solid ${TODAY_OUT}` : undefined }}>
+      <span className={empty ? 'truncate' : ''}>{dayName(d).toUpperCase()} {fmtDayMonth(d)}</span>
+      <span style={{ opacity: 0.75 }}>{list(d).length || '—'}</span>
     </div>
   )
   if (!desk && !exporting)
     return (
-      <div className="flex flex-col gap-2">
-        {days.map(d => (
-          <div key={d} className="border" style={{ borderColor: isToday(d) ? C.amber : C.line }}>
-            {head(d)}
-            {list(d).length > 0 && <div className="p-2"><DayCards rows={list(d)} sel={sel} onPick={onPick} plain={post} fixedH={dayCols(list(d).length) === 1 ? 56 : 78} /></div>}
-          </div>
-        ))}
+      <div className="flex flex-col gap-2" data-cal-week="">
+        {days.map(d => {
+          const n = list(d).length, empty = n === 0
+          return (
+            <div key={d} className="border" style={{ borderColor: isToday(d) ? TODAY_OUT : C.line, borderWidth: isToday(d) ? 2 : 1 }}>
+              {head(d, empty)}
+              {!empty && <div className="p-2"><DayCards rows={list(d)} sel={sel} onPick={onPick} plain={post} fixedH={dayCols(n) === 1 ? 64 : 78} /></div>}
+            </div>
+          )
+        })}
       </div>
     )
+  const cols = days.map(d => list(d).length ? 'minmax(0, 1fr)' : 'minmax(52px, 0.28fr)').join(' ')
   return (
-    <div className="grid" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', border: `1px solid ${C.line}` }}>
-      {days.map((d, i) => (
-        <div key={d} className={i ? 'border-l' : ''} style={{ borderColor: C.line }}>
-          {head(d)}
-          <div className="p-1 border-t" style={{ borderColor: C.line, height: exporting ? 640 : bodyH }}>
-            <DayCards rows={list(d)} sel={exporting ? null : sel} onPick={onPick} plain={exporting || post} minH={exporting ? 40 : 54} />
+    <div className="grid" data-cal-week="" style={{ gridTemplateColumns: cols || '1fr', border: `1px solid ${C.line}` }}>
+      {days.map((d, i) => {
+        const n = list(d).length, empty = n === 0
+        return (
+          <div key={d} className={i ? 'border-l' : ''} style={{ borderColor: isToday(d) ? TODAY_OUT : C.line, boxShadow: isToday(d) ? `inset 0 0 0 2px ${TODAY_OUT}` : undefined }}>
+            {head(d, empty)}
+            <div className="p-1 border-t" style={{ borderColor: C.line, height: exporting ? 640 : bodyH }}>
+              {!empty && <DayCards rows={list(d)} sel={exporting ? null : sel} onPick={onPick} plain={exporting || post} minH={exporting ? 48 : 64} />}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -240,7 +260,7 @@ function MonthView({ month, today, byDate, onDay, post }: { month: string; today
         const rs = (byDate.get(d) || []).slice().sort(byTicker), out = d.slice(0, 7) !== month
         return (
           <div key={d} className={`p-1 border-t flex flex-col ${i % 5 ? 'border-l' : ''}`} style={{ borderColor: C.line, height: cellH, opacity: out ? 0.35 : 1 }}>
-            <button type="button" onClick={() => onDay(d)} className="text-left text-[11px] font-bold mb-[2px] hover:text-white shrink-0" style={{ color: d === today && !post ? C.amber : C.muted }}>
+            <button type="button" onClick={() => onDay(d)} className="text-left text-[11px] font-bold mb-[2px] hover:text-white shrink-0" style={{ color: d === today && !post ? TODAY_OUT : C.muted }}>
               {d.slice(8)}{rs.length ? <span className="font-normal"> · {rs.length}</span> : null}
             </button>
             <div className="flex-1 min-h-0"><Cards rows={rs} size={30} gap={3} plain={post} onPick={() => onDay(d)} onMore={() => onDay(d)} /></div>
@@ -260,14 +280,22 @@ const flag = (v: string | null | undefined) => (v === '1' ? true : v === '0' ? f
 function usePostMode() {
   // SSR e 1º render: sempre desligado (sem mismatch de hidratação); preferência aplicada após o mount
   const [on, setOn] = useState(false)
+  const [forced, setForced] = useState(false) // ?post=1 na URL: sem botão de sair (rotina X)
   useEffect(() => {
     let v: boolean | null = null
     try { v = flag(new URLSearchParams(window.location.search).get(POST_PARAM)) } catch { /* URL inválida */ }
-    if (v === null) try { v = flag(localStorage.getItem(POST_KEY)) } catch { /* sem storage */ }
+    if (v !== null) { setForced(true); if (v) setOn(true); return }
+    try { v = flag(localStorage.getItem(POST_KEY)) } catch { /* sem storage */ }
     if (v) setOn(true)
   }, [])
+  useEffect(() => {
+    const root = document.documentElement
+    if (on) root.setAttribute('data-cal-post', '1')
+    else root.removeAttribute('data-cal-post')
+    return () => { root.removeAttribute('data-cal-post') }
+  }, [on])
   const toggle = () => setOn(p => { try { localStorage.setItem(POST_KEY, p ? '0' : '1') } catch { /* sem storage */ } return !p })
-  return [on, toggle] as const
+  return [on, toggle, forced] as const
 }
 
 export function CALView() {
@@ -281,7 +309,7 @@ export function CALView() {
   useEffect(() => { try { if (localStorage.getItem(PANEL_KEY) === '0') setPanel(false) } catch { /* sem storage */ } }, [])
   const togglePanel = () => setPanel(p => { try { localStorage.setItem(PANEL_KEY, p ? '0' : '1') } catch { /* sem storage */ } return !p })
   const [modal, setModal] = useState(false)
-  const [post, togglePost] = usePostMode()
+  const [post, togglePost, postForced] = usePostMode()
   const pick = (r: CalRow) => { setSel(r); if (!panel) setModal(true) }
   const board = useRef<HTMLDivElement | null>(null)
   const desk = useDesktop()
@@ -294,7 +322,7 @@ export function CALView() {
   const curMon = mon ?? mondayOf(today)
   const curMonth = month ?? curMon.slice(0, 7)
   // carregando: mesmas abas e faixa de controles da tela final (altura igual) + área reservada → sem deslocamento no mobile
-  if (!data) return <FnScreen code="CAL" tabs={[t('cal.tabWeek'), t('cal.tabMonth'), t('cal.tabList')]} tab={tab} setTab={setTab}
+  if (!data) return <FnScreen code="CAL" title={lang() === 'pt' ? 'Ibovespa · resultados' : 'Ibovespa earnings'} tabs={[t('cal.tabWeek'), t('cal.tabMonth'), t('cal.tabList')]} tab={tab} setTab={setTab}
     right={<span className="inline-flex items-center px-1 border font-bold" style={{ borderColor: 'transparent', color: C.white }}><span className="w-4 h-4" />{tab === 1 ? monthName(curMonth + '-01') : weekLabel(curMon)}</span>}><Loading err={err} reserve /></FnScreen>
   const nDated = data.rows.filter(r => r.date).length
   const undated = data.rows.filter(r => !r.date).sort(byTicker)
@@ -319,7 +347,12 @@ export function CALView() {
     ? setMonth(addDays(curMonth + '-15', n * 30).slice(0, 7))
     : setMon(addDays(curMon, 7 * n))
   const btn = 'inline-flex items-center px-1 border hover:text-white'
-  const right = tab === 2 ? null : (
+  const right = tab === 2 ? null : post ? (postForced ? null : (
+    <button type="button" className={btn + ' gap-1 px-1'} onClick={togglePost} data-cal-post=""
+      style={{ borderColor: C.amber, color: tc('#000'), background: C.amber }}
+      aria-pressed={true} aria-label={t('cal.post')} title={t('cal.postHint')}>
+      <ImageIcon className="w-3.5 h-3.5" aria-hidden /><span className="max-lg:hidden">{t('cal.post')}</span></button>
+  )) : (
     <>
       <span className="inline-flex items-center gap-2 max-lg:gap-1">
       <button type="button" aria-label="previous" className={btn} style={{ borderColor: C.line, color: C.amber }} onClick={() => nav(-1)}><ChevronLeft className="w-4 h-4" /></button>
@@ -332,25 +365,28 @@ export function CALView() {
         aria-pressed={panel} aria-label={t(panel ? 'cal.hidePanel' : 'cal.showPanel')} title={t(panel ? 'cal.hidePanel' : 'cal.showPanel')}>
         {panel ? <PanelRightClose className="w-4 h-4" aria-hidden /> : <PanelRightOpen className="w-4 h-4" aria-hidden />}</button>}
       <button type="button" className={btn + ' gap-1 px-1'} onClick={togglePost} data-capture-hide="" data-cal-post=""
-        style={{ borderColor: post ? C.amber : C.line, color: post ? tc('#000') : C.amber, background: post ? C.amber : 'transparent' }}
-        aria-pressed={post} aria-label={t('cal.post')} title={t('cal.postHint')}>
+        style={{ borderColor: C.line, color: C.amber, background: 'transparent' }}
+        aria-pressed={false} aria-label={t('cal.post')} title={t('cal.postHint')}>
         <ImageIcon className="w-3.5 h-3.5" aria-hidden /><span className="max-lg:hidden">{t('cal.post')}</span></button>
       {tab === 0 && <button type="button" className={btn + ' gap-1 px-2 max-lg:px-1'} style={{ borderColor: C.amber, color: C.amber }} onClick={exportPng} aria-label={t('cal.export')} title={t('cal.export')} data-capture-hide=""><Download className="w-3.5 h-3.5" aria-hidden /><span className="max-lg:hidden">{t('cal.export')}</span></button>}
       </span>
     </>
   )
-  const asOf = `${t('cal.asOf')} ${asOfLabel(data.generated_at)} · ${qLab(data.quarter)} ${t('cal.season')} · ${nDated}/${data.rows.length} ${t('cal.withDate')}`
-  const legend = (
+  const season = lang() === 'pt' ? `${t('cal.season')} ${qLab(data.quarter)}` : `${qLab(data.quarter)} ${t('cal.season')}`
+  const countBit = `${nDated}/${data.rows.length} ${t('cal.withDate')}`
+  const asOf = `${t('cal.asOf')} ${asOfLabel(data.generated_at)} · ${season} · ${countBit}`
+  const postCaption = `celowiz · quant-terminal · ${weekLabel(curMon)} · ${countBit}`
+  const legend = post ? null : (
     <div className="flex flex-wrap items-center gap-2 text-[11px]" style={{ color: C.muted }}>
-      {!post && (['expected', 'confirmed', 'released'] as const).map(s => <span key={s} data-capture-hide=""><Status s={s} /></span>)}
-      <span className="ml-auto lg:hidden">{asOf}</span>
+      {(['expected', 'confirmed', 'released'] as const).map(s => <span key={s} data-capture-hide=""><Status s={s} /></span>)}
+      <span className="ml-auto" data-cal-meta="">{asOf}</span>
     </div>
   )
   const list = [...data.rows].sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999') || byTicker(a, b))
   const cols: Col<CalRow>[] = [
     { k: 'logo', label: '', fmt: (_v: any, r: CalRow) => <Logo r={r} size={28} /> },
     { k: 'ticker', label: 'Ticker', fmt: (_v: any, r: CalRow) => <span className="font-bold" style={{ color: C.amber }}>{r.ticker}</span> },
-    { k: 'name', label: t('cal.company'), fmt: (_v: any, r: CalRow) => r.name },
+    { k: 'name', label: t('cal.company'), fmt: (_v: any, r: CalRow) => calName(r.ticker, r.name, lang() === 'pt') },
     { k: 'sector', label: t('cal.sector'), fmt: (_v: any, r: CalRow) => r.sector || '—' },
     { k: 'date', label: t('cal.date'), fmt: (_v: any, r: CalRow) => r.date ? `${dayName(r.date)} ${dBR(r.date)}` : '—' },
     { k: 'time', label: t('cal.time'), fmt: (_v: any, r: CalRow) => timeTxt(r) },
@@ -360,20 +396,24 @@ export function CALView() {
     { k: 'cvm', label: t('cal.cvmPlanned'), fmt: (_v: any, r: CalRow) => r.cvm_planned?.date ? <A to={r.cvm_planned.link}>{dBR(r.cvm_planned.date)}</A> : '—' },
     { k: 'filed', label: t('cal.filed'), fmt: (_v: any, r: CalRow) => r.filed?.date ? <A to={r.filed.link}>{dBR(r.filed.date)}</A> : '—' },
   ]
+  const screenTitle = lang() === 'pt' ? 'Ibovespa · resultados' : 'Ibovespa earnings'
   return (
-    <FnScreen code="CAL" tabs={[t('cal.tabWeek'), t('cal.tabMonth'), t('cal.tabList')]} tab={tab} setTab={setTab} right={right} note={asOf}>
+    <FnScreen code="CAL" title={screenTitle} tabs={post ? undefined : [t('cal.tabWeek'), t('cal.tabMonth'), t('cal.tabList')]} tab={tab} setTab={setTab} right={right} note={asOf}>
       <div className="flex flex-col gap-2">
         {legend}
         {tab === 0 && (
           <div className="flex gap-2 max-lg:flex-col">
             <div ref={board} className="relative flex-1 min-w-0" style={exporting ? { width: 1600, minWidth: 1600, background: tc('#000'), padding: 20 } : undefined}>
               {exporting && <div className="flex items-baseline justify-between mb-3"><span className="text-[24px] font-bold" style={{ color: C.amber }}>{t('cal.title')} · {data.quarter}</span><span className="text-[18px] font-bold" style={{ color: C.white }}>{weekLabel(curMon)}</span></div>}
+              {post && !exporting && <div data-cal-caption="" className="flex items-baseline justify-between gap-2 mb-2 px-1">
+                <span className="text-[13px] font-bold" style={{ color: C.amber }}>{postCaption}</span>
+              </div>}
               <WeekBoard mon={curMon} today={today} byDate={byDate} sel={sel?.ticker ?? null} onPick={pick} exporting={exporting} post={post} />
               {!nWeek && <div className="text-[12px] mt-1" style={{ color: C.muted }}>{t('cal.noEvents')}</div>}
-              {!exporting && undated.length > 0 && (
-                <div className="mt-2 border flex items-center gap-2 p-1 max-lg:flex-col max-lg:items-start" style={{ borderColor: C.line }}>
+              {!exporting && undated.length > 0 && !(post && undated.length === 0) && (
+                <div className="mt-2 border flex items-center gap-2 p-2 max-lg:flex-col max-lg:items-start" style={{ borderColor: C.line }}>
                   <span className="px-1 text-[12px] font-bold whitespace-nowrap" style={{ color: C.amber }}>{t('cal.none')} · {undated.length}</span>
-                  <div className="flex flex-wrap gap-1">{undated.map(r => <Card key={r.ticker} r={r} size={desk ? 28 : 40} sel={sel?.ticker === r.ticker} onPick={pick} plain={post} />)}</div>
+                  <div className="flex flex-wrap gap-2">{undated.map(r => <Card key={r.ticker} r={r} size={desk ? 44 : 48} wide sel={sel?.ticker === r.ticker} onPick={pick} plain={post} />)}</div>
                 </div>
               )}
               {exporting && <>
@@ -385,7 +425,7 @@ export function CALView() {
                 <div className="text-right text-[14px] font-bold mt-1" style={{ color: C.amber }}>celowiz · quant-terminal</div>
               </>}
             </div>
-            {panel && (desk || sel) && <div data-cal-panel="" className="border lg:w-[260px] shrink-0" style={{ borderColor: C.line, background: C.panel }}><Detail r={sel} plain={post} /></div>}
+            {!post && panel && (desk || sel) && <div data-cal-panel="" className="border lg:w-[260px] shrink-0" style={{ borderColor: C.line, background: C.panel }}><Detail r={sel} plain={post} /></div>}
           </div>
         )}
         {modal && sel && !panel && (
