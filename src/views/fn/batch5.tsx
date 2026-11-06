@@ -214,7 +214,7 @@ export function OSAView({ ticker }: { ticker: string }) {
   const note = L('End-of-day premiums; P&L in R$ for the quantity of each leg (1 lot = 100 options). Values before expiry use Black-Scholes with each leg\'s implied vol, so they are model estimates.',
     'Prêmios de fechamento; resultado em R$ para a quantidade de cada perna (1 lote = 100 opções). Os valores antes do vencimento usam Black-Scholes com a vol implícita de cada perna, então são estimativas do modelo.')
   return (
-    <FnScreen code="OSA" ticker={ticker} source={<>B3 COTAHIST ({dUS(d.date)}) · {L('model computed in your browser', 'modelo calculado no navegador')}</>} note={note}
+    <FnScreen code="OSA" ticker={ticker} source={<>{L('End-of-day options file', 'Arquivo de opções do fechamento')} ({dUS(d.date)}) · {L('model computed in your browser', 'modelo calculado no navegador')}</>} note={note}
       right={<><span>Spot <b style={{ color: C.amber }}>{n(S)}</b></span><span style={{ color: C.muted }}>r {n(r * 100, 2)}%</span>
         <Field label={L('Expiry', 'Vencimento')}><select value={idx} onChange={x => { setEi(+x.target.value); setLegs(null); setHd(null) }} className={inputCls} style={inputStyle}>{exps.map((x, i) => <option key={x.date} value={i}>{dUS(x.date)} ({x.bdays} {L('bd', 'du')})</option>)}</select></Field>
         <Field label={L('Strategy', 'Estrutura')}><select data-osa-preset value={pre} onChange={x => { setPre(x.target.value); setLegs(null) }} className={inputCls} style={inputStyle}>{PRESETS.map(p => <option key={p[0]} value={p[0]}>{L(p[1], p[2])}</option>)}</select></Field>
@@ -300,7 +300,7 @@ export function IVSView({ ticker }: { ticker: string }) {
   const note = L('Implied vols from the closing premiums, out-of-the-money series only, that traded at least the minimum number of times. Premium and spot closes are not simultaneous; read short-dated and thinly traded points with care.',
     'Vols implícitas dos prêmios de fechamento, só séries fora do dinheiro com o mínimo de negócios escolhido. Prêmio e fechamento do ativo não são simultâneos; leia com cuidado os pontos de vencimentos curtos e pouco negociados.')
   return (
-    <FnScreen code="IVS" ticker={ticker} source={<>B3 COTAHIST ({dUS(d.date)}) · {d.model || 'Black-Scholes'}</>} note={note}
+    <FnScreen code="IVS" ticker={ticker} source={<>{L('End-of-day options file', 'Arquivo de opções do fechamento')} ({dUS(d.date)}) · {d.model || 'Black-Scholes'}</>} note={note}
       right={<><span>Spot <b style={{ color: C.amber }}>{n(S)}</b></span>
         <Field label={L('X axis', 'Eixo X')}><Btns opts={[{ v: 'm', l: 'K/S' }, { v: 'K', l: 'Strike' }]} value={ax} onChange={setAx} /></Field>
         <Field label={L('Min. trades', 'Mín. negócios')}><Btns opts={[1, 5, 20]} value={minT} onChange={setMinT} /></Field></>}>

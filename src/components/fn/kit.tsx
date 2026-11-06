@@ -153,8 +153,8 @@ export function FitArea({ children, className = '' }: { children: React.ReactNod
 }
 
 // ---------- layout ----------
-export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, children, source, note, asOf, fill, wrap }: {
-  code: string; ticker?: string; title?: string; tabs?: string[]; tab?: number; setTab?: (i: number) => void
+export function FnScreen({ code, ticker, title, ownTitle, tabs, tab, setTab, right, children, source, note, asOf, fill, wrap }: {
+  code: string; ticker?: string; title?: string; /** título já curado EN/PT: vale também em PT */ ownTitle?: boolean; tabs?: string[]; tab?: number; setTab?: (i: number) => void
   right?: React.ReactNode; children: React.ReactNode; source?: React.ReactNode; note?: React.ReactNode
   /** data de referência da tela quando não é a do último arquivo carregado (ex.: trimestre do balanço) */
   asOf?: string | null
@@ -164,7 +164,7 @@ export function FnScreen({ code, ticker, title, tabs, tab, setTab, right, childr
   wrap?: boolean
 }) {
   const fi = FUNCTION_LIST.find(f => f.code === code)
-  const desc = lang() === 'pt' && fi ? fi.pt : tx(title) || fi?.desc || code
+  const desc = ownTitle && title ? title : lang() === 'pt' && fi ? fi.pt : tx(title) || fi?.desc || code
   // metodologia/fonte vão para o modal "?" (TopBar); a tela fica livre para gráficos e tabelas
   useEffect(() => { setHelp({ code, note }) }, [code, note])
   useEffect(() => () => setHelp(null), [])

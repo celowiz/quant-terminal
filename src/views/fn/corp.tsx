@@ -211,9 +211,12 @@ export function CNView({ ticker }: { ticker: string }) {
 export function OMONView({ ticker }: { ticker: string }) {
   const { data: d, err } = useJSON<any>(hasData('OMON', ticker) ? `options/${tickerKey(ticker)}.json` : null)
   const { rows: px } = usePrices(ticker)
+  const desk = useDesktop()
   const [ei, setEi] = useState<number | null>(null)
   const [range, setRange] = useState(10)
-  return <Guard code="OMON" ticker={ticker}>{!d ? <FnScreen code="OMON" ticker={ticker}><Loading err={err} /></FnScreen> : (() => {
+  const [side, setSide] = useState<'c' | 'p'>('c')
+  const title = L('Options chain — end of day', 'Grade de opções — fechamento')
+  return <Guard code="OMON" ticker={ticker}>{!d ? <FnScreen code="OMON" ticker={ticker} title={title} ownTitle><Loading err={err} /></FnScreen> : (() => {
     const exps = d.expiries as any[]
     const idx = ei ?? Math.max(0, exps.reduce((b: number, e: any, i: number) => (e.calls.length + e.puts.length) > (exps[b].calls.length + exps[b].puts.length) ? i : b, 0))
     const e = exps[idx]
@@ -222,32 +225,62 @@ export function OMONView({ ticker }: { ticker: string }) {
     const ai = strikes.indexOf(atm), sel = strikes.slice(Math.max(0, ai - range), ai + range + 1)
     const byK = (arr: any[], k: number) => arr.filter(o => o.strike === k).sort((a, b) => b.vol - a.vol)[0]
     const chg = px && px.length > 1 ? (px[px.length - 1].close / px[px.length - 2].close - 1) * 100 : null
-    const cell = (v: any, d2 = 2, color?: string) => <td className="px-1 py-[2px] text-right" style={{ color: color || C.text }}>{v == null || v === 0 ? '' : nf(v, d2)}</td>
+    const DASH = <span style={{ color: C.muted }}>—</span>
+    // cotação ausente (0 no arquivo de fechamento) = sem oferta → "—"; nunca inventa
+    const cell = (v: any, d2 = 2, color?: string, key?: string) => <td key={key} className="px-1 py-[2px] text-right whitespace-nowrap" style={{ color: color || C.text }}>{v == null || v === 0 ? DASH : nf(v, d2)}</td>
     const cv = e.calls.reduce((s: number, o: any) => s + o.vol, 0), pv = e.puts.reduce((s: number, o: any) => s + o.vol, 0)
+    const H = { series: L('Series', 'Série'), bid: L('Bid', 'Compra'), ask: L('Ask', 'Venda'), last: L('Last', 'Último'), trades: L('Trades', 'Negócios'), vol: L('Vol R$ k', 'Vol R$ mil'), iv: L('IV %', 'VI %'), delta: 'Delta', gamma: 'Gamma' }
+    const colsC = ['series', 'bid', 'ask', 'last', 'trades', 'vol', 'iv', 'delta', 'gamma'] as const
+    const colsP = ['bid', 'ask', 'last', 'trades', 'vol', 'iv', 'delta', 'gamma', 'series'] as const
+    const showC = desk || side === 'c', showP = desk || side === 'p'
+    const val = (o: any, k: string, key: string) => {
+      if (k === 'series') return <td key={key} className="px-1 text-right whitespace-nowrap" style={{ color: C.muted }}>{o?.code || DASH}</td>
+      if (k === 'vol') return cell(o?.vol ? o.vol / 1e3 : null, 0, undefined, key)
+      if (k === 'iv') return cell(o?.iv, 1, C.cyan, key)
+      if (k === 'delta') return cell(o?.delta, 3, undefined, key)
+      if (k === 'gamma') return cell(o?.gamma, 4, undefined, key)
+      if (k === 'trades') return cell(o?.trades, 0, undefined, key)
+      return cell(o?.[k], 2, k === 'last' ? C.white : undefined, key)
+    }
+    const stick: React.CSSProperties = { position: 'sticky', left: desk ? undefined : 0, zIndex: 2 }
     return (
-      <FnScreen code="OMON" ticker={ticker} title="Option Monitor"
-        right={<><span>Spot <b style={{ color: C.amber }}>{nf(d.spot)}</b> <span style={{ color: clr(chg) }}>{pf(chg)}</span></span><span style={{ color: C.muted }}>{dBR(d.date)} · r {nf(d.r_cont * 100, 2)}%</span><Field label="Strikes ±"><Btns opts={[5, 10, 20]} value={range} onChange={setRange} /></Field></>}
-        source={<>Daily B3 COTAHIST (public end-of-day file). Greeks/IV: {d.model}.</>}
-        note="End-of-day snapshot (not real time). Bid/Ask = best quotes at the close (0 = no quote). Shaded rows = in the money. Amber center strike = closest to spot. Expiries with few series are weeklies.">
-        <div className="flex flex-wrap gap-0 pb-2">{exps.map((x, i) => <button key={x.date} onClick={() => setEi(i)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: i === idx ? C.amber : 'transparent', color: i === idx ? tc('#000') : C.amber }}>{dBR(x.date)} ({x.bdays}du) [{x.calls.length + x.puts.length}]</button>)}</div>
-        <div className="flex gap-6 text-[12px] pb-1"><span>Expiry <b style={{ color: C.amber }}>{dBRfull(e.date)}</b></span><span>Calls volume R$ {big(cv)}</span><span>Puts volume R$ {big(pv)}</span><span>Put/Call (vol.) {nf(pv / (cv || 1), 2)}</span></div>
+      <FnScreen code="OMON" ticker={ticker} title={title} ownTitle wrap
+        right={<><span>{L('Spot', 'À vista')} <b style={{ color: C.amber }}>{nf(d.spot)}</b> <span style={{ color: clr(chg) }}>{pf(chg)}</span></span><span style={{ color: C.muted }}>{dBR(d.date)} · r {nf(d.r_cont * 100, 2)}%</span><Field label={L('Strikes ±', 'Strikes ±')}><Btns opts={[5, 10, 20]} value={range} onChange={setRange} /></Field></>}
+        note={L('End-of-day snapshot (not real time). Bid/Ask = best quotes at the close; — = no quote. Shaded rows = in the money. Highlighted row = strike closest to spot. Expiries with few series are weeklies. IV and greeks: Black-Scholes (European), CDI as the rate, business days/252.',
+          'Fotografia do fechamento (não é tempo real). Compra/Venda = melhores ofertas no fechamento; — = sem oferta. Linhas sombreadas = dentro do dinheiro. Linha destacada = strike mais próximo do preço à vista. Vencimentos com poucas séries são semanais. VI e gregas: Black-Scholes (europeia), CDI como juro, dias úteis/252.')}>
+        <div className="flex gap-0 pb-2 overflow-x-auto fn-strip" data-omon-exps="">{exps.map((x, i) => <button key={x.date} onClick={() => setEi(i)} className="shrink-0 whitespace-nowrap px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: i === idx ? C.amber : 'transparent', color: i === idx ? tc('#000') : C.amber }}>{dBR(x.date)} ({x.bdays}{L('bd', 'du')}) [{x.calls.length + x.puts.length}]</button>)}</div>
+        <div className="flex flex-wrap gap-x-6 gap-y-1 text-[12px] pb-1"><span>{L('Expiry', 'Vencimento')} <b style={{ color: C.amber }}>{dBRfull(e.date)}</b></span><span>{L('Calls volume', 'Volume calls')} R$ {big(cv)}</span><span>{L('Puts volume', 'Volume puts')} R$ {big(pv)}</span><span>{L('Put/Call (vol.)', 'Put/Call (vol.)')} {nf(pv / (cv || 1), 2)}</span></div>
+        {!desk && <div className="flex items-center gap-2 pb-1 text-[12px]" data-omon-side="">
+          <Btns opts={[{ v: 'c', l: 'Calls' }, { v: 'p', l: 'Puts' }]} value={side} onChange={setSide} />
+          <span style={{ color: C.muted }} data-omon-hint="">{L('Swipe sideways for all columns →', 'Deslize para o lado para ver todas as colunas →')}</span>
+        </div>}
         <FitBox base={560} min={140} className="overflow-auto border" style={{ borderColor: C.line }}>
-          <table className="w-full border-collapse text-[11.5px]">
+          <table className="w-full border-collapse text-[11.5px]" data-omon-table="">
             <thead className="sticky top-0 z-10" style={{ background: C.bg }}>
-              <tr style={{ background: C.panel2 }}><th colSpan={9} className="py-1 font-bold" style={{ color: C.up }}>CALLS</th><th className="py-1" style={{ color: C.amber }}>Strike</th><th colSpan={9} className="py-1 font-bold" style={{ color: C.down }}>PUTS</th></tr>
-              <tr style={{ color: C.amber }}>{['Series', 'Bid', 'Ask', 'Last', 'Trades', 'Vol R$', 'IV', 'Delta', 'Gamma'].map(h => <th key={'c' + h} className="px-1 py-[2px] text-right font-normal">{h}</th>)}<th></th>{['Bid', 'Ask', 'Last', 'Trades', 'Vol R$', 'IV', 'Delta', 'Gamma', 'Series'].map(h => <th key={'p' + h} className="px-1 py-[2px] text-right font-normal">{h}</th>)}</tr>
+              <tr style={{ background: C.panel2 }}>
+                {!desk && <th data-omon-strike="" className="py-1 px-2" style={{ ...stick, zIndex: 3, background: C.panel2, color: C.amber }}>Strike</th>}
+                {showC && <th colSpan={9} className="py-1 font-bold" style={{ color: C.up }}>CALLS</th>}
+                {desk && <th data-omon-strike="" className="py-1 px-2" style={{ color: C.amber }}>Strike</th>}
+                {showP && <th colSpan={9} className="py-1 font-bold" style={{ color: C.down }}>PUTS</th>}
+              </tr>
+              <tr style={{ color: C.amber, background: C.bg }}>
+                {!desk && <th style={{ ...stick, zIndex: 3, background: C.bg }}></th>}
+                {showC && colsC.map(h => <th key={'c' + h} className="px-1 py-[2px] text-right font-normal whitespace-nowrap">{H[h]}</th>)}
+                {desk && <th></th>}
+                {showP && colsP.map(h => <th key={'p' + h} className="px-1 py-[2px] text-right font-normal whitespace-nowrap">{H[h]}</th>)}
+              </tr>
             </thead>
-            <tbody>{sel.map(k => { const c = byK(e.calls, k), p = byK(e.puts, k), itmC = k < d.spot, itmP = k > d.spot
-              return <tr key={k} className="border-t" style={{ borderColor: tc('#1a1a1a') }}>
-                <td className="px-1 text-right" style={{ background: itmC ? tc('#14202a') : undefined, color: C.muted }}>{c?.code || ''}</td>
-                {[c?.bid, c?.ask, c?.last].map((v, i) => <React.Fragment key={i}>{cell(v, 2, i === 2 ? C.white : undefined)}</React.Fragment>)}{cell(c?.trades, 0)}{cell(c?.vol ? c.vol / 1e3 : null, 0)}{cell(c?.iv, 1, C.cyan)}{cell(c?.delta, 3)}{cell(c?.gamma, 4)}
-                <td className="px-2 text-center font-bold" style={{ background: k === atm ? C.amber : tc('#111'), color: k === atm ? tc('#000') : C.amber }}>{nf(k)}</td>
-                {[p?.bid, p?.ask, p?.last].map((v, i) => <React.Fragment key={i}>{cell(v, 2, i === 2 ? C.white : undefined)}</React.Fragment>)}{cell(p?.trades, 0)}{cell(p?.vol ? p.vol / 1e3 : null, 0)}{cell(p?.iv, 1, C.cyan)}{cell(p?.delta, 3)}{cell(p?.gamma, 4)}
-                <td className="px-1 text-right" style={{ background: itmP ? tc('#2a1414') : undefined, color: C.muted }}>{p?.code || ''}</td>
+            <tbody>{sel.map(k => { const c = byK(e.calls, k), p = byK(e.puts, k), itmC = k < d.spot, itmP = k > d.spot, isAtm = k === atm
+              const strikeTd = <td data-omon-strike="" className="px-2 text-center font-bold whitespace-nowrap" style={{ ...(desk ? {} : stick), background: isAtm ? C.amber : tc('#111'), color: isAtm ? tc('#000') : C.amber }}>{nf(k)}</td>
+              return <tr key={k} data-omon-atm={isAtm ? '' : undefined} className="border-t" style={{ borderColor: tc('#1a1a1a'), background: isAtm ? tc('#2a1f0a') : undefined, outline: isAtm ? `1px solid ${C.amber}` : undefined }}>
+                {!desk && strikeTd}
+                {showC && colsC.map((h, i) => { const td = val(c, h, 'c' + h); return i === 0 && itmC ? React.cloneElement(td, { style: { ...td.props.style, background: tc('#14202a') } }) : td })}
+                {desk && strikeTd}
+                {showP && colsP.map((h, i) => { const td = val(p, h, 'p' + h); return i === 8 && itmP ? React.cloneElement(td, { style: { ...td.props.style, background: tc('#2a1414') } }) : td })}
               </tr> })}</tbody>
           </table>
         </FitBox>
-        <div className="text-[11px] pt-1" style={{ color: C.muted }}>Vol R$ in thousands. IV in % p.a.</div>
+        <div className="text-[11px] pt-1" style={{ color: C.muted }}>{L('Vol R$ in thousands. IV in % p.a. — = no quote or no trade.', 'Vol R$ em milhares. VI em % a.a. — = sem oferta ou sem negócio.')}</div>
       </FnScreen>)
   })()}</Guard>
 }
