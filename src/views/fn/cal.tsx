@@ -322,7 +322,7 @@ export function CALView() {
   const curMon = mon ?? mondayOf(today)
   const curMonth = month ?? curMon.slice(0, 7)
   // carregando: mesmas abas e faixa de controles da tela final (altura igual) + área reservada → sem deslocamento no mobile
-  if (!data) return <FnScreen code="CAL" title={lang() === 'pt' ? 'Ibovespa · resultados' : 'Ibovespa earnings'} tabs={[t('cal.tabWeek'), t('cal.tabMonth'), t('cal.tabList')]} tab={tab} setTab={setTab}
+  if (!data) return <FnScreen code="CAL" ownTitle title={lang() === 'pt' ? 'Ibovespa · resultados' : 'Ibovespa earnings'} tabs={[t('cal.tabWeek'), t('cal.tabMonth'), t('cal.tabList')]} tab={tab} setTab={setTab}
     right={<span className="inline-flex items-center px-1 border font-bold" style={{ borderColor: 'transparent', color: C.white }}><span className="w-4 h-4" />{tab === 1 ? monthName(curMonth + '-01') : weekLabel(curMon)}</span>}><Loading err={err} reserve /></FnScreen>
   const nDated = data.rows.filter(r => r.date).length
   const undated = data.rows.filter(r => !r.date).sort(byTicker)
@@ -398,7 +398,7 @@ export function CALView() {
   ]
   const screenTitle = lang() === 'pt' ? 'Ibovespa · resultados' : 'Ibovespa earnings'
   return (
-    <FnScreen code="CAL" title={screenTitle} tabs={post ? undefined : [t('cal.tabWeek'), t('cal.tabMonth'), t('cal.tabList')]} tab={tab} setTab={setTab} right={right} note={asOf}>
+    <FnScreen code="CAL" ownTitle title={screenTitle} tabs={post ? undefined : [t('cal.tabWeek'), t('cal.tabMonth'), t('cal.tabList')]} tab={tab} setTab={setTab} right={right} note={asOf}>
       <div className="flex flex-col gap-2">
         {legend}
         {tab === 0 && (

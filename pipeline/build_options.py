@@ -4,8 +4,11 @@ import io, zipfile, math, datetime as dt, json, os
 from common import save, get, step, now_iso, OUT, today_brt
 from cotahist import latest_cotahist, parse
 
-UNDER = {  # prefixo do código de opção, espécie do subjacente -> ativo-objeto
-    'PETR4.SA': ('PETR', 'PN'), 'PETR3.SA': ('PETR', 'ON'), 'VALE3.SA': ('VALE', 'ON'), 'ITUB4.SA': ('ITUB', 'PN'), 'ITUB3.SA': ('ITUB', 'ON'), 'B3SA3.SA': ('B3SA', 'ON'), 'BOVA11.SA': ('BOVA', 'CI')}
+UNDER = {  # prefixo do código de opção, espécie do subjacente -> ativo-objeto (mais líquidos do Ibovespa primeiro)
+    'PETR4.SA': ('PETR', 'PN'), 'PETR3.SA': ('PETR', 'ON'), 'VALE3.SA': ('VALE', 'ON'), 'ITUB4.SA': ('ITUB', 'PN'), 'ITUB3.SA': ('ITUB', 'ON'), 'B3SA3.SA': ('B3SA', 'ON'), 'BOVA11.SA': ('BOVA', 'CI'),
+    'BBDC4.SA': ('BBDC', 'PN'), 'BBAS3.SA': ('BBAS', 'ON'), 'ABEV3.SA': ('ABEV', 'ON'), 'WEGE3.SA': ('WEGE', 'ON'), 'PRIO3.SA': ('PRIO', 'ON'),
+    'SUZB3.SA': ('SUZB', 'ON'), 'GGBR4.SA': ('GGBR', 'PN'), 'ITSA4.SA': ('ITSA', 'PN'), 'MGLU3.SA': ('MGLU', 'ON'), 'RENT3.SA': ('RENT', 'ON'),
+    'CSNA3.SA': ('CSNA', 'ON'), 'USIM5.SA': ('USIM', 'PNA'), 'EMBJ3.SA': ('EMBJ', 'ON'), 'CSAN3.SA': ('CSAN', 'ON'), 'BRAV3.SA': ('BRAV', 'ON')}
 
 N = lambda x: 0.5 * (1 + math.erf(x / math.sqrt(2)))
 n = lambda x: math.exp(-x * x / 2) / math.sqrt(2 * math.pi)
@@ -57,11 +60,12 @@ def options():
             v = iv(px, S, o['strike'], T, r, call) if o['trades'] > 0 else None
             g = bs(S, o['strike'], T, r, v, call) if v else None
             exps.setdefault(e.isoformat(), {'date': e.isoformat(), 'bdays': bd, 'calls': [], 'puts': []})['calls' if call else 'puts'].append({
-                'code': o['code'], 'strike': o['strike'], 'last': px, 'open': o['open'], 'high': o['high'], 'low': o['low'], 'bid': o['bid'], 'ask': o['ask'],
-                'trades': o['trades'], 'qty': o['qty'], 'vol': o['vol'], 'iv': round(v * 100, 2) if v else None,
+                'code': o['code'], 'strike': o['strike'], 'last': px, 'bid': o['bid'], 'ask': o['ask'],
+                'trades': o['trades'], 'vol': o['vol'], 'iv': round(v * 100, 2) if v else None,
                 'delta': round(g[1], 3) if g else None, 'gamma': round(g[2], 4) if g else None, 'vega': round(g[3], 4) if g else None, 'theta': round(g[4], 4) if g else None})
         E = sorted(exps.values(), key=lambda x: x['date'])
         E = [e for e in E if sum(o['trades'] for o in e['calls'] + e['puts']) > 0][:8]
+        if not E: continue  # sem série negociada: sem arquivo (não inventa cadeia)
         for e in E:
             e['calls'].sort(key=lambda o: o['strike']); e['puts'].sort(key=lambda o: o['strike'])
         save(f'options/{code}.json', {'generated_at': now_iso(), 'source': f'B3 – COTAHIST diário (arquivo público de fechamento): {url}', 'date': day.isoformat(),
