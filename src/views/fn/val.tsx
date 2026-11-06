@@ -34,7 +34,7 @@ function useMedia(q: string) {
 
 type Corp = { t: string; d: any; cls: Record<string, [string, number][] | undefined>; kind: string | null }
 /** carrega o corp do ticker e os preços das outras classes da mesma companhia que têm dados (sem pedir arquivos inexistentes) */
-async function loadCorp(t: string, d0?: any): Promise<Corp | null> {
+export async function loadCorp(t: string, d0?: any): Promise<Corp | null> {
   const d = d0 || await getJSON<any>(`corp/${tickerKey(t)}.json`).catch(() => null)
   if (!d) return null
   const { base, kind } = classOf(t)
@@ -49,7 +49,7 @@ async function loadCorp(t: string, d0?: any): Promise<Corp | null> {
 }
 
 /** múltiplos atuais com a mesma metodologia para o ativo e os pares */
-function valuation(c: Corp) {
+export function valuation(c: Corp) {
   const d = c.d, us = d.country === 'US'
   const q = d.fundamentals.quarterly as any[], a = d.fundamentals.annual as any[]
   const last4 = q.slice(-4), fy = a[a.length - 1], lastQ = q[q.length - 1]

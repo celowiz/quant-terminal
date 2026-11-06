@@ -4,11 +4,12 @@ import { tc } from '../../lib/themeRuntime'
 import React, { useMemo, useState } from 'react'
 import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
-import { C, PALETTE, nf, pf, big, dBR, dBRfull, clr, useJSON, FnScreen, Panel, Grid, Btns, perLabel, Field, inputCls, inputStyle, KV, Loading, Spark } from '@/components/fn/kit'
+import { C, PALETTE, nf, pf, big, dBR, dBRfull, clr, useJSON, FnScreen, Panel, Grid, Btns, perLabel, useDesktop, Field, inputCls, inputStyle, KV, Loading, Spark } from '@/components/fn/kit'
 import { corr } from '@/lib/quant'
 import { en, toEN } from '@/lib/enText'
 import { lang } from '@/lib/settings'
 import { fmtMonth, fmtQuarter, monthAbbr } from '@/lib/dates'
+import { calName } from '@/lib/calNames.mjs'
 import { downloadCSV, CsvBtn, dayNum, fromDay, heat, HBars, VertexBars } from './v4util'
 
 const bp = (v: any, d = 1) => v == null || !isFinite(+v) ? '—' : `${+v > 0 ? '+' : ''}${nf(v, d)}`
@@ -166,51 +167,102 @@ export function CORRView() {
 
 // ======================= EQS =======================
 type Flt = { sector: string; mcap: number; pe: number; pb: number; dy: number; roe: number; nd: number; liq: number; q: string }
-const EQ_COLS: { k: string; label: string; fmt: (v: any) => string; num?: boolean }[] = [
-  { k: 'cod', label: 'Ticker', fmt: x => x }, { k: 'name', label: 'Company', fmt: x => x }, { k: 'sector', label: 'Sector', fmt: x => x ?? '—' },
-  { k: 'price', label: 'Price', fmt: x => nf(x, 2), num: true }, { k: 'pct', label: 'Day chg', fmt: x => pf(x), num: true }, { k: 'ytd', label: 'YTD', fmt: x => pf(x, 1), num: true },
-  { k: 'mcap', label: 'Mkt cap', fmt: x => big(x, 1), num: true }, { k: 'vol_fin_avg30', label: '30d avg liquidity', fmt: x => big(x, 1), num: true },
-  { k: 'pe', label: 'P/E', fmt: x => nf(x, 1), num: true }, { k: 'pb', label: 'P/B', fmt: x => nf(x, 2), num: true }, { k: 'ev_ebitda', label: 'EV/EBITDA', fmt: x => nf(x, 1), num: true },
-  { k: 'dy', label: 'DY 12m', fmt: x => pf(x, 1, false), num: true }, { k: 'roe', label: 'ROE', fmt: x => pf(x, 1, false), num: true }, { k: 'net_margin', label: 'Net mg.', fmt: x => pf(x, 1, false), num: true },
-  { k: 'nd_ebitda', label: 'ND/EBITDA', fmt: x => nf(x, 2), num: true },
+const F0: Flt = { sector: '', mcap: 0, pe: 0, pb: 0, dy: 0, roe: 0, nd: 0, liq: 0, q: '' }
+const PT = () => lang() === 'pt'
+const LL = (en: string, pt: string) => (PT() ? pt : en)
+const secName = (raw: string) => { const k = toEN(raw || ''); return k ? (PT() ? PT_SECTOR[k] || k : k) : '—' }
+/** múltiplo fora do comum (P/L > 50 ou EV/EBITDA > 30): mostra o número com aviso; base ≤ 0 → n.m. */
+const UNUSUAL: Record<string, number> = { pe: 50, ev_ebitda: 30, pb: 15 }
+const BANK_NA = new Set(['ev_ebitda', 'nd_ebitda', 'net_margin'])
+type EqCol = { k: string; en: string; pt: string; fmt: (v: any) => string; num?: boolean; mob?: boolean }
+const EQ_COLS: EqCol[] = [
+  { k: 'cod', en: 'Ticker', pt: 'Ticker', fmt: x => x, mob: true }, { k: 'name', en: 'Company', pt: 'Empresa', fmt: x => x, mob: true }, { k: 'sector', en: 'Sector', pt: 'Setor', fmt: x => secName(x) },
+  { k: 'price', en: 'Price', pt: 'Preço', fmt: x => nf(x, 2), num: true }, { k: 'pct', en: 'Day chg', pt: 'Var. dia', fmt: x => pf(x), num: true }, { k: 'ytd', en: 'YTD', pt: 'No ano', fmt: x => pf(x, 1), num: true },
+  { k: 'mcap', en: 'Mkt cap (company)', pt: 'Valor de mercado (companhia)', fmt: x => big(x, 1), num: true, mob: true }, { k: 'vol_fin_avg30', en: '30d avg liquidity', pt: 'Liquidez média 30d', fmt: x => big(x, 1), num: true },
+  { k: 'pe', en: 'P/E', pt: 'P/L', fmt: x => nf(x, 1), num: true, mob: true }, { k: 'pb', en: 'P/B', pt: 'P/VP', fmt: x => nf(x, 2), num: true }, { k: 'ev_ebitda', en: 'EV/EBITDA', pt: 'EV/EBITDA', fmt: x => nf(x, 1), num: true },
+  { k: 'dy', en: 'DY 12m', pt: 'DY 12m', fmt: x => pf(x, 1, false), num: true, mob: true }, { k: 'roe', en: 'ROE', pt: 'ROE', fmt: x => pf(x, 1, false), num: true, mob: true }, { k: 'net_margin', en: 'Net mg.', pt: 'Mg. líquida', fmt: x => pf(x, 1, false), num: true },
+  { k: 'nd_ebitda', en: 'ND/EBITDA', pt: 'Dív. líq./EBITDA', fmt: x => nf(x, 2), num: true },
 ]
+/** companhias com mais de uma classe na lista (mesmo CNPJ e mesma raiz): valor de mercado e múltiplos da companhia, pela mesma conta do VAL */
+function useCompanyFix(rows: any[] | undefined) {
+  const [fix, setFix] = useState<Record<string, any>>({})
+  React.useEffect(() => {
+    if (!rows) return
+    const g: Record<string, string[]> = {}
+    rows.forEach(r => { if (r.cnpj) { const k = r.cnpj + '|' + String(r.cod).slice(0, 4); (g[k] = g[k] || []).push(r.cod) } })
+    const multi = Object.values(g).filter(v => v.length > 1).flat()
+    let ok = true
+    import('./val').then(({ loadCorp, valuation }) => Promise.all(multi.map(async c => {
+      const co = await loadCorp(`${c}.SA`).catch(() => null); if (!co) return null
+      const v = valuation(co); const num = (x: any) => (typeof x === 'number' ? x : x === 'nm' ? 'nm' : null)
+      return [c, { mcap: v.mcap, pe: num(v.pe), pb: num(v.pb), ev_ebitda: num(v.evEbitda), co: v.mcap != null }] as const
+    }))).then(list => { if (ok) setFix(Object.fromEntries(list.filter(Boolean) as any)) }).catch(() => {})
+    return () => { ok = false }
+  }, [rows])
+  return fix
+}
 export function EQSView() {
   const { data: s, err } = useJSON<any>('screener.json')
-  const [f, setF] = useState<Flt>({ sector: '', mcap: 0, pe: 0, pb: 0, dy: 0, roe: 0, nd: 0, liq: 0, q: '' })
+  const [f, setF] = useState<Flt>(F0)
   const [sort, setSort] = useState<{ k: string; asc: boolean }>({ k: 'mcap', asc: false })
-  const [drawer, setDrawer] = useState(false) // mobile: filtros num painel recolhível
+  const [drawer, setDrawer] = useState(false)
+  const [more, setMore] = useState(false)
+  const desk = useDesktop()
+  const fix = useCompanyFix(s?.rows)
+  const all = useMemo(() => (s?.rows as any[] || []).map(x => {
+    const fx = fix[x.cod]; const r = { ...x, name: calName(x.cod, x.name, PT()) }
+    if (fx?.co) { r.mcap = fx.mcap; r.pe = fx.pe; r.pb = fx.pb; r.ev_ebitda = fx.ev_ebitda; r._co = true }
+    return r
+  }), [s, fix])
   const rows = useMemo(() => {
-    if (!s) return []
-    const r = (s.rows as any[]).filter(x =>
+    const n = (v: any) => (typeof v === 'number' ? v : null)
+    const r = all.filter(x =>
       (!f.sector || toEN(x.sector || '') === f.sector) && (!f.q || (x.cod + ' ' + x.name).toUpperCase().includes(f.q.toUpperCase())) &&
-      (!f.mcap || (x.mcap ?? 0) >= f.mcap * 1e9) && (!f.pe || (x.pe != null && x.pe > 0 && x.pe <= f.pe)) && (!f.pb || (x.pb != null && x.pb <= f.pb)) &&
-      (!f.dy || (x.dy ?? 0) >= f.dy) && (!f.roe || (x.roe ?? -1e9) >= f.roe) && (!f.nd || (x.nd_ebitda != null && x.nd_ebitda <= f.nd)) && (!f.liq || (x.vol_fin_avg30 ?? 0) >= f.liq * 1e6))
-    return r.sort((a, b) => { const x = a[sort.k], y = b[sort.k]; if (x == null) return 1; if (y == null) return -1; return (typeof x === 'string' ? x.localeCompare(y) : x - y) * (sort.asc ? 1 : -1) })
-  }, [s, f, sort])
-  if (!s) return <FnScreen code="EQS"><Loading err={err} /></FnScreen>
-  const sectors = Array.from(new Set((s.rows as any[]).map(x => toEN(x.sector || '')).filter(Boolean))).sort() as string[]  // agrupa grafias B3 diferentes do mesmo setor
+      (!f.mcap || (n(x.mcap) ?? 0) >= f.mcap * 1e9) && (!f.pe || (n(x.pe) != null && x.pe > 0 && x.pe <= f.pe)) && (!f.pb || (n(x.pb) != null && x.pb <= f.pb)) &&
+      (!f.dy || (x.dy ?? 0) >= f.dy) && (!f.roe || (x.roe ?? -1e9) >= f.roe) && (!f.nd || (n(x.nd_ebitda) != null && x.nd_ebitda <= f.nd)) && (!f.liq || (x.vol_fin_avg30 ?? 0) >= f.liq * 1e6))
+    return r.sort((a, b) => { const x = n(a[sort.k]) ?? (typeof a[sort.k] === 'string' ? a[sort.k] : null), y = n(b[sort.k]) ?? (typeof b[sort.k] === 'string' ? b[sort.k] : null); if (x == null) return 1; if (y == null) return -1; return (typeof x === 'string' ? x.localeCompare(y as string) : (x as number) - (y as number)) * (sort.asc ? 1 : -1) })
+  }, [all, f, sort])
+  const title = LL('Ibovespa stock screener', 'Screener do Ibovespa')
+  if (!s) return <FnScreen code="EQS" title={title} ownTitle><Loading err={err} /></FnScreen>
+  const sectors = Array.from(new Set((s.rows as any[]).map(x => toEN(x.sector || '')).filter(Boolean))).sort() as string[]
+  const nAct = (Object.keys(F0) as (keyof Flt)[]).filter(k => f[k] !== F0[k]).length
   const num = (k: keyof Flt, label: string, w = 'w-16', step = 1) => <Field label={label}><input className={inputCls + ' ' + w} style={inputStyle} type="number" step={step} value={(f[k] as number) || ''} placeholder="—" onChange={e => setF({ ...f, [k]: +e.target.value || 0 })} /></Field>
-  const exp = () => downloadCSV(`eqs_${s.generated_at?.slice(0, 10)}.csv`, EQ_COLS.map(c => c.label), rows.map(r => EQ_COLS.map(c => r[c.k] ?? null)))
+  const count = `${rows.length} ${LL('of', 'de')} ${s.rows.length} ${LL('stocks', 'ações')}`
+  const cols = EQ_COLS.filter(c => more || c.mob || desk)
+  const lab = (c: EqCol) => (PT() ? c.pt : c.en)
+  const exp = () => downloadCSV(`eqs_${s.generated_at?.slice(0, 10)}.csv`, EQ_COLS.map(lab), rows.map(r => EQ_COLS.map(c => { const v = r[c.k]; return c.k === 'sector' ? secName(v) : v === 'nm' ? 'n.m.' : v ?? null })))
+  const cell = (c: EqCol, x: any, r: any) => {
+    if (r.bank && BANK_NA.has(c.k)) return <span data-eqs-bank="" style={{ color: C.muted }} title={LL('Not applicable to banks', 'Não se aplica a bancos')}>{LL('n.a.', 'n.a.')}</span>
+    if (x === 'nm' || (['pe', 'pb', 'ev_ebitda'].includes(c.k) && typeof x === 'number' && x <= 0)) return <span data-eqs-nm="" style={{ color: C.muted }} title={LL('Not meaningful: negative or zero base', 'Não significativo: base negativa ou zero')}>{LL('n.m.', 'n.s.')}</span>
+    const t = x == null ? '—' : c.fmt(x)
+    if (UNUSUAL[c.k] && typeof x === 'number' && x > UNUSUAL[c.k]) return <span data-eqs-unusual="" title={LL('Unusually high: check one-offs in the period', 'Fora do comum: verifique efeitos não recorrentes no período')}>{t} <span style={{ color: C.yellow }}>⚠</span></span>
+    if (c.k === 'mcap' && r._co) return <span data-eqs-co="" title={LL('All share classes of the company', 'Todas as classes de ações da companhia')}>{t}</span>
+    return t
+  }
   return (
-    <FnScreen code="EQS" title="Equity Screening – Ibovespa (fundamentals + market)" right={<CsvBtn onClick={exp} />}
-      source={s.source} note={<>{s.note} Fundamentals: last 12 months (sum of 4 quarters) from each company's latest ITR/DFP; equity and debt from the latest balance sheet. Click a header to sort.</>}>
-      <div className="mb-2 flex items-center gap-2 lg:hidden">
-        <button className="px-3 py-1 text-[12px] border font-bold" style={{ borderColor: drawer ? C.amber : C.line, color: drawer ? tc('#000') : C.amber, background: drawer ? C.amber : C.panel }} onClick={() => setDrawer(!drawer)}>
-          {lang() === 'pt' ? 'Filtros' : 'Filters'}{(() => { const n = Object.values(f).filter(v => v !== '' && v !== 0).length; return n ? ` (${n})` : '' })()} {drawer ? '▾' : '▸'}
+    <FnScreen code="EQS" title={title} ownTitle right={<CsvBtn onClick={exp} />}
+      note={LL('Market cap = company total (all share classes; multi-class companies priced class by class). DY = distributions paid in the last 12 months ÷ price. Fundamentals: last 12 months (sum of 4 quarters) from the latest quarterly/annual filings; equity and debt from the latest balance sheet. n.a. = not applicable to banks; n.m. = negative or zero base; ⚠ = unusually high multiple. Click a header to sort.',
+        'Valor de mercado = total da companhia (todas as classes; companhias com mais de uma classe somadas classe a classe). DY = proventos pagos em 12 meses ÷ preço. Fundamentos: últimos 12 meses (soma de 4 trimestres) dos últimos demonstrativos trimestrais/anuais; patrimônio e dívida do último balanço. n.a. = não se aplica a bancos; n.s. = base negativa ou zero; ⚠ = múltiplo fora do comum. Clique no cabeçalho para ordenar.')}>
+      <div className="mb-2 flex flex-wrap items-center gap-2 lg:hidden">
+        <button data-eqs-filters="" className="px-3 py-1 text-[12px] border font-bold" style={{ borderColor: drawer ? C.amber : C.line, color: drawer ? tc('#000') : C.amber, background: drawer ? C.amber : C.panel }} onClick={() => setDrawer(!drawer)}>
+          {LL('Filters', 'Filtros')}{nAct ? ` (${nAct})` : ''} {drawer ? '▾' : '▸'}
         </button>
-        <span className="ml-auto text-[12px]" style={{ color: C.amber }}>{rows.length} of {s.rows.length} stocks</span>
+        {nAct > 0 && <button className="px-2 py-1 text-[12px] border" style={{ borderColor: C.line, color: C.muted }} onClick={() => setF(F0)}>{LL('Clear all', 'Limpar tudo')}</button>}
+        <button data-eqs-more="" className="px-2 py-1 text-[12px] border" style={{ borderColor: C.line, color: C.amber }} onClick={() => setMore(!more)}>{more ? LL('Fewer columns', 'Menos colunas') : LL('More columns', 'Mais colunas')}</button>
+        <span className="ml-auto text-[12px]" style={{ color: C.amber }}>{count}</span>
       </div>
       <div className={`mb-2 flex flex-wrap items-end gap-3 border p-2 ${drawer ? '' : 'max-lg:hidden'}`} style={{ borderColor: C.line, background: C.panel }}>
-        <Field label="Search"><input className={inputCls + ' w-28'} style={inputStyle} value={f.q} onChange={e => setF({ ...f, q: e.target.value })} /></Field>
-        <Field label="Sector"><select className={inputCls} style={inputStyle} value={f.sector} onChange={e => setF({ ...f, sector: e.target.value })}><option value="">All</option>{sectors.map(x => <option key={x} value={x}>{lang() === 'pt' ? PT_SECTOR[x] || x : x}</option>)}</select></Field>
-        {num('mcap', 'Mkt cap ≥ (R$ bn)')}{num('liq', 'Liq. 30d ≥ (R$ mn)')}{num('pe', 'P/E ≤')}{num('pb', 'P/B ≤', 'w-16', 0.1)}{num('dy', 'DY ≥ %', 'w-16', 0.5)}{num('roe', 'ROE ≥ %')}{num('nd', 'ND/EBITDA ≤', 'w-16', 0.5)}
-        <button className="px-2 py-[1px] text-[12px] border" style={{ borderColor: C.line, color: C.muted }} onClick={() => setF({ sector: '', mcap: 0, pe: 0, pb: 0, dy: 0, roe: 0, nd: 0, liq: 0, q: '' })}>Clear</button>
-        <span className="ml-auto text-[12px] max-lg:hidden" style={{ color: C.amber }}>{rows.length} of {s.rows.length} stocks</span>
+        <Field label={LL('Search', 'Buscar')}><input className={inputCls + ' w-28'} style={inputStyle} value={f.q} onChange={e => setF({ ...f, q: e.target.value })} /></Field>
+        <Field label={LL('Sector', 'Setor')}><select data-eqs-sector="" className={inputCls + ' max-w-[180px]'} style={inputStyle} value={f.sector} onChange={e => setF({ ...f, sector: e.target.value })}><option value="">{LL('All', 'Todos')}</option>{sectors.map(x => <option key={x} value={x}>{PT() ? PT_SECTOR[x] || x : x}</option>)}</select></Field>
+        {num('mcap', LL('Mkt cap ≥ (R$ bn)', 'Valor de mercado ≥ (R$ bi)'))}{num('liq', LL('Liq. 30d ≥ (R$ mn)', 'Liq. 30d ≥ (R$ mi)'))}{num('pe', LL('P/E ≤', 'P/L ≤'))}{num('pb', LL('P/B ≤', 'P/VP ≤'), 'w-16', 0.1)}{num('dy', 'DY ≥ %', 'w-16', 0.5)}{num('roe', 'ROE ≥ %')}{num('nd', LL('ND/EBITDA ≤', 'Dív. líq./EBITDA ≤'), 'w-16', 0.5)}
+        <button className="px-2 py-[1px] text-[12px] border" style={{ borderColor: C.line, color: C.muted }} onClick={() => setF(F0)}>{LL('Clear', 'Limpar')}{nAct ? ` (${nAct})` : ''}</button>
+        <span className="ml-auto text-[12px] max-lg:hidden" style={{ color: C.amber }} data-eqs-count="">{count}</span>
       </div>
-      <Grid maxH={600} rows={rows} cols={EQ_COLS.map(c => ({
-        k: c.k, align: c.num ? 'r' : 'l', w: c.k === 'name' ? '170px' : c.k === 'sector' ? '150px' : undefined,
-        label: <span className="cursor-pointer" onClick={() => setSort({ k: c.k, asc: sort.k === c.k ? !sort.asc : !c.num })}>{c.label}{sort.k === c.k ? (sort.asc ? ' ▲' : ' ▼') : ''}</span>,
-        fmt: (x: any) => c.fmt(x), color: (x: any) => c.k === 'cod' ? C.amber : ['pct', 'ytd'].includes(c.k) ? clr(x) : C.text,
+      <div className="lg:hidden text-[11px] pb-1" style={{ color: C.muted }} data-eqs-hint="">{LL('Swipe sideways for all columns →', 'Deslize para o lado para ver todas as colunas →')}</div>
+      <Grid maxH={600} rows={rows} cols={cols.map(c => ({
+        k: c.k, align: c.num ? 'r' : 'l', w: c.k === 'name' ? '150px' : c.k === 'sector' ? '150px' : undefined,
+        label: <span className="cursor-pointer whitespace-nowrap" onClick={() => setSort({ k: c.k, asc: sort.k === c.k ? !sort.asc : !c.num })}>{lab(c)}{sort.k === c.k ? (sort.asc ? ' ▲' : ' ▼') : ''}</span>,
+        fmt: (x: any, r: any) => cell(c, x, r), color: (x: any) => c.k === 'cod' ? C.amber : ['pct', 'ytd'].includes(c.k) ? clr(x) : C.text,
       })) as any} />
     </FnScreen>
   )
