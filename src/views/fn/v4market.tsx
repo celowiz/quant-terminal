@@ -122,45 +122,104 @@ export function CDIEView() {
 }
 
 // ======================= CORR =======================
+const PT = () => lang() === 'pt'
+const LL = (en: string, pt: string) => (PT() ? pt : en)
+const secName = (raw: string) => { const k = toEN(raw || ''); return k ? (PT() ? PT_SECTOR[k] || k : k) : '—' }
+/** mínimo de retornos em datas comuns para mostrar a correlação (senão "—") */
+const CORR_MIN = (n: number) => Math.max(20, Math.floor(n * 0.6))
+const secKey = (raw: string) => toEN(raw || '')
 export function CORRView() {
   const { data: u, err } = useJSON<any>('universe.json')
   const [n, setN] = useState(15), [win, setWin] = useState(252), [freq, setFreq] = useState<'d' | 'w'>('d')
+  const [order, setOrder] = useState<'w' | 's' | 'c'>('w')
+  const [compact, setCompact] = useState(false)
   const [pair, setPair] = useState<[string, string] | null>(null)
+  const desk = useDesktop()
+  React.useEffect(() => { if (window.innerWidth < 1024) setCompact(true) }, [])
+  const chartRef = React.useRef<HTMLDivElement | null>(null)
+  React.useEffect(() => { if (pair && chartRef.current) chartRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }, [pair])
   const M = useMemo(() => {
     if (!u) return null
-    const top = u.components.slice().sort((a: any, b: any) => b.weight - a.weight).slice(0, n).map((c: any) => c.cod)
-    const codes = ['^BVSP', ...top].filter(c => u.close[c])
-    const L = u.dates.length, step = freq === 'w' ? 5 : 1
-    const idx: number[] = []; for (let i = L - 1; i >= Math.max(0, L - 1 - win); i -= step) idx.unshift(i)
+    const comps = u.components.slice().sort((a: any, b: any) => b.weight - a.weight).slice(0, n)
+    const meta: Record<string, any> = Object.fromEntries(comps.map((c: any) => [c.cod, c]))
+    let codes: string[] = ['^BVSP', ...comps.map((c: any) => c.cod)].filter(c => u.close[c])
+    const Ln = u.dates.length, step = freq === 'w' ? 5 : 1
+    const idx: number[] = []; for (let i = Ln - 1; i >= Math.max(0, Ln - 1 - win); i -= step) idx.unshift(i)
+    // retornos entre datas do calendário comum (mesmo índice de data para todos); falta de preço em qualquer ponta → sem retorno
     const R: Record<string, (number | null)[]> = {}
-    codes.forEach(c => { const s = u.close[c]; R[c] = idx.slice(1).map((i, k) => s[i] != null && s[idx[k]] != null ? s[i] / s[idx[k]] - 1 : null) })
-    const cc = (p: string, q: string) => { const a: number[] = [], b: number[] = []; R[p].forEach((x, i) => { const y = R[q][i]; if (x != null && y != null) { a.push(x); b.push(y) } }); return a.length > 10 ? corr(a, b) : NaN }
-    const m = codes.map(p => codes.map(q => p === q ? 1 : cc(p, q)))
-    const avg = codes.map((_, i) => { const xs = m[i].filter((x, j) => j !== i && isFinite(x)); return xs.reduce((s, x) => s + x, 0) / (xs.length || 1) })
-    return { codes, m, avg, from: u.dates[idx[0]], to: u.dates[L - 1] }
-  }, [u, n, win, freq])
+    codes.forEach(c => { const sr = u.close[c]; R[c] = idx.slice(1).map((i, k) => sr[i] != null && sr[idx[k]] != null && sr[idx[k]] > 0 ? sr[i] / sr[idx[k]] - 1 : null) })
+    const need = CORR_MIN(idx.length - 1)
+    const cc = (p: string, q: string) => { const a: number[] = [], b: number[] = []; R[p].forEach((x, i) => { const y = R[q][i]; if (x != null && y != null) { a.push(x); b.push(y) } }); return a.length >= need ? corr(a, b) : NaN }
+    const base = Object.fromEntries(codes.map(p => [p, Object.fromEntries(codes.map(q => [q, p === q ? 1 : cc(p, q)]))]))
+    if (order === 's') codes = ['^BVSP', ...codes.slice(1).sort((x, y) => secKey(meta[x]?.sector).localeCompare(secKey(meta[y]?.sector)) || meta[y].weight - meta[x].weight)]
+    if (order === 'c') { // agrupamento guloso: começa pelo de maior peso e puxa sempre o mais correlacionado com o último
+      const rest = codes.slice(1), out: string[] = []
+      while (rest.length) { const last = out[out.length - 1]; let k = 0; if (last) { let best = -2; rest.forEach((c, i) => { const v = base[last][c]; if (isFinite(v) && v > best) { best = v; k = i } }) } out.push(rest.splice(k, 1)[0]) }
+      codes = ['^BVSP', ...out]
+    }
+    const m = codes.map(p => codes.map(q => base[p][q]))
+    const avg = codes.map((_, i) => { const xs = m[i].filter((x, j) => j !== i && isFinite(x)); return xs.length ? xs.reduce((s2, x) => s2 + x, 0) / xs.length : NaN })
+    return { codes, m, avg, meta, from: u.dates[idx[0]], to: u.dates[Ln - 1], need }
+  }, [u, n, win, freq, order])
   const roll = useMemo(() => {
     if (!u || !pair) return null
     const [p, q] = pair, a = u.close[p], b = u.close[q], out: { time: string; value: number }[] = []
     const ra = a.map((x: number, i: number) => i && x != null && a[i - 1] != null ? x / a[i - 1] - 1 : null), rb = b.map((x: number, i: number) => i && x != null && b[i - 1] != null ? x / b[i - 1] - 1 : null)
-    for (let i = 64; i < u.dates.length; i++) { const xa: number[] = [], xb: number[] = []; for (let j = i - 62; j <= i; j++) if (ra[j] != null && rb[j] != null) { xa.push(ra[j]); xb.push(rb[j]) } if (xa.length > 40) out.push({ time: u.dates[i], value: corr(xa, xb) }) }
+    for (let i = 64; i < u.dates.length; i++) { const xa: number[] = [], xb: number[] = []; for (let j = i - 62; j <= i; j++) if (ra[j] != null && rb[j] != null) { xa.push(ra[j]); xb.push(rb[j]) } if (xa.length >= 40) out.push({ time: u.dates[i], value: corr(xa, xb) }) }
     return out
   }, [u, pair])
-  if (!u || !M) return <FnScreen code="CORR"><Loading err={err} /></FnScreen>
+  const title = LL('Correlation of returns — Ibovespa', 'Correlação de retornos — Ibovespa')
+  if (!u || !M) return <FnScreen code="CORR" title={title} ownTitle><Loading err={err} /></FnScreen>
   const lbl = (c: string) => c === '^BVSP' ? 'IBOV' : c
+  const nameOf = (c: string) => c === '^BVSP' ? LL('Ibovespa index', 'Índice Ibovespa') : calName(c, M.meta[c]?.name, PT())
+  const tip = (c: string) => `${lbl(c)} · ${nameOf(c)}${c !== '^BVSP' && M.meta[c] ? ' · ' + secName(M.meta[c].sector) : ''}`
+  const showCompact = compact
+  const cellBg = (x: number, d: boolean) => d ? tc('#1a1a1a') : heat(x, 1)
+  const stickL: React.CSSProperties = { position: 'sticky', left: 0, zIndex: 2, background: C.bg }
+  const freqTxt = freq === 'w' ? LL('weekly', 'semanais') : LL('daily', 'diários')
   return (
-    <FnScreen code="CORR" title="Correlation matrix – Ibovespa components"
-      right={<><Field label="Assets"><Btns opts={[10, 15, 20]} value={n} onChange={setN} /></Field><Field label="Window"><Btns opts={[{ v: 63, l: '3M' }, { v: 126, l: '6M' }, { v: 252, l: '1Y' }, { v: 504, l: '2Y' }, { v: 749, l: '3Y' }]} value={win} onChange={setWin} /></Field><Btns opts={[{ v: 'd', l: 'Daily' }, { v: 'w', l: 'Weekly' }]} value={freq} onChange={setFreq} /></>}
-      source="B3 (Ibovespa theoretical portfolio) + Yahoo Finance (adjusted closes), via universe.json."
-      note={`Pearson correlation of ${freq === 'w' ? 'weekly' : 'daily'} returns between ${dBR(M.from)} and ${dBR(M.to)}. The index's largest weights + the Ibovespa itself. Click a cell to see the pair's 63-session rolling correlation.`}>
-      <div className="overflow-auto">
-        <table className="border-collapse text-[11px]">
-          <thead><tr><th></th>{M.codes.map(c => <th key={c} className="px-1 py-1 font-normal" style={{ color: C.amber }}>{lbl(c)}</th>)}<th className="px-2 font-normal" style={{ color: C.muted }}>Average</th></tr></thead>
-          <tbody>{M.codes.map((p, i) => <tr key={p}><td className="px-2 py-[2px]" style={{ color: C.amber }}>{lbl(p)}</td>{M.m[i].map((x, j) => <td key={j} onClick={() => i !== j && setPair([p, M.codes[j]])} className="cursor-pointer px-1 py-[2px] text-right border border-[#111]" style={{ background: i === j ? tc('#1a1a1a') : heat(x, 1), color: tc('#fff'), minWidth: 44, outline: pair && pair[0] === p && pair[1] === M.codes[j] ? `1px solid ${C.amber}` : undefined }}>{nf(x, 2)}</td>)}<td className="px-2 text-right" style={{ color: C.amber }}>{nf(M.avg[i], 2)}</td></tr>)}</tbody>
+    <FnScreen code="CORR" title={title} ownTitle wrap
+      right={<>
+        <Field label={LL('Stocks', 'Ações')}><Btns opts={[10, 15, 20].map(v => ({ v, l: LL(`Top ${v} + IBOV`, `Top ${v} + IBOV`) }))} value={n} onChange={setN} /></Field>
+        <Field label={LL('Window', 'Janela')}><Btns opts={[{ v: 63, l: '3M' }, { v: 126, l: '6M' }, { v: 252, l: LL('1Y', '1A') }, { v: 504, l: LL('2Y', '2A') }, { v: 749, l: LL('3Y', '3A') }]} value={win} onChange={setWin} /></Field>
+        <Btns opts={[{ v: 'd', l: LL('Daily', 'Diário') }, { v: 'w', l: LL('Weekly', 'Semanal') }]} value={freq} onChange={setFreq} />
+        <Field label={LL('Order', 'Ordem')}><Btns opts={[{ v: 'w', l: LL('Weight', 'Peso') }, { v: 's', l: LL('Sector', 'Setor') }, { v: 'c', l: LL('Clusters', 'Grupos') }]} value={order} onChange={setOrder} /></Field>
+        <Btns opts={[{ v: false, l: LL('Full', 'Completa') }, { v: true, l: LL('Compact', 'Compacta') }]} value={compact} onChange={setCompact} />
+      </>}
+      note={LL(`Pearson correlation of ${freqTxt} returns from ${dBR(M.from)} to ${dBR(M.to)}, on dates common to both assets, using closes adjusted for splits and distributions. — = fewer than ${M.need} common returns. Top N = largest index weights, plus the Ibovespa itself. Clusters: each stock is followed by the one most correlated with it. Click a cell to see that pair's 63-session rolling correlation.`,
+        `Correlação de Pearson dos retornos ${freqTxt} de ${dBR(M.from)} a ${dBR(M.to)}, nas datas comuns aos dois ativos, com fechamentos ajustados por desdobramentos e proventos. — = menos de ${M.need} retornos em comum. Top N = maiores pesos do índice, mais o próprio Ibovespa. Grupos: cada ação é seguida pela mais correlacionada com ela. Clique numa célula para ver a correlação móvel de 63 pregões do par.`)}>
+      <div className="flex flex-wrap items-center gap-3 pb-1 text-[11px]" style={{ color: C.muted }}>
+        <span data-corr-legend="" className="inline-flex items-center gap-1">−1
+          <span style={{ width: 120, height: 10, background: `linear-gradient(90deg, ${heat(-1, 1)}, ${heat(0, 1)}, ${heat(1, 1)})`, border: `1px solid ${C.line}` }} />+1</span>
+        <span data-corr-pickhint="">{LL('Click a pair to see its rolling correlation.', 'Clique num par para ver a correlação móvel.')}</span>
+        {!desk && <span data-corr-hint="">{LL('Swipe sideways for all columns →', 'Deslize para o lado para ver todas as colunas →')}</span>}
+      </div>
+      <div className="overflow-auto max-h-[70vh] border" style={{ borderColor: C.line }} data-corr-wrap="">
+        <table className="border-collapse text-[11px]" data-corr-table="">
+          <thead className="sticky top-0 z-10" style={{ background: C.bg }}><tr>
+            <th style={{ ...stickL, zIndex: 3 }}></th>
+            {desk && <th className="px-2 text-left font-normal" style={{ color: C.muted }}>{LL('Company', 'Empresa')}</th>}
+            {M.codes.map(c => <th key={c} title={tip(c)} className="px-1 py-1 font-normal" style={{ color: C.amber, background: C.bg }}>{lbl(c)}</th>)}
+            <th className="px-2 font-normal" style={{ color: C.muted }}>{LL('Average', 'Média')}</th></tr></thead>
+          <tbody>{M.codes.map((p, i) => <tr key={p}>
+            <td data-corr-rowhead="" title={tip(p)} className="px-2 py-[2px] whitespace-nowrap" style={{ ...stickL, color: C.amber }}>{lbl(p)}</td>
+            {desk && <td className="px-2 whitespace-nowrap max-w-[160px] truncate" style={{ color: C.muted }}>{nameOf(p)}</td>}
+            {M.m[i].map((x, j) => {
+              const diag = i === j, hidden = showCompact && j > i
+              if (hidden) return <td key={j} />
+              return <td key={j} data-corr-diag={diag ? '' : undefined} title={diag ? tip(p) : `${lbl(p)} × ${lbl(M.codes[j])}`} onClick={() => !diag && isFinite(x) && setPair([p, M.codes[j]])}
+                className={`${diag ? '' : 'cursor-pointer'} px-1 py-[2px] text-right border border-[#111]`}
+                style={{ background: cellBg(x, diag), color: diag ? C.muted : tc('#fff'), minWidth: showCompact ? 34 : 44, outline: pair && pair[0] === p && pair[1] === M.codes[j] ? `1px solid ${C.amber}` : undefined }}>{diag ? '' : isFinite(x) ? nf(x, 2) : '—'}</td>
+            })}
+            <td className="px-2 text-right" style={{ color: C.amber }}>{isFinite(M.avg[i]) ? nf(M.avg[i], 2) : '—'}</td></tr>)}</tbody>
         </table>
       </div>
-      {roll && pair && <div className="mt-2"><div className="text-[12px]" style={{ color: C.amber }}>63-session rolling correlation: {lbl(pair[0])} × {lbl(pair[1])}</div>
-        <FnChart height={220} panes={[{ series: [{ kind: 'line', data: roll, color: C.amber, title: 'corr 63d', decimals: 2, lines: [{ price: 0, color: tc('#555') }] }] }]} /></div>}
+      {roll && pair && <div className="mt-2" ref={chartRef} data-corr-roll="">
+        <div className="flex items-center gap-2 text-[12px]" style={{ color: C.amber }}>
+          <span>{LL('63-session rolling correlation', 'Correlação móvel de 63 pregões')}: {lbl(pair[0])} × {lbl(pair[1])}</span>
+          <button data-corr-close="" className="ml-auto px-2 border text-[11px]" style={{ borderColor: C.line, color: C.muted }} onClick={() => setPair(null)} aria-label={LL('Close', 'Fechar')}>✕ {LL('Close', 'Fechar')}</button>
+        </div>
+        <FnChart height={220} panes={[{ series: [{ kind: 'line', data: roll, color: C.amber, title: LL('corr 63d', 'corr 63p'), decimals: 2, lines: [{ price: 0, color: tc('#555') }] }] }]} /></div>}
     </FnScreen>
   )
 }
@@ -168,9 +227,6 @@ export function CORRView() {
 // ======================= EQS =======================
 type Flt = { sector: string; mcap: number; pe: number; pb: number; dy: number; roe: number; nd: number; liq: number; q: string }
 const F0: Flt = { sector: '', mcap: 0, pe: 0, pb: 0, dy: 0, roe: 0, nd: 0, liq: 0, q: '' }
-const PT = () => lang() === 'pt'
-const LL = (en: string, pt: string) => (PT() ? pt : en)
-const secName = (raw: string) => { const k = toEN(raw || ''); return k ? (PT() ? PT_SECTOR[k] || k : k) : '—' }
 /** múltiplo fora do comum (P/L > 50 ou EV/EBITDA > 30): mostra o número com aviso; base ≤ 0 → n.m. */
 const UNUSUAL: Record<string, number> = { pe: 50, ev_ebitda: 30, pb: 15 }
 const BANK_NA = new Set(['ev_ebitda', 'nd_ebitda', 'net_margin'])
