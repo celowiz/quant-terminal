@@ -253,23 +253,96 @@ export function NEWSView() {
   )
 }
 
-// ---------------- ANB (fluxo de fundos, CVM) ----------------
+// ---------------- ANB (fluxo de fundos) ----------------
+const aPT = () => lang() === 'pt'
+const aL = (en: string, pt: string) => (aPT() ? pt : en)
+const ANB_NAMES: Record<string, [string, string]> = {
+  'Renda Fixa': ['Fixed income', 'Renda fixa'], 'Ações': ['Equities', 'Ações'], 'Multimercados': ['Multimarket', 'Multimercados'], 'Cambial': ['FX', 'Cambial'],
+  'FMP-FGTS': ['FMP-FGTS', 'FMP-FGTS'], 'FIDC': ['Receivables (FIDC)', 'Direitos creditórios (FIDC)'], 'Imobiliários (FII)': ['Real estate (FII)', 'Imobiliários (FII)'],
+  'Participações (FIP)': ['Private equity (FIP)', 'Participações (FIP)'], 'Não classificado': ['Unclassified', 'Não classificado'], 'Total': ['Total', 'Total'],
+}
+const anbName = (c: string) => { const n = ANB_NAMES[c]; return n ? (aPT() ? n[1] : n[0]) : c }
+/** número no idioma da tela (só ANB): PT usa ponto de milhar e vírgula decimal; nunca mostra "-0" */
+export const anbNum = (v: any, d = 0) => {
+  if (v == null || v === '' || !isFinite(+v)) return '—'
+  const x = Math.abs(+v) < 0.5 * Math.pow(10, -d) ? 0 : +v
+  return x.toLocaleString(aPT() ? 'pt-BR' : 'en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+}
+/** fluxos acumulados incoerentes com o patrimônio (resgate de veículos antigos que migraram de cadastro) */
+export const anbFlowsInconsistent = (r: any) => r.pl_bi != null && Math.abs(r.twelve_months ?? 0) > Math.max(2 * r.pl_bi * 1000, 1000)
+export function anbTable(rows: any[]) {
+  const base = rows.filter((r: any) => !/^total$/i.test(r.class_name))
+  const unc = base.find((r: any) => r.class_name === 'Não classificado') || null
+  const cls = base.filter((r: any) => r !== unc && ['day', 'month', 'year', 'twelve_months'].some(k => Math.abs(r[k] || 0) >= 0.5))
+  const sum = (k: string) => cls.reduce((s: number, r: any) => s + (r[k] || 0), 0)
+  const total = { class_name: 'Total', day: sum('day'), month: sum('month'), year: sum('year'), twelve_months: sum('twelve_months'), pl_bi: sum('pl_bi') }
+  return { cls, unc, total, uncBad: unc ? anbFlowsInconsistent(unc) : false }
+}
 export function ANBView() {
   const { data: d, err } = useJSON<any>('funds_flow.json')
+  const desk = useDesktop()
   const [view, setView] = useState<'d' | 'm'>('m')
-  if (!d) return <FnScreen code="ANB"><Loading err={err} /></FnScreen>
-  const ser = view === 'd' ? d.daily : d.monthly, xs = view === 'd' ? ser.dates : ser.months
-  const classes = Object.keys(ser.series)
-  const colors: Record<string, string> = { 'Renda Fixa': C.blue, 'Ações': C.amber, 'Multimercados': C.purple, 'Cambial': C.cyan, 'FIDC': C.up, 'FMP-FGTS': tc('#B0BEC5'), 'Participações (FIP)': tc('#FF7AB6'), 'Não classificado': tc('#555') }
-  const total = d.rows.find((r: any) => /total/i.test(r.class_name))
+  const [mode, setMode] = useState<'all' | 'exfi' | 'one'>('all')
+  const [one, setOne] = useState('Ações')
+  const [more, setMore] = useState(false)
+  const title = aL('Fund flows by class', 'Captação por classe de fundo')
+  if (!d) return <FnScreen code="ANB" title={title} ownTitle><Loading err={err} /></FnScreen>
+  const ser = view === 'd' ? d.daily : d.monthly, xs: string[] = view === 'd' ? ser.dates : ser.months
+  const all = Object.keys(ser.series).filter(c => c !== 'Não classificado' && ser.series[c].some((v: number) => Math.abs(v || 0) >= 0.5))
+  const classes = mode === 'one' ? all.filter(c => c === one) : mode === 'exfi' ? all.filter(c => c !== 'Renda Fixa') : all
+  const colors: Record<string, string> = { 'Renda Fixa': C.blue, 'Ações': C.amber, 'Multimercados': C.purple, 'Cambial': C.cyan, 'FIDC': C.up, 'FMP-FGTS': tc('#B0BEC5'), 'Participações (FIP)': tc('#FF7AB6'), 'Imobiliários (FII)': tc('#E0C060') }
+  const { cls, unc, total, uncBad } = anbTable(d.rows)
+  const refIso = brToIso(d.data_ref) || ''
+  const partial = view === 'm' && xs.length > 0 && refIso.slice(0, 7) === xs[xs.length - 1]
+  const K = [{ k: 'day', en: 'Day', pt: 'Dia' }, { k: 'month', en: 'Month', pt: 'Mês' }, { k: 'year', en: 'Year', pt: 'Ano' }, { k: 'twelve_months', en: '12 months', pt: '12 meses' }]
+  const showK = desk || more ? K : K.filter(x => x.k === 'month' || x.k === 'twelve_months')
+  const showAum = desk || more
+  const sticky: React.CSSProperties = { position: 'sticky', left: 0, zIndex: 2 }
+  const cell = (r: any, k: string, muted = false, dash = false) => {
+    const v = r[k]; const txt = dash ? '—' : anbNum(v)
+    return <td key={k} className="px-2 py-[2px] text-right whitespace-nowrap border-b" style={{ borderColor: tc('#1a1a1a'), color: dash || muted ? C.muted : clr(Math.abs(v) < 0.5 ? 0 : v) }}>{txt}</td>
+  }
+  const aum = (r: any, muted = false) => <td className="px-2 py-[2px] text-right whitespace-nowrap border-b" style={{ borderColor: tc('#1a1a1a'), color: muted ? C.muted : C.text }}>{r.pl_bi == null || r.pl_bi < 0.05 ? '—' : anbNum(r.pl_bi, 1)}</td>
+  const row = (r: any, i: number, opt: { bold?: boolean; muted?: boolean; dashLong?: boolean; label?: string } = {}) => {
+    const bg = opt.bold ? tc('#151515') : i % 2 ? tc('#0a0a0a') : C.panel
+    return <tr key={r.class_name} data-anb-row={r.class_name} style={{ background: bg, fontWeight: opt.bold ? 700 : 400 }}>
+      <td className="px-2 py-[2px] whitespace-nowrap border-b" style={{ ...sticky, background: bg, borderColor: tc('#1a1a1a'), color: opt.muted ? C.muted : C.amber }}>{opt.label || anbName(r.class_name)}</td>
+      {showK.map(x => cell(r, x.k, opt.muted, opt.dashLong && (x.k === 'year' || x.k === 'twelve_months')))}
+      {showAum && aum(r, opt.muted)}
+    </tr>
+  }
+  const tot12 = total.twelve_months / 1e3, totY = total.year / 1e3
+  const note = aL(
+    'Net flows = subscriptions − redemptions reported daily by each fund, grouped by its registered class. Own methodology; figures in R$ millions (AUM in R$ billions). Funds of funds are counted alongside the funds they invest in, so AUM is double-counted. "Unclassified" gathers vehicles with no current class registration — mostly old funds that migrated to a new registration: their redemptions show up here while the matching subscriptions land in the new class, so this row is left out of the totals, and its year and 12-month sums are shown as — when they are out of line with its AUM. Year and 12-month totals add up the same classes. The latest month is month-to-date.',
+    'Captação líquida = aplicações − resgates informados diariamente por cada fundo, agrupados pela classe registrada. Metodologia própria; valores em R$ milhões (PL em R$ bilhões). Fundos de fundos entram junto com os fundos investidos, então o PL é contado em dobro. "Não classificado" reúne veículos sem registro de classe atual — em geral fundos antigos que migraram para um novo registro: os resgates aparecem aqui e as aplicações correspondentes entram na nova classe, por isso essa linha fica fora dos totais, e as somas do ano e de 12 meses aparecem como — quando não batem com o PL. Os totais do ano e de 12 meses somam as mesmas classes. O último mês é parcial (mês até a data).')
+  const legend = <div data-anb-legend className="flex flex-wrap gap-x-3 gap-y-[2px] px-2 pt-1 text-[11px]">{classes.map(c => <span key={c} style={{ color: colors[c] || C.white }}>■ <span style={{ color: C.text }}>{anbName(c)}</span></span>)}<span style={{ color: C.muted }}>{aL('R$ millions', 'R$ milhões')}{partial ? aL(' · last month = month-to-date', ' · último mês parcial') : ''}</span></div>
   return (
-    <FnScreen code="ANB" title="Fund flows by class (net flows)" right={<><span style={{ color: C.muted }}>Ref. date {dBRfull(brToIso(d.data_ref))} · {en(d.unit)}</span><Btns opts={[{ v: 'd', l: 'Daily' }, { v: 'm', l: 'Monthly' }] as any} value={view} onChange={setView as any} /></>}
-      source={<>{d.source}</>} note="Net flows = subscriptions − redemptions from the daily fund report, aggregated by registry class (RCVM 175). Own methodology. Funds of funds are included alongside target funds, so AUM is double-counted.">
-      <Grid rowStyle={(r: any) => /total/i.test(r.class_name) ? { background: tc('#151515'), fontWeight: 700 } : undefined} cols={[{ k: 'class_name', label: 'Class', fmt: (v: string) => en(v), color: () => C.amber }, ...(['day', 'month', 'year', 'twelve_months'] as const).map(k => ({ k, label: { day: 'Day', month: 'Month', year: 'Year', twelve_months: '12 months' }[k], align: 'r' as const, fmt: (v: number) => nf(v, 0), color: clr })), { k: 'pl_bi', label: 'AUM (R$ bn)', align: 'r' as const, fmt: (v: number) => nf(v, 1) }]} rows={d.rows} />
-      <div className="mt-2"><Panel title={`${view === 'd' ? 'Daily' : 'Monthly'} net flows by class (R$ mn)`}>
-        <FnChart height={360} panes={[{ series: classes.filter(c => c !== 'Não classificado').map(c => ({ kind: (view === 'm' ? 'line' : 'line') as 'line', data: xs.map((t: string, i: number) => ({ time: view === 'm' ? t + '-28' : t, value: ser.series[c][i] })).filter((p: any) => p.value != null), color: colors[c] || C.white, title: c, decimals: 0 })) }]} />
+    <FnScreen code="ANB" title={title} ownTitle wrap asOf={refIso}
+      right={<><Btns opts={[{ v: 'd', l: aL('Daily', 'Diário') }, { v: 'm', l: aL('Monthly', 'Mensal') }] as any} value={view} onChange={setView as any} />
+        <Btns opts={[{ v: 'all', l: aL('All', 'Todas') }, { v: 'exfi', l: aL('Ex fixed income', 'Sem renda fixa') }, { v: 'one', l: aL('One class', 'Uma classe') }] as any} value={mode} onChange={setMode as any} />
+        {mode === 'one' && <select data-anb-one className={inputCls} style={inputStyle} value={one} onChange={e => setOne(e.target.value)}>{all.map(c => <option key={c} value={c}>{anbName(c)}</option>)}</select>}</>}
+      source={aL('Daily fund reports and the fund class registry (public open data).', 'Informes diários dos fundos e cadastro de classes (dados públicos abertos).')} note={note}>
+      <div data-anb-summary className="pb-1 text-[11px]" style={{ color: C.muted }}>{aL('Total', 'Total')} · {aL('year', 'ano')}: <span style={{ color: clr(totY) }}>R$ {anbNum(totY, 1)} {aL('bn', 'bi')}</span> · {aL('12 months', '12 meses')}: <span style={{ color: clr(tot12) }}>R$ {anbNum(tot12, 1)} {aL('bn', 'bi')}</span> {unc ? <>· {aL('excl. unclassified', 'sem não classificados')}</> : null}</div>
+      {!desk && !more && <div data-anb-hint className="pb-1 text-[11px]" style={{ color: C.muted }}>{aL('Showing month and 12 months.', 'Mostrando mês e 12 meses.')}</div>}
+      <div data-anb-wrap className="overflow-x-auto">
+        <table data-anb-table className="w-full border-collapse text-[12px]">
+          <thead className="sticky top-0" style={{ background: C.panel2, zIndex: 3 }}><tr>
+            <th className="px-2 py-[3px] text-left font-normal whitespace-nowrap border-b" style={{ ...sticky, background: C.panel2, color: C.amber, borderColor: C.line }}>{aL('Class', 'Classe')}</th>
+            {showK.map(x => <th key={x.k} className="px-2 py-[3px] text-right font-normal whitespace-nowrap border-b" style={{ color: C.amber, borderColor: C.line }}>{aL(x.en, x.pt)}</th>)}
+            {showAum && <th className="px-2 py-[3px] text-right font-normal whitespace-nowrap border-b" style={{ color: C.amber, borderColor: C.line }}>{aL('AUM (R$ bn)', 'PL (R$ bi)')}</th>}
+          </tr></thead>
+          <tbody>
+            {cls.map((r: any, i: number) => row(r, i))}
+            {row(total, 0, { bold: true })}
+            {unc && row(unc, 1, { muted: true, dashLong: uncBad, label: aL('Unclassified (not in total)', 'Não classificado (fora do total)') })}
+          </tbody>
+        </table>
+      </div>
+      {!desk && <button data-anb-more className="mt-1 px-2 py-[1px] text-[11px] border" style={{ borderColor: C.line, color: C.amber }} onClick={() => setMore(!more)}>{more ? aL('Fewer columns', 'Menos colunas') : aL('More columns', 'Mais colunas')}</button>}
+      <div className="mt-2"><Panel title={`${view === 'd' ? aL('Daily net flows by class', 'Captação líquida diária por classe') : aL('Monthly net flows by class', 'Captação líquida mensal por classe')} (${aL('R$ mn', 'R$ mi')})`}>
+        {legend}
+        <div data-anb-chart><FnChart height={desk ? 320 : 260} panes={[{ series: classes.map(c => ({ kind: 'line' as const, data: xs.map((t: string, i: number) => ({ time: view === 'm' ? t + '-28' : t, value: ser.series[c][i] })).filter((p: any) => p.value != null), color: colors[c] || C.white, decimals: 0, lastValue: false })) }]} /></div>
       </Panel></div>
-      {total && <div className="pt-1 text-[11px]" style={{ color: C.muted }}>12-month total: <span style={{ color: clr(total.twelve_months) }}>R$ {nf(total.twelve_months / 1e3, 1)} bn</span></div>}
     </FnScreen>
   )
 }
