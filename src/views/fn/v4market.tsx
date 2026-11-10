@@ -8,19 +8,40 @@ import { C, PALETTE, nf, pf, big, dBR, dBRfull, clr, useJSON, FnScreen, Panel, G
 import { corr } from '@/lib/quant'
 import { en, toEN } from '@/lib/enText'
 import { lang } from '@/lib/settings'
-import { fmtMonth, fmtQuarter, monthAbbr } from '@/lib/dates'
+import { fmtMonth, fmtQuarter, monthAbbr, fmtDayMonth } from '@/lib/dates'
 import { calName } from '@/lib/calNames.mjs'
 import { downloadCSV, CsvBtn, dayNum, fromDay, heat, HBars, VertexBars } from './v4util'
 
 const bp = (v: any, d = 1) => v == null || !isFinite(+v) ? '—' : `${+v > 0 ? '+' : ''}${nf(v, d)}`
 const mLabel = (iso: string) => fmtMonth(iso)  // 'Sep 26' (EN) / 'set 26' (PT), igual ao resto do site
+const PT = () => lang() === 'pt'
+const LL = (en: string, pt: string) => (PT() ? pt : en)
 /** setor (chave EN canônica) → nome PT para o filtro em PT */
 const PT_SECTOR: Record<string, string> = { 'Industrials': 'Bens industriais', 'Consumer Staples': 'Consumo não cíclico', 'Consumer Discretionary': 'Consumo cíclico', 'Miscellaneous': 'Diversos', 'Financials & Other': 'Financeiro e outros', 'Basic Materials': 'Materiais básicos', 'Oil, Gas & Biofuels': 'Petróleo, gás e biocombustíveis', 'Health Care': 'Saúde', 'Information Technology': 'Tecnologia da informação', 'Telecommunications': 'Telecomunicações', 'Utilities': 'Utilidade pública' }
 
 // ======================= CDIE =======================
+const cdieNum = (v: any, d = 2) => {
+  if (v == null || v === '' || !isFinite(+v)) return '—'
+  const x = Math.abs(+v) < 0.5 * Math.pow(10, -d) ? 0 : +v
+  return x.toLocaleString(PT() ? 'pt-BR' : 'en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+}
+const cdieBp = (v: any, d = 1) => v == null || !isFinite(+v) ? '—' : `${+v > 0 ? '+' : ''}${cdieNum(v, d)}`
+const cdieBig = (v: any, d = 1) => {
+  if (v == null || Number.isNaN(+v)) return '—'
+  const a = Math.abs(+v), s = +v < 0 ? '-' : '', n = (x: number) => cdieNum(x, d)
+  if (a >= 1e12) return `${s}${n(a / 1e12)}T`
+  if (a >= 1e9) return `${s}${n(a / 1e9)}B`
+  if (a >= 1e6) return `${s}${n(a / 1e6)}M`
+  if (a >= 1e3) return `${s}${n(a / 1e3)}K`
+  return `${s}${n(a)}`
+}
 export function CDIEView() {
   const { data: d, err } = useJSON<any>('cdie.json')
+  const desk = useDesktop()
   const [tab, setTab] = useState(0)
+  const [more, setMore] = useState(false)
+  const [dots, setDots] = useState(true)
+  const title = LL('CDI / Copom expectations implied by DI futures', 'Expectativas de CDI e Copom implícitas nos futuros de DI')
   const v = useMemo(() => {
     if (!d) return null
     const path: any[] = d.path, ref = d.ref_date
@@ -36,85 +57,127 @@ export function CDIEView() {
     const last = path.length ? endOf(path[path.length - 1]) : ref
     const quoted = (d.contracts as any[]).filter(c => c.mat <= last).map(c => [dayNum(c.mat), c.rate] as [number, number])
     const nextM = meetings.find(m => m.decision >= ref)
-    const h = d.history?.[d.history.length - 1]
-    return { path, step, quoted, nextM, h, cum: path.length ? path[path.length - 1].cum_bp : null }
+    const surveyDate = path.map((r: any) => r.focus?.date).find(Boolean) as string | undefined
+    const surveyStale = !!(surveyDate && dayNum(ref) - dayNum(surveyDate) > 7)
+    return { path, step, quoted, nextM, cum: path.length ? path[path.length - 1].cum_bp : null, surveyDate, surveyStale }
   }, [d])
-  if (!d || !v) return <FnScreen code="CDIE"><Loading err={err} /></FnScreen>
+  if (!d || !v) return <FnScreen code="CDIE" title={title} ownTitle><Loading err={err} /></FnScreen>
   const first = v.path[0]
+  const lastLab = v.path[v.path.length - 1]?.label ?? '—'
+  const spread = cdieNum(d.spread_selic_cdi, 2)
+  const note = LL(
+    `The implied rate is what the market prices in, not a forecast; it includes a term premium that grows with maturity. Each settlement price is turned into a rate; forwards between expiries are held flat; the implied CDI of each inter-meeting period is that period's average forward. Implied Selic = implied CDI + today's Selic−CDI spread (${spread} p.p.). Δ meeting is versus the previous period; 25 bp is a standard cut or hike. The path rate of a contract exists only up to the last expiry covered by the published meeting calendar. History starts with the first sessions collected and grows by one session per day.`,
+    `A taxa implícita é o que o mercado precifica, não uma projeção; inclui um prêmio de prazo que cresce com o vencimento. Cada PU de ajuste vira taxa; os forwards entre vencimentos são constantes; o CDI implícito de cada período entre reuniões é o forward médio do período. Selic implícita = CDI implícito + spread Selic−CDI de hoje (${spread} p.p.). Δ reunião é contra o período anterior; 25 pb é um corte ou alta padrão. A taxa do caminho de um contrato só existe até o último vencimento coberto pelo calendário de reuniões publicado. O histórico começa nas primeiras sessões coletadas e cresce uma sessão por dia.`)
+  const source = LL('Daily settlement of DI futures, the published meeting calendar, the overnight rate and the policy target, and the median policy-rate survey by meeting (public data).',
+    'Ajuste diário dos futuros de DI, o calendário de reuniões publicado, a taxa overnight e a meta, e a mediana da pesquisa de taxa básica por reunião (dados públicos).')
+  const cards = [
+    [LL('Current CDI (% p.a.)', 'CDI atual (% a.a.)'), cdieNum(d.cdi, 2), C.amber],
+    [LL('Selic target (% p.a.)', 'Meta da Selic (% a.a.)'), cdieNum(d.selic, 2), C.amber],
+    [LL('Next meeting', 'Próxima reunião'), v.nextM ? `${v.nextM.label} · ${fmtDayMonth(v.nextM.decision)}` : '—', C.text],
+    [LL('Implied move (bp)', 'Movimento implícito (pb)'), first ? cdieBp(first.move_bp) : '—', clr(first?.move_bp)],
+    ...(!desk ? [] : [[LL(`Cumulative to ${lastLab} (bp)`, `Acumulado até ${lastLab} (pb)`), cdieBp(v.cum), clr(v.cum)]] as any),
+  ]
+  const surveyLbl = v.surveyDate
+    ? LL(`Survey · ${fmtDayMonth(v.surveyDate)}`, `Pesquisa · ${fmtDayMonth(v.surveyDate)}`)
+    : LL('Survey (med.)', 'Pesquisa (med.)')
+  const meetCols = [
+    { k: 'label', label: LL('Meeting', 'Reunião'), color: () => C.amber },
+    { k: 'decision', label: LL('Decision', 'Decisão'), fmt: (x: string) => dBR(x) },
+    { k: 'contract', label: LL('DI1 ref.', 'Ref. DI1') },
+    { k: 'cdi', label: LL('Implied CDI', 'CDI impl.'), align: 'r' as const, fmt: (x: number) => cdieNum(x, 2), color: () => C.amber },
+    { k: 'move_bp', label: LL('Δ meet. (bp)', 'Δ reu. (pb)'), align: 'r' as const, tip: LL('Change implied for this meeting versus the previous period, in basis points.', 'Variação implícita desta reunião contra o período anterior, em pontos-base.'), fmt: (x: number) => cdieBp(x), color: (x: number) => clr(x) },
+    { k: 'cum_bp', label: LL('Δ cum. (bp)', 'Δ acum. (pb)'), align: 'r' as const, tip: LL('Cumulative implied change from the current CDI to this meeting.', 'Variação implícita acumulada desde o CDI atual até esta reunião.'), fmt: (x: number) => cdieBp(x), color: (x: number) => clr(x) },
+    { k: 'n25', label: LL('25 bp steps', 'Passos de 25 pb'), align: 'r' as const, tip: LL('Number of standard 25 bp cuts or hikes in this meeting.', 'Número de cortes ou altas padrão de 25 pb nesta reunião.'), fmt: (_: any, r: any) => cdieNum(r.move_bp / 25, 2) },
+    { k: 'selic', label: LL('Impl. Selic', 'Selic impl.'), align: 'r' as const, tip: LL('Implied Selic target after this meeting.', 'Meta da Selic implícita após esta reunião.'), fmt: (x: number) => cdieNum(x, 2) },
+    { k: 'focus', label: surveyLbl, align: 'r' as const, tip: v.surveyStale ? LL('Survey is more than 7 days older than the settlement date.', 'A pesquisa tem mais de 7 dias em relação à data de ajuste.') : undefined, fmt: (x: any) => x ? cdieNum(x.median, 2) : '—', color: () => v.surveyStale ? C.muted : C.purple },
+    { k: 'dif', label: LL('Impl.−survey (bp)', 'Impl.−pesq. (pb)'), align: 'r' as const, fmt: (_: any, r: any) => r.focus ? cdieBp((r.selic - r.focus.median) * 100) : '—', color: (_: any, r: any) => r.focus ? clr(r.selic - r.focus.median) : C.muted },
+  ]
+  const diCols = [
+    { k: 'code', label: LL('Contract', 'Contrato'), color: () => C.amber },
+    { k: 'mat', label: LL('Expiry', 'Vencimento'), fmt: (x: string) => dBR(x) },
+    { k: 'du', label: LL('Business days', 'Dias úteis'), align: 'r' as const, tip: LL('Business days to expiry (DU).', 'Dias úteis até o vencimento (DU).') },
+    { k: 'pu', label: LL('Settlement PU', 'PU de ajuste'), align: 'r' as const, tip: LL('Official settlement unit price.', 'Preço unitário oficial de ajuste.'), fmt: (x: number) => cdieNum(x, 2) },
+    { k: 'rate', label: LL('Rate', 'Taxa'), align: 'r' as const, fmt: (x: number) => cdieNum(x, 3), color: () => C.amber },
+    { k: 'est', label: LL('Path rate', 'Taxa do caminho'), align: 'r' as const, tip: LL('Contract rate recomputed from the implied path.', 'Taxa do contrato recalculada pelo caminho implícito.'), fmt: (x: number) => cdieNum(x, 3) },
+    { k: 'last_est_bp', label: LL('Rate − path (bp)', 'Taxa − caminho (pb)'), align: 'r' as const, fmt: (x: number) => cdieBp(x), color: (x: number) => x == null ? C.muted : Math.abs(x) > 2 ? C.yellow : C.text },
+    { k: 'fwd', label: LL('Forward', 'Forward'), align: 'r' as const, fmt: (x: number) => cdieNum(x, 3) },
+    { k: 'contracts', label: LL('Contracts', 'Contratos'), align: 'r' as const, fmt: (x: number) => cdieBig(x, 1) },
+    { k: 'volume', label: LL('Volume R$', 'Volume R$'), align: 'r' as const, fmt: (x: number) => cdieBig(x, 1) },
+  ]
+  const histCols = [
+    { k: 'date', label: LL('Date', 'Data'), fmt: (x: string) => dBRfull(x) },
+    { k: 'cdi', label: 'CDI', align: 'r' as const, fmt: (x: number) => cdieNum(x, 2) },
+    { k: 'next', label: LL('Next meeting', 'Próxima reunião') },
+    { k: 'next_move_bp', label: LL('Δ implied (bp)', 'Δ impl. (pb)'), align: 'r' as const, fmt: (x: number) => cdieBp(x), color: (x: number) => clr(x) },
+    { k: 'cum_12m_bp', label: LL('Cum. 12m (bp)', 'Acum. 12m (pb)'), align: 'r' as const, fmt: (x: number) => cdieBp(x), color: (x: number) => clr(x) },
+    { k: 'year_end_cdi', label: LL('Year-end CDI', 'CDI fim de ano'), align: 'r' as const, fmt: (x: number) => cdieNum(x, 2) },
+    { k: 'di1_1y', label: LL('DI1 ~1Y', 'DI1 ~1A'), align: 'r' as const, fmt: (x: number) => cdieNum(x, 3) },
+  ]
+  const compactKeys = tab === 0 ? ['label', 'move_bp', 'cum_bp', 'selic'] : tab === 1 ? ['code', 'mat', 'rate', 'est'] : ['date', 'next_move_bp', 'cum_12m_bp', 'year_end_cdi']
+  const allCols = tab === 0 ? meetCols : tab === 1 ? diCols : histCols
+  const showCols = desk || more ? allCols : allCols.filter(c => compactKeys.includes(c.k))
+  const moreBtn = !desk && <button data-cdie-more className="mt-1 px-2 py-[1px] text-[11px] border" style={{ borderColor: C.line, color: C.amber }} onClick={() => setMore(!more)}>{more ? LL('Fewer columns', 'Menos colunas') : LL('More columns', 'Mais colunas')}</button>
+  const csvBtn = (tab === 1 || tab === 2) && <button data-cdie-csv className="px-2 py-[1px] text-[12px] border" style={{ borderColor: C.amber, color: C.amber }} onClick={() => {
+    if (tab === 1) downloadCSV('cdie-di1.csv', diCols.map(c => String(c.label)), d.contracts.map((r: any) => [r.code, dBR(r.mat), r.du, r.pu, r.rate, r.est, r.last_est_bp, r.fwd, r.contracts, r.volume]))
+    else downloadCSV('cdie-history.csv', histCols.map(c => String(c.label)), d.history.slice().reverse().map((r: any) => [dBRfull(r.date), r.cdi, r.next, r.next_move_bp, r.cum_12m_bp, r.year_end_cdi, r.di1_1y]))
+  }}>{LL('Export CSV', 'Exportar CSV')}</button>
+  const changeTab = (i: number) => { setTab(i); setMore(false) }
+  const chartSeries = [
+    { name: LL('Implied CDI (DI1)', 'CDI implícito (DI1)'), points: v.step((r: any) => r.cdi, d.cdi), color: C.amber, width: 2 },
+    { name: LL('Implied Selic', 'Selic implícita'), points: v.step((r: any) => r.selic, d.selic), color: C.cyan, dash: '4 3' },
+    { name: LL('Survey – Selic median', 'Pesquisa – mediana da Selic'), points: v.step((r: any) => r.focus?.median ?? null, d.selic), color: v.surveyStale ? tc('#666') : C.purple, dash: '2 3' },
+    ...(dots ? [{ name: LL('DI1 rate (settlement, at expiry)', 'Taxa DI1 (ajuste, no vencimento)'), points: v.quoted, color: C.white, scatter: true as const }] : []),
+  ]
   return (
-    <FnScreen code="CDIE" title="CDI / Copom expectations implied by DI futures" tabs={['Copom meetings', 'DI1 contracts', 'History']} tab={tab} setTab={setTab}
-      source={d.source} note={<>{en(d.method)} The implied rate is what the market prices in (not a forecast); it includes a risk premium that grows with maturity. Survey = median Selic expected for each meeting in the market survey. Implied Selic = implied CDI + current Selic−CDI spread ({nf(d.spread_selic_cdi, 2)} p.p.). Δ meeting vs the previous period; 25 bp = a &quot;standard&quot; cut/hike. Est. only exists up to the last expiry covered by the published Copom calendar. History starts with the first sessions collected and grows by one session per day with each pipeline run.</>}>
-      <div className="mb-2 grid gap-2 text-[12px] fn-kpi" style={{ gridTemplateColumns: 'repeat(6,minmax(0,1fr))' }}>
-        {[
-          ['Reference date (settlement)', dBRfull(d.ref_date), C.text],
-          ['Current CDI (% p.a.)', nf(d.cdi, 2), C.amber],
-          ['Selic target (% p.a.)', nf(d.selic, 2), C.amber],
-          ['Next meeting', v.nextM ? `${v.nextM.label} · ${dBR(v.nextM.decision)}` : '—', C.text],
-          ['Implied move (bp)', first ? bp(first.move_bp) : '—', clr(first?.move_bp)],
-          [`Cumulative to ${v.path[v.path.length - 1]?.label ?? '—'} (bp)`, bp(v.cum), clr(v.cum)],
-        ].map(([k, val, c]) => <div key={k as string} className="border px-2 py-1" style={{ borderColor: C.line, background: C.panel }}><div style={{ color: C.muted }}>{k}</div><div className="text-[16px]" style={{ color: c as string }}>{val}</div></div>)}
+    <FnScreen code="CDIE" title={title} ownTitle wrap asOf={d.ref_date}
+      tabs={[LL('Copom meetings', 'Reuniões do Copom'), LL('DI1 contracts', 'Contratos DI1'), LL('History', 'Histórico')]} tab={tab} setTab={changeTab}
+      right={csvBtn || undefined} source={source} note={note}>
+      <div data-cdie-cards className="mb-2 grid gap-2 text-[12px] fn-kpi min-w-0" style={{ gridTemplateColumns: desk ? 'repeat(5,minmax(0,1fr))' : 'repeat(2,minmax(0,1fr))' }}>
+        {cards.map(([k, val, c]) => <div key={k as string} className="border px-2 py-1 min-w-0" style={{ borderColor: C.line, background: C.panel }}><div className="truncate" style={{ color: C.muted }}>{k}</div><div className="text-[16px] truncate" style={{ color: c as string, whiteSpace: 'nowrap' }} title={String(val)}>{val}</div></div>)}
       </div>
-      {tab === 0 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.05fr) minmax(0,1fr)' }}>
-        <Panel title="Implied path by meeting">
-          <Grid rows={v.path} cols={[
-            { k: 'label', label: 'Meeting', color: () => C.amber },
-            { k: 'decision', label: 'Decision', fmt: x => dBR(x) },
-            { k: 'contract', label: 'DI1 ref.' },
-            { k: 'cdi', label: 'CDI impl.', align: 'r', fmt: x => nf(x, 2), color: () => C.amber },
-            { k: 'move_bp', label: 'Δ meeting (bp)', align: 'r', fmt: x => bp(x), color: x => clr(x) },
-            { k: 'cum_bp', label: 'Δ cum. (bp)', align: 'r', fmt: x => bp(x), color: x => clr(x) },
-            { k: 'n25', label: 'No. of 25 bp', align: 'r', fmt: (_, r: any) => nf(r.move_bp / 25, 2) },
-            { k: 'selic', label: 'Selic impl.', align: 'r', fmt: x => nf(x, 2) },
-            { k: 'focus', label: 'Survey (med.)', align: 'r', fmt: x => x ? nf(x.median, 2) : '—', color: () => C.purple },
-            { k: 'dif', label: 'Impl.−Survey (bp)', align: 'r', fmt: (_, r: any) => r.focus ? bp((r.selic - r.focus.median) * 100) : '—', color: (_, r: any) => r.focus ? clr(r.selic - r.focus.median) : C.muted },
-          ]} />
+      {!desk && v.cum != null && <div data-cdie-cum className="mb-2 text-[11px]" style={{ color: C.muted }}>{LL(`Cumulative to ${lastLab}`, `Acumulado até ${lastLab}`)}: <span style={{ color: clr(v.cum) }}>{cdieBp(v.cum)} {LL('bp', 'pb')}</span></div>}
+      {tab === 0 && <div className="grid gap-2 min-w-0">
+        <Panel className="min-w-0 w-full overflow-hidden" title={LL('Implied path by meeting', 'Trajetória implícita por reunião')}>
+          {!desk && !more && <div data-cdie-hint className="px-2 pt-1 text-[11px]" style={{ color: C.muted }}>{LL('Showing meeting, Δ meeting, Δ cumulative and implied Selic.', 'Mostrando reunião, Δ reunião, Δ acumulado e Selic implícita.')}</div>}
+          <div data-cdie-meet className="min-w-0 w-full overflow-x-auto"><Grid stickyFirst rows={v.path} cols={showCols} /></div>
+          {moreBtn}
         </Panel>
-        <div>
-          <XYChart height={330} legend zeroLine={false} xFmt={x => dBR(fromDay(Math.round(x)))} yFmt={y => nf(y, 2)} yLabel="% p.a." series={[
-            { name: 'Implied CDI (DI1)', points: v.step(r => r.cdi, d.cdi), color: C.amber, width: 2 },
-            { name: 'Implied Selic', points: v.step(r => r.selic, d.selic), color: C.cyan, dash: '4 3' },
-            { name: 'Survey – Selic median', points: v.step(r => r.focus?.median ?? null, d.selic), color: C.purple, dash: '2 3' },
-            { name: 'DI1 rate (settlement, spot)', points: v.quoted, color: C.white, scatter: true },
-          ]} />
-          <div className="mt-2 text-[12px]" style={{ color: C.amber }}>Implied move by meeting (bp)</div>
-          <HBars rows={v.path.map((r: any) => ({ label: `${r.label} ${dBR(r.decision)}`, v: r.move_bp }))} fmt={x => bp(x)} />
+        <div className={(desk ? 'grid gap-2 items-start ' : '') + 'min-w-0'} style={desk ? { gridTemplateColumns: 'minmax(0,1.2fr) minmax(16rem,0.8fr)' } : undefined}>
+          <div>
+            <div className="flex flex-wrap items-center gap-2 pb-1">
+              <button data-cdie-dots={dots ? 'on' : 'off'} className="px-2 py-[1px] text-[11px] border" style={{ borderColor: C.line, color: dots ? tc('#000') : C.amber, background: dots ? C.amber : 'transparent' }} onClick={() => setDots(!dots)}>{LL('DI1 dots', 'Pontos DI1')}</button>
+              <span data-cdie-dotnote className="text-[11px]" style={{ color: C.muted }}>{dots ? LL('White dots are DI1 settlement rates at each contract\'s expiry. The step line changes on the business day after each meeting, so a dot can sit below or above a step.', 'Os pontos brancos são as taxas de ajuste do DI1 em cada vencimento. A linha em degrau muda no dia útil seguinte a cada reunião, por isso um ponto pode ficar abaixo ou acima de um degrau.') : LL('DI1 settlement dots hidden.', 'Pontos de ajuste do DI1 ocultos.')}</span>
+            </div>
+            <XYChart height={330} legend alwaysLegend niceY zeroLine={false} xFmt={x => dBR(fromDay(Math.round(x)))} yFmt={y => cdieNum(y, 2)} yLabel="% p.a." series={chartSeries} />
+          </div>
+          <div data-cdie-bars>
+            <div className="text-[12px]" style={{ color: C.amber }}>{LL('Implied move by meeting (bp)', 'Movimento implícito por reunião (pb)')}</div>
+            <HBars raw labelW="w-36" rows={v.path.map((r: any) => ({ label: `${r.label} ${fmtDayMonth(r.decision)}`, v: r.move_bp }))} fmt={x => cdieBp(x)} />
+          </div>
         </div>
       </div>}
-      {tab === 1 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1fr)' }}>
-        <Panel title={`DI1 – settlement of ${dBRfull(d.ref_date)}`}>
-          <Grid maxH={560} rows={d.contracts} cols={[
-            { k: 'code', label: 'Contract', color: () => C.amber },
-            { k: 'mat', label: 'Expiry', fmt: x => dBR(x) },
-            { k: 'du', label: 'DU', align: 'r' },
-            { k: 'pu', label: 'Settlement PU', align: 'r', fmt: x => nf(x, 2) },
-            { k: 'rate', label: 'Rate', align: 'r', fmt: x => nf(x, 3), color: () => C.amber },
-            { k: 'est', label: 'Est.', align: 'r', fmt: x => nf(x, 3) },
-            { k: 'last_est_bp', label: 'Rate−Est (bp)', align: 'r', fmt: x => bp(x), color: x => x == null ? C.muted : Math.abs(x) > 2 ? C.yellow : C.text },
-            { k: 'fwd', label: 'Forward', align: 'r', fmt: x => nf(x, 3) },
-            { k: 'contracts', label: 'Contracts', align: 'r', fmt: x => big(x, 1) },
-            { k: 'volume', label: 'Volume R$', align: 'r', fmt: x => big(x, 1) },
-          ]} />
+      {tab === 1 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: desk ? 'minmax(0,1.1fr) minmax(0,1fr)' : 'minmax(0,1fr)' }}>
+        <Panel className="min-w-0 w-full overflow-hidden" title={LL(`DI1 – settlement of ${dBRfull(d.ref_date)}`, `DI1 – ajuste de ${dBRfull(d.ref_date)}`)}>
+          {!desk && !more && <div data-cdie-hint className="px-2 pt-1 text-[11px]" style={{ color: C.muted }}>{LL('Showing contract, expiry, rate and path rate.', 'Mostrando contrato, vencimento, taxa e taxa do caminho.')}</div>}
+          <div data-cdie-di1 className="min-w-0 w-full overflow-x-auto"><Grid stickyFirst maxH={560} rows={d.contracts} cols={showCols} /></div>
+          {moreBtn}
         </Panel>
-        <div>
-          <XYChart height={360} legend xLabel="business years (bd/252)" yLabel="% p.a." xFmt={x => nf(x, 1)} yFmt={y => nf(y, 2)} series={[
-            { name: 'Settlement rate', points: d.contracts.map((c: any) => [c.du / 252, c.rate]), color: C.amber, scatter: true },
-            { name: 'DI1 curve', points: d.contracts.map((c: any) => [c.du / 252, c.rate]), color: C.amber, width: 1 },
-            { name: 'Forward between expiries', points: d.contracts.flatMap((c: any, i: number) => [[i ? d.contracts[i - 1].du / 252 : 0, c.fwd], [c.du / 252, c.fwd]]), color: C.cyan, width: 1, dash: '3 2' },
-            { name: 'Est. (Copom path)', points: d.contracts.filter((c: any) => c.est != null).map((c: any) => [c.du / 252, c.est]), color: C.white, width: 1 },
-          ]} />
-        </div>
+        <XYChart height={360} legend alwaysLegend niceY xLabel={LL('business years (bd/252)', 'anos úteis (du/252)')} yLabel="% p.a." xFmt={x => cdieNum(x, 1)} yFmt={y => cdieNum(y, 2)} series={[
+          { name: LL('Settlement rate', 'Taxa de ajuste'), points: d.contracts.map((c: any) => [c.du / 252, c.rate]), color: C.amber, scatter: true },
+          { name: LL('DI1 curve', 'Curva DI1'), points: d.contracts.map((c: any) => [c.du / 252, c.rate]), color: C.amber, width: 1 },
+          { name: LL('Forward between expiries', 'Forward entre vencimentos'), points: d.contracts.flatMap((c: any, i: number) => [[i ? d.contracts[i - 1].du / 252 : 0, c.fwd], [c.du / 252, c.fwd]]), color: C.cyan, width: 1, dash: '3 2' },
+          { name: LL('Path rate (implied path)', 'Taxa do caminho (trajetória implícita)'), points: d.contracts.filter((c: any) => c.est != null).map((c: any) => [c.du / 252, c.est]), color: C.white, width: 1 },
+        ]} />
       </div>}
       {tab === 2 && <div>
-        <FnChart height={420} panes={[
-          { stretch: 0.5, series: [{ kind: 'hist', data: d.history.map((h: any) => ({ time: h.date, value: h.next_move_bp, color: h.next_move_bp >= 0 ? C.up : C.down })), title: 'Next meeting (bp)', decimals: 1 }, { kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.cum_12m_bp })), color: C.amber, title: 'Cum. 12m (bp)', decimals: 1 }] },
-          { stretch: 0.5, series: [{ kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.year_end_cdi })), color: C.cyan, title: 'Implied year-end CDI', decimals: 2 }, { kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.di1_1y })), color: C.white, title: 'DI1 ~1 year', decimals: 2 }, { kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.cdi })), color: tc('#777'), dashed: true, title: 'CDI', decimals: 2 }] },
+        <FnChart height={420} alwaysLegend panes={[
+          { stretch: 0.5, series: [{ kind: 'hist', data: d.history.map((h: any) => ({ time: h.date, value: h.next_move_bp, color: h.next_move_bp >= 0 ? C.up : C.down })), title: LL('Next meeting (bp)', 'Próxima reunião (pb)'), decimals: 1 }, { kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.cum_12m_bp })), color: C.amber, title: LL('Cum. 12m (bp)', 'Acum. 12m (pb)'), decimals: 1 }] },
+          { stretch: 0.5, series: [{ kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.year_end_cdi })), color: C.cyan, title: LL('Implied year-end CDI', 'CDI implícito de fim de ano'), decimals: 2 }, { kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.di1_1y })), color: C.white, title: LL('DI1 ~1 year', 'DI1 ~1 ano'), decimals: 2 }, { kind: 'line', data: d.history.map((h: any) => ({ time: h.date, value: h.cdi })), color: tc('#777'), dashed: true, title: 'CDI', decimals: 2 }] },
         ]} />
-        <Panel title="Sessions" className="mt-2">
-          <Grid maxH={260} rows={d.history.slice().reverse()} cols={[
-            { k: 'date', label: 'Date', fmt: x => dBRfull(x) }, { k: 'cdi', label: 'CDI', align: 'r', fmt: x => nf(x, 2) }, { k: 'next', label: 'Next meeting' },
-            { k: 'next_move_bp', label: 'Δ impl. (bp)', align: 'r', fmt: x => bp(x), color: x => clr(x) }, { k: 'cum_12m_bp', label: 'Cum. 12m (bp)', align: 'r', fmt: x => bp(x), color: x => clr(x) },
-            { k: 'year_end_cdi', label: 'Year-end CDI', align: 'r', fmt: x => nf(x, 2) }, { k: 'di1_1y', label: 'DI1 ~1Y', align: 'r', fmt: x => nf(x, 3) },
-          ]} />
+        <Panel title={LL('Sessions', 'Sessões')} className="mt-2 min-w-0 w-full overflow-hidden">
+          {!desk && !more && <div data-cdie-hint className="px-2 pt-1 text-[11px]" style={{ color: C.muted }}>{LL('Showing date, Δ implied, 12-month cumulative and year-end CDI.', 'Mostrando data, Δ implícito, acumulado de 12 meses e CDI de fim de ano.')}</div>}
+          <div data-cdie-hist className="min-w-0 w-full overflow-x-auto"><Grid stickyFirst maxH={260} rows={d.history.slice().reverse()} cols={showCols} /></div>
+          {moreBtn}
         </Panel>
       </div>}
     </FnScreen>
@@ -122,8 +185,6 @@ export function CDIEView() {
 }
 
 // ======================= CORR =======================
-const PT = () => lang() === 'pt'
-const LL = (en: string, pt: string) => (PT() ? pt : en)
 const secName = (raw: string) => { const k = toEN(raw || ''); return k ? (PT() ? PT_SECTOR[k] || k : k) : '—' }
 /** mínimo de retornos em datas comuns para mostrar a correlação (senão "—") */
 const CORR_MIN = (n: number) => Math.max(20, Math.floor(n * 0.6))

@@ -7,8 +7,18 @@ import { lang } from '../../lib/settings'
 
 export type XYSeries = { name: string; points: [number, number | null][]; color: string; width?: number; dash?: string; scatter?: boolean; band?: [number, number, number][]; opacity?: number }
 
-export default function XYChart({ series, height = 360, xTicks, xFmt = v => String(v), yFmt = v => v.toFixed(1), zeroLine = false, xLabel, yLabel, legend = true }: {
-  series: XYSeries[]; height?: number; xTicks?: { v: number; l: string }[]; xFmt?: (v: number) => string; yFmt?: (v: number) => string; zeroLine?: boolean; xLabel?: string; yLabel?: string; legend?: boolean
+function niceTicks(lo: number, hi: number, n = 5) {
+  if (!(hi > lo) || !isFinite(lo) || !isFinite(hi)) return [lo, hi]
+  const raw = (hi - lo) / n, pow = Math.pow(10, Math.floor(Math.log10(raw) || 0)), r = raw / pow
+  const step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * pow
+  const start = Math.floor(lo / step) * step, end = Math.ceil(hi / step) * step
+  const ticks: number[] = []
+  for (let y = start; y <= end + step * 1e-9; y = +(y + step).toPrecision(12)) ticks.push(y)
+  return ticks.length ? ticks : [lo, hi]
+}
+
+export default function XYChart({ series, height = 360, xTicks, xFmt = v => String(v), yFmt = v => v.toFixed(1), zeroLine = false, xLabel, yLabel, legend = true, niceY, alwaysLegend }: {
+  series: XYSeries[]; height?: number; xTicks?: { v: number; l: string }[]; xFmt?: (v: number) => string; yFmt?: (v: number) => string; zeroLine?: boolean; xLabel?: string; yLabel?: string; legend?: boolean; niceY?: boolean; alwaysLegend?: boolean
 }) {
   const box = useRef<HTMLDivElement | null>(null)
   const [W, setW] = useState(1000)
@@ -32,11 +42,13 @@ export default function XYChart({ series, height = 360, xTicks, xFmt = v => Stri
     })
     if (zeroLine) { y0 = Math.min(y0, 0); y1 = Math.max(y1, 0) }
     const pad = (y1 - y0) * 0.06 || 1
-    return { x0, x1: x1 === x0 ? x0 + 1 : x1, y0: y0 - pad, y1: y1 + pad }
-  }, [series, zeroLine])
+    let lo = y0 - pad, hi = y1 + pad
+    if (niceY && hi > lo) { const t = niceTicks(lo, hi); lo = t[0]; hi = t[t.length - 1] }
+    return { x0, x1: x1 === x0 ? x0 + 1 : x1, y0: lo, y1: hi }
+  }, [series, zeroLine, niceY])
   const sx = (x: number) => m.l + ((x - x0) / (x1 - x0)) * (W - m.l - m.r)
   const sy = (y: number) => m.t + (1 - (y - y0) / (y1 - y0)) * (H - m.t - m.b)
-  const yt = Array.from({ length: 6 }, (_, i) => y0 + ((y1 - y0) * i) / 5)
+  const yt = niceY ? niceTicks(y0, y1) : Array.from({ length: 6 }, (_, i) => y0 + ((y1 - y0) * i) / 5)
   const xt = xTicks || Array.from({ length: 7 }, (_, i) => ({ v: x0 + ((x1 - x0) * i) / 6, l: xFmt(x0 + ((x1 - x0) * i) / 6) }))
   // mobile: menos rótulos no eixo X para não sobrepor
   const maxT = Math.max(2, Math.floor((W - m.l - m.r) / 72))
@@ -73,8 +85,9 @@ export default function XYChart({ series, height = 360, xTicks, xFmt = v => Stri
   })
   return (
     <div ref={box} className="max-lg:overflow-hidden" style={{ fontFamily: MONO, background: tc('#101010'), position: 'relative' }}>
-      {legend && !active && series.filter(s => s.name).length > 3 && !hv && <button className="px-2 pt-1 text-[11px]" style={{ color: C.amber }} onClick={() => setLegOpen(!legOpen)}>{lang() === 'pt' ? 'Legenda' : 'Legend'} {legOpen ? '▾' : '▸'}</button>}
-      {legend && (active || series.filter(s => s.name).length <= 3 || legOpen || hv) && <div className="flex flex-wrap gap-3 px-2 pt-1 text-[11px]">{series.filter(s => s.name).map(s => <span key={s.name} style={{ color: s.color }}>■ <span style={{ color: C.text }}>{s.name}</span>{hv && (() => { const h = hv.find(x => x.s === s); return h?.p && h.p[1] != null ? <span style={{ color: s.color }}> {yFmt(h.p[1])}</span> : null })()}</span>)}</div>}
+      {legend && !alwaysLegend && !active && series.filter(s => s.name).length > 3 && !hv && <button className="px-2 pt-1 text-[11px]" style={{ color: C.amber }} onClick={() => setLegOpen(!legOpen)}>{lang() === 'pt' ? 'Legenda' : 'Legend'} {legOpen ? '▾' : '▸'}</button>}
+      {legend && (alwaysLegend || active || series.filter(s => s.name).length <= 3 || legOpen || hv) && <div data-xy-legend className="flex flex-wrap gap-3 px-2 pt-1 text-[11px]">{series.filter(s => s.name).map(s => <span key={s.name} style={{ color: s.color }}>■ <span style={{ color: C.text }}>{s.name}</span>{hv && (() => { const h = hv.find(x => x.s === s); return h?.p && h.p[1] != null ? <span style={{ color: s.color }}> {yFmt(h.p[1])}</span> : null })()}</span>)}</div>}
+      {yLabel && <div className="px-2 text-right text-[10px]" style={{ color: tc('#666') }}>{yLabel}</div>}
       <svg ref={svgRef} className="max-lg:block" viewBox={`0 0 ${W} ${H}`} width={W} height={H} onMouseMove={onMove} onMouseLeave={() => setHx(null)}>
         {yt.map((y, i) => <g key={i}><line x1={m.l} x2={W - m.r} y1={sy(y)} y2={sy(y)} stroke={tc(tc('#262626'))} strokeDasharray="2,3" /><text x={W - m.r + 4} y={sy(y) + 4} fill={tc(tc('#8a8a8a'))} fontSize={11}>{yFmt(y)}</text></g>)}
         {xtv.map((t, i) => <g key={i}><line x1={sx(t.v)} x2={sx(t.v)} y1={m.t} y2={H - m.b} stroke={tc(tc('#262626'))} strokeDasharray="2,3" /><text x={sx(t.v)} y={H - 8} fill={tc(tc('#8a8a8a'))} fontSize={11} textAnchor="middle">{t.l}</text></g>)}
@@ -86,7 +99,6 @@ export default function XYChart({ series, height = 360, xTicks, xFmt = v => Stri
         {hx != null && hx >= x0 && hx <= x1 && <line x1={sx(hx)} x2={sx(hx)} y1={m.t} y2={H - m.b} stroke={tc(tc('#777'))} strokeDasharray="4,3" />}
         {hx != null && hx >= x0 && hx <= x1 && <g><rect x={sx(hx) - 34} y={H - m.b + 2} width={68} height={16} fill={C.amber} /><text x={sx(hx)} y={H - m.b + 14} fontSize={11} textAnchor="middle" fill={tc(tc('#000'))}>{xFmt(hx)}</text></g>}
         {xLabel && <text x={(W - m.r) / 2} y={H - 1} fill={tc(tc('#666'))} fontSize={10} textAnchor="middle">{xLabel}</text>}
-        {yLabel && <text x={W - 4} y={m.t + 8} fill={tc(tc('#666'))} fontSize={10} textAnchor="end">{yLabel}</text>}
       </svg>
     </div>
   )
