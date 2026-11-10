@@ -174,7 +174,7 @@ export function FOMCView() {
   const note = <>
     {fL('A filled dot in the projections column marks a meeting with a published set of rate projections. Implied moves come from exchange-traded futures, not official forecasts. Unscheduled Fed decisions appear as extra rows. ',
       'Um ponto na coluna de projeções marca uma reunião com um conjunto publicado de projeções de juros. Os movimentos implícitos vêm de futuros negociados em bolsa, não de projeções oficiais. Decisões extraordinárias do Fed aparecem como linhas extras. ')}
-    <a href={href('/wirp/')} style={{ color: C.amber }}>{fL('Implied policy path', 'Trajetória implícita de juros')}</a>
+    {' '}<a href={href('/wirp/')} style={{ color: C.amber }}>{fL('Implied policy path', 'Trajetória implícita de juros')}</a>
   </>
   const exp = () => {
     if (tab === 1) {
@@ -201,7 +201,7 @@ export function FOMCView() {
       <div data-fomc-cards className="mb-2 grid gap-2 text-[12px] fn-kpi min-w-0" style={{ gridTemplateColumns: desk ? 'repeat(5,minmax(0,1fr))' : 'repeat(2,minmax(0,1fr))' }}>
         {shownCards.map(([k, val, c], i) => <div key={i} className="border px-2 py-1 min-w-0" style={{ borderColor: C.line, background: C.panel }}>
           <div className="truncate" style={{ color: C.muted }}>{k}</div>
-          <div className="text-[16px] whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: (c as string) || C.text }}>{val}</div>
+          <div className="text-[16px] whitespace-nowrap" style={{ color: (c as string) || C.text }}>{val}</div>
         </div>)}
       </div>
       {fifth && <div data-fomc-fifth className="mb-2 text-[12px] border px-2 py-1 min-w-0" style={{ borderColor: C.line, background: C.panel }}>
@@ -226,6 +226,10 @@ export function FOMCView() {
           { kind: 'line', data: v.selicPts, color: C.amber, title: fL('Selic target', 'Meta da Selic'), decimals: 2, locale: loc },
         ] }]} />
       </Panel>}
+      <div data-fomc-note className="mt-2 text-[11px] min-w-0" style={{ color: C.muted }}>
+        {source}{' '}
+        <a href={href('/wirp/')} style={{ color: C.amber }}>{fL('Implied policy path', 'Trajetória implícita de juros')}</a>
+      </div>
     </FnScreen>
   )
 }
