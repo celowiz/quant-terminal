@@ -24,14 +24,14 @@ export const fromDay = (n: number) => new Date(n * 864e5).toISOString().slice(0,
 /** cor de fundo para mapa de calor (verde/vermelho), escala em |v|/max */
 export const heat = (v: number | null | undefined, max = 5) => v == null || !isFinite(v) ? 'transparent' : `rgba(${v >= 0 ? '61,220,132' : '255,77,77'},${Math.min(0.85, Math.abs(v) / max * 0.85 + 0.05)})`
 /** barras horizontais simples */
-export function HBars({ rows, fmt = v => nf(v, 2), hi, height = 18 }: { rows: { label: string; v: number | null; color?: string }[]; fmt?: (v: number) => string; hi?: string; height?: number }) {
+export function HBars({ rows, fmt = v => nf(v, 2), hi, height = 18, labelW, raw }: { rows: { label: string; v: number | null; color?: string }[]; fmt?: (v: number) => string; hi?: string; height?: number; labelW?: string; raw?: boolean }) {
   const max = Math.max(1e-9, ...rows.map(r => Math.abs(r.v ?? 0)))
   const neg = rows.some(r => (r.v ?? 0) < 0)
   return (
     <div className="text-[12px]">
       {rows.map(r => (
         <div key={r.label} className="flex items-center gap-2" style={{ height }}>
-          <div className="w-28 max-lg:w-20 shrink-0 truncate text-right" style={{ color: r.label === hi ? C.amber : C.text }}>{en(r.label)}</div>
+          <div className={(labelW || "w-28 max-lg:w-20") + " shrink-0 truncate text-right"} style={{ color: r.label === hi ? C.amber : C.text }} title={r.label}>{raw ? r.label : en(r.label)}</div>
           <div className="relative flex-1 h-[70%]">
             {neg && <div className="absolute top-0 bottom-0" style={{ left: '50%', width: 1, background: tc('#444') }} />}
             {r.v != null && <div className="absolute top-0 bottom-0" style={{

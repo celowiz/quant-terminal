@@ -18,7 +18,7 @@ export type PaneDef = { stretch?: number; series: SeriesDef[] }
 
 const fmt = (d = 2, pct = false) => ({ type: 'custom', minMove: 1 / 10 ** d, formatter: (v: number) => v.toLocaleString(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: d }) + (pct ? '%' : '') }) as any
 
-export default function FnChartImpl({ panes, height = 420, log = false, intraday = false }: { panes: PaneDef[]; height?: number; log?: boolean; intraday?: boolean }) {
+export default function FnChartImpl({ panes, height = 420, log = false, intraday = false, alwaysLegend }: { panes: PaneDef[]; height?: number; log?: boolean; intraday?: boolean; alwaysLegend?: boolean }) {
   const ref = useRef<HTMLDivElement | null>(null)
   const fitH = useFitH(height, 120)
   const { active } = useFit()
@@ -44,7 +44,7 @@ export default function FnChartImpl({ panes, height = 420, log = false, intraday
     panes.forEach((p, pi) => {
       p.series.forEach(s => {
         const priceFormat = fmt(s.decimals ?? 2, s.pct)
-        const common = { priceFormat, priceLineVisible: false, lastValueVisible: s.lastValue ?? true, title: active ? s.title || '' : '' } // mobile: nome da série fica na legenda acima do gráfico, não sobre o plot
+        const common = { priceFormat, priceLineVisible: false, lastValueVisible: s.lastValue ?? true, title: active && !alwaysLegend ? s.title || '' : '' } // mobile: nome da série fica na legenda acima do gráfico, não sobre o plot
         let ser: any
         if (s.kind === 'line') ser = chart.addSeries(LineSeries, { ...common, color: s.color || C.white, lineWidth: (s.width || 1) as any, lineStyle: s.dashed ? LineStyle.Dashed : LineStyle.Solid, crosshairMarkerVisible: true }, pi)
         else if (s.kind === 'hist') ser = chart.addSeries(HistogramSeries, { ...common, color: s.color || C.blue }, pi)
@@ -71,12 +71,12 @@ export default function FnChartImpl({ panes, height = 420, log = false, intraday
     return () => chart.remove()
   }, [panes, log, active])
   const [legOpen, setLegOpen] = useState(false)
-  if (active) return <div ref={ref} style={{ height: h, position: 'relative' }} />
+  if (active && !alwaysLegend) return <div ref={ref} style={{ height: h, position: 'relative' }} />
   const leg = panes.flatMap(p => p.series).filter(s => s.title).map(s => ({ t: s.title as string, c: s.color || (s.kind === 'hist' ? C.blue : s.kind === 'baseline' ? C.up : C.white) }))
   return (
     <div>
-      {leg.length > 3 && <button className="px-1 pb-[2px] text-[11px]" style={{ color: C.amber }} onClick={() => setLegOpen(!legOpen)}>{lang() === 'pt' ? 'Legenda' : 'Legend'} {legOpen ? '▾' : '▸'}</button>}
-      {leg.length > 0 && (leg.length <= 3 || legOpen) && <div className="flex flex-wrap gap-x-3 px-1 pb-[2px] text-[11px]">{leg.map(l => <span key={l.t} style={{ color: l.c }}>■ <span style={{ color: C.text }}>{l.t}</span></span>)}</div>}
+      {!alwaysLegend && leg.length > 3 && <button className="px-1 pb-[2px] text-[11px]" style={{ color: C.amber }} onClick={() => setLegOpen(!legOpen)}>{lang() === 'pt' ? 'Legenda' : 'Legend'} {legOpen ? '▾' : '▸'}</button>}
+      {leg.length > 0 && (alwaysLegend || leg.length <= 3 || legOpen) && <div data-fn-legend className="flex flex-wrap gap-x-3 px-1 pb-[2px] text-[11px]">{leg.map(l => <span key={l.t} style={{ color: l.c }}>■ <span style={{ color: C.text }}>{l.t}</span></span>)}</div>}
       <div ref={ref} style={{ height: h, position: 'relative' }} />
     </div>
   )

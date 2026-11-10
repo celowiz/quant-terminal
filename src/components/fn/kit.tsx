@@ -216,8 +216,8 @@ export function Panel({ title, children, className = '', right, asOf }: { title?
   )
 }
 
-export type Col<R = any> = { k: string; label: React.ReactNode; align?: 'l' | 'r' | 'c'; fmt?: (v: any, r: R) => React.ReactNode; color?: (v: any, r: R) => string | undefined; w?: string }
-export function Grid<R = any>({ cols, rows, dense = true, onRow, maxH, rowStyle }: { cols: Col<R>[]; rows: R[]; dense?: boolean; onRow?: (r: R) => void; maxH?: number; rowStyle?: (r: R, i: number) => React.CSSProperties | undefined }) {
+export type Col<R = any> = { k: string; label: React.ReactNode; align?: 'l' | 'r' | 'c'; fmt?: (v: any, r: R) => React.ReactNode; color?: (v: any, r: R) => string | undefined; w?: string; tip?: string }
+export function Grid<R = any>({ cols, rows, dense = true, onRow, maxH, rowStyle, stickyFirst }: { cols: Col<R>[]; rows: R[]; dense?: boolean; onRow?: (r: R) => void; maxH?: number; rowStyle?: (r: R, i: number) => React.CSSProperties | undefined; stickyFirst?: boolean }) {
   const fit = useFit()
   const mh = fit.active ? Math.max(90, Math.round((maxH ?? 480) * fit.s)) : maxH
   const desk = useDesktop()
@@ -226,17 +226,17 @@ export function Grid<R = any>({ cols, rows, dense = true, onRow, maxH, rowStyle 
   const chk = () => { const el = scRef.current; if (el) setMore(el.scrollWidth - el.clientWidth - el.scrollLeft > 4) }
   useEffect(() => { if (desk) return; const el = scRef.current; if (!el) return; chk(); const ro = new ResizeObserver(chk); ro.observe(el); return () => ro.disconnect() }, [desk, rows.length, cols.length])
   const body = (
-    <div ref={desk ? undefined : scRef} onScroll={desk ? undefined : chk} className="overflow-auto fn-gridwrap" style={{ maxHeight: mh }}>
+    <div ref={desk ? undefined : scRef} onScroll={desk ? undefined : chk} className="overflow-auto fn-gridwrap min-w-0 w-full max-w-full" style={{ maxHeight: mh }}>
       <table className="w-full border-collapse text-[12px] fn-table">
         <thead className="sticky top-0" style={{ background: C.panel2 }}>
-          <tr>{cols.map(c => <th key={c.k} className={`${dense ? 'px-2 py-[3px]' : 'px-3 py-1.5'} font-normal whitespace-nowrap border-b ${c.align === 'r' ? 'text-right' : c.align === 'c' ? 'text-center' : 'text-left'}`} style={{ color: C.amber, borderColor: C.line, width: c.w, ['--rb' as any]: C.panel2 }}>{c.label}</th>)}</tr>
+          <tr>{cols.map((c, ci) => <th key={c.k} title={c.tip} className={`${dense ? 'px-2 py-[3px]' : 'px-3 py-1.5'} font-normal whitespace-nowrap border-b ${c.align === 'r' ? 'text-right' : c.align === 'c' ? 'text-center' : 'text-left'}`} style={{ color: C.amber, borderColor: C.line, width: c.w, ['--rb' as any]: C.panel2, ...(stickyFirst && ci === 0 ? { position: 'sticky' as const, left: 0, zIndex: 4, background: C.panel2 } : {}) }}>{c.label}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((r: any, i) => (
             <tr key={i} onClick={() => onRow && onRow(r)} className={onRow ? 'cursor-pointer hover:bg-[#1d1d1d]' : ''} style={{ background: i % 2 ? tc('#0a0a0a') : 'transparent', ...(rowStyle ? rowStyle(r, i) : {}) }}>
               {cols.map(c => (
-                <td key={c.k} className={`${dense ? 'px-2 py-[2px]' : 'px-3 py-1'} whitespace-nowrap border-b ${c.align === 'r' ? 'text-right' : c.align === 'c' ? 'text-center' : 'text-left'}`}
-                  style={{ borderColor: tc('#1a1a1a'), color: c.color ? c.color(r[c.k], r) : C.text, ['--rb' as any]: (rowStyle && (rowStyle(r, i)?.background as string)) || (i % 2 ? tc('#0a0a0a') : C.panel) }}>
+                <td key={c.k} title={c.tip} className={`${dense ? 'px-2 py-[2px]' : 'px-3 py-1'} whitespace-nowrap border-b ${c.align === 'r' ? 'text-right' : c.align === 'c' ? 'text-center' : 'text-left'}`}
+                  style={{ borderColor: tc('#1a1a1a'), color: c.color ? c.color(r[c.k], r) : C.text, ['--rb' as any]: (rowStyle && (rowStyle(r, i)?.background as string)) || (i % 2 ? tc('#0a0a0a') : C.panel), ...(stickyFirst && c === cols[0] ? { position: 'sticky' as const, left: 0, zIndex: 2, background: (rowStyle && (rowStyle(r, i)?.background as string)) || (i % 2 ? tc('#0a0a0a') : C.panel) } : {}) }}>
                   {c.w && c.align !== 'r' ? <div style={{ maxWidth: c.w, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.fmt ? tx(c.fmt(r[c.k], r)) : tx(r[c.k]) ?? '—'}</div> : c.fmt ? tx(c.fmt(r[c.k], r)) : tx(r[c.k]) ?? '—'}
                 </td>
               ))}
@@ -248,7 +248,7 @@ export function Grid<R = any>({ cols, rows, dense = true, onRow, maxH, rowStyle 
   )
   if (desk) return body
   // mobile: sombra na borda direita indica colunas escondidas (some ao chegar no fim da rolagem)
-  return <div className="relative">{body}{more && <div className="pointer-events-none absolute top-0 right-0 bottom-0 w-8" style={{ zIndex: 5, background: tc('linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.9))') }} />}</div>
+  return <div className="relative min-w-0 w-full max-w-full">{body}{more && <div className="pointer-events-none absolute top-0 right-0 bottom-0 w-8" style={{ zIndex: 5, background: tc('linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.9))') }} />}</div>
 }
 
 /** Lista de manchetes em cartões de uma coluna (mobile, <1024px): manchete no topo com quebra de linha
