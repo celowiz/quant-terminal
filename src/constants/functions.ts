@@ -18,7 +18,7 @@ export const FUNCTION_LIST: FunctionItem[] = [
   { code: 'RRG', desc: 'Relative Rotation Graph', pt: 'Gráfico de rotação relativa', cat: 'charts' },
   { code: 'CDIE', desc: 'CDI/Copom Expectations (DI1)', pt: 'Expectativas CDI/Copom (DI1)', cat: 'rates' },
   { code: 'GC', desc: 'Yield Curves (BR/US)', pt: 'Curvas de juros (BR/EUA)', cat: 'rates' },
-  { code: 'WFI', desc: 'World Fixed Income Indexes', pt: 'Renda fixa mundial', cat: 'rates' },
+  { code: 'WFI', desc: 'World fixed income', pt: 'Renda fixa mundial', cat: 'rates' },
   { code: 'BTMM', desc: 'Rates & Money Market Monitor', pt: 'Monitor de juros e mercado monetário', cat: 'rates' },
   { code: 'DES', desc: 'Company Description', pt: 'Descrição da empresa', cat: 'company' },
   { code: 'CN', desc: 'Company News', pt: 'Notícias da empresa', cat: 'company' },

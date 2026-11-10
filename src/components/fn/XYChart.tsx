@@ -52,7 +52,7 @@ export default function XYChart({ series, height = 360, xTicks, xFmt = v => Stri
   const xt = xTicks || Array.from({ length: 7 }, (_, i) => ({ v: x0 + ((x1 - x0) * i) / 6, l: xFmt(x0 + ((x1 - x0) * i) / 6) }))
   // mobile: menos rótulos no eixo X para não sobrepor
   const maxT = Math.max(2, Math.floor((W - m.l - m.r) / 72))
-  const xtv = active || xt.length <= maxT ? xt : xt.filter((_, i) => i % Math.ceil(xt.length / maxT) === 0)
+  const xtv = (xTicks || active || xt.length <= maxT) ? xt : xt.filter((_, i) => i % Math.ceil(xt.length / maxT) === 0)
   const path = (pts: [number, number | null][]) => {
     let d = '', pen = false
     pts.forEach(([x, y]) => { if (y == null || !isFinite(y)) { pen = false; return } d += `${pen ? 'L' : 'M'}${sx(x).toFixed(1)},${sy(y).toFixed(1)}`; pen = true })

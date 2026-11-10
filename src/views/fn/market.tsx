@@ -6,6 +6,7 @@ import { useFit, useDesktop, NewsCards, FnScreen, Panel, Grid, Btns, Field, KV, 
 import FnChart from '../../components/fn/FnChart'
 import XYChart from '../../components/fn/XYChart'
 import { href } from '../../lib/static'
+import { downloadCSV } from './v4util'
 import { en } from '../../lib/enText'
 import { lang } from '../../lib/settings'
 import { t } from '../../lib/i18n'
@@ -44,33 +45,156 @@ export function WEIView() {
 }
 
 // ---------------- WFI ----------------
+const wPT = () => lang() === 'pt'
+const wL = (en: string, pt: string) => (wPT() ? pt : en)
+const wfiNum = (v: any, d = 2) => {
+  if (v == null || v === '' || !isFinite(+v)) return '—'
+  const x = Math.abs(+v) < 0.5 * Math.pow(10, -d) ? 0 : +v
+  return x.toLocaleString(wPT() ? 'pt-BR' : 'en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+}
+const wfiPf = (v: any, d = 2) => {
+  if (v == null || !isFinite(+v)) return '—'
+  const x = Math.abs(+v) < 0.5 * Math.pow(10, -d) ? 0 : +v
+  return `${x > 0 ? '+' : ''}${wfiNum(x, d)}%`
+}
+const WFI_CTY: Record<string, [string, string]> = {
+  US: ['United States', 'Estados Unidos'], DE: ['Germany', 'Alemanha'], GB: ['United Kingdom', 'Reino Unido'], JP: ['Japan', 'Japão'],
+  FR: ['France', 'França'], IT: ['Italy', 'Itália'], ES: ['Spain', 'Espanha'], CA: ['Canada', 'Canadá'], AU: ['Australia', 'Austrália'],
+  CH: ['Switzerland', 'Suíça'], KR: ['South Korea', 'Coreia do Sul'], MX: ['Mexico', 'México'], CL: ['Chile', 'Chile'],
+  PE: ['Peru', 'Peru'], CO: ['Colombia', 'Colômbia'], ZA: ['South Africa', 'África do Sul'],
+}
+const wfiCty = (code: string, fallback?: string) => { const n = WFI_CTY[code]; return n ? (wPT() ? n[1] : n[0]) : (fallback || code) }
+const WFI_IDX: Record<string, [string, string]> = {
+  'ICE BofA US Corporate': ['US Corporate', 'Corporativo EUA'],
+  'ICE BofA US High Yield': ['US High Yield', 'High yield EUA'],
+  'ICE BofA Emerging Markets Corporate Plus': ['EM Corporate', 'Corporativo mercados emergentes'],
+  'ICE BofA Euro High Yield': ['Euro High Yield', 'High yield euro'],
+  'ICE BofA High Yield EM Corporate Plus': ['EM High Yield', 'High yield emergentes'],
+  'ICE BofA AAA US Corporate': ['US AAA', 'AAA EUA'],
+  'US Corporate OAS': ['US Corporate', 'Corporativo EUA'],
+  'US High Yield OAS': ['US High Yield', 'High yield EUA'],
+  'EM Corporate OAS': ['EM Corporate', 'Corporativo emergentes'],
+}
+const wfiIdx = (name: string) => { const n = WFI_IDX[name]; return n ? (wPT() ? n[1] : n[0]) : name.replace(/^ICE BofA\s+/i, '') }
 export function WFIView() {
   const { data: d, err } = useJSON<any>('wfi.json')
+  const desk = useDesktop()
   const [tab, setTab] = useState(0)
-  if (!d) return <FnScreen code="WFI"><Loading err={err} /></FnScreen>
+  const [more, setMore] = useState(false)
+  const title = wL('World fixed income', 'Renda fixa mundial')
+  if (!d) return <FnScreen code="WFI" title={title} ownTitle><Loading err={err} /></FnScreen>
   const uc = d.us_curve, tn = uc.tenors as number[]
-  // rótulos dos vértices em inglês (JSONs antigos traziam 1A/10A); eixo X categórico: vértices igualmente espaçados
-  const lab = (uc.labels as string[]).map(l => l.replace(/A$/, 'Y'))
+  const lab = (uc.labels as string[]).map((l: string) => l.replace(/A$/, 'Y'))
   const ret = (p: [string, number][], months: number) => { const t = isoMinus(p[p.length - 1][0], 0, months); const b = p.filter(x => x[0] <= t).pop(); return b ? (p[p.length - 1][1] / b[1] - 1) * 100 : null }
   const chgBp = (p: [string, number][], months: number) => { const t = isoMinus(p[p.length - 1][0], 0, months); const b = p.filter(x => x[0] <= t).pop(); return b ? (p[p.length - 1][1] - b[1]) * 100 : null }
+  const changeTab = (i: number) => { setTab(i); setMore(false) }
+  const moreBtn = !desk && <button data-wfi-more className="mt-1 px-2 py-[1px] text-[11px] border" style={{ borderColor: C.line, color: C.amber }} onClick={() => setMore(!more)}>{more ? wL('Fewer columns', 'Menos colunas') : wL('More columns', 'Mais colunas')}</button>
+  const src = wL('Daily US government par yields, monthly average 10-year sovereign rates, total-return credit indices and option-adjusted spreads, and Brazil policy and overnight rates (public data).',
+    'Taxas par diárias dos títulos do governo dos EUA, médias mensais das taxas soberanas de 10 anos, índices de retorno total de crédito e spreads ajustados por opção, e as taxas básica e overnight do Brasil (dados públicos).')
+  const note = wL(
+    'The US curve shows par yields at each tenor, evenly spaced on the X axis (categorical, not to scale). The very short end (1M) sits close to the policy-rate target, so curves from different dates can almost coincide there. 10-year sovereigns are monthly averages; the latest month is published with a lag, and a country can trail the others by a month. Credit tables and the spread chart are in basis points (option-adjusted). Brazilian government curves are on the Yield curves and World bonds pages — this tab only shows the policy and overnight rates present in this file.',
+    'A curva dos EUA mostra taxas par em cada vértice, igualmente espaçados no eixo X (categórico, fora de escala). O trecho mais curto (1M) fica perto da meta da taxa básica, por isso curvas de datas diferentes podem quase coincidir ali. As taxas soberanas de 10 anos são médias mensais; o último mês sai com defasagem, e um país pode ficar um mês atrás dos demais. As tabelas de crédito e o gráfico de spreads estão em pontos-base (ajustados por opção). As curvas de títulos públicos brasileiros estão nas páginas Curvas de juros e Títulos mundiais — esta aba só mostra as taxas básica e overnight que constam neste arquivo.')
+  const mobTicks = ['1M', '1Y', '5Y', '10Y', '30Y'].map(l => lab.indexOf(l)).filter(i => i >= 0).map(i => ({ v: i, l: lab[i] }))
+  const xTicks = desk ? lab.map((l: string, i: number) => ({ v: i, l })) : (mobTicks.length ? mobTicks : lab.map((l: string, i: number) => ({ v: i, l })))
+  const curveSeries = ([
+    ['y1', C.purple, wL('1 year ago', 'Há 1 ano')],
+    ['m1', C.cyan, wL('1 month ago', 'Há 1 mês')],
+    ['w1', C.blue, wL('1 week ago', 'Há 1 semana')],
+    ['now', C.amber, wL('Current', 'Atual')],
+  ] as [string, string, string][]).map(([k, c, n]) => ({ name: `${n} (${dBR(uc[k].date)})`, points: tn.map((_: any, i: number) => [i, uc[k].y[i]] as [number, number]), color: c, width: k === 'now' ? 2.5 : 1.3 }))
+  const ustRows = tn.map((_: any, i: number) => ({ l: lab[i], now: uc.now.y[i], w: (uc.now.y[i] - uc.w1.y[i]) * 100, m: (uc.now.y[i] - uc.m1.y[i]) * 100, y: (uc.now.y[i] - uc.y1.y[i]) * 100 }))
+  const ustCols = [
+    { k: 'l', label: wL('Tenor', 'Prazo'), color: () => C.amber },
+    { k: 'now', label: wL('Rate', 'Taxa'), align: 'r' as const, fmt: (v: number) => wfiNum(v, 2) },
+    { k: 'w', label: wL('1W bp', '1S pb'), align: 'r' as const, fmt: (v: number) => wfiNum(v, 0), color: clr },
+    { k: 'm', label: wL('1M bp', '1M pb'), align: 'r' as const, fmt: (v: number) => wfiNum(v, 0), color: clr },
+    { k: 'y', label: wL('1Y bp', '1A pb'), align: 'r' as const, fmt: (v: number) => wfiNum(v, 0), color: clr },
+  ]
+  const sovRows = d.sovereign10y.map((s: any) => ({ code: s.country, name: wfiCty(s.country, s.name), last: s.points[s.points.length - 1][1], date: s.points[s.points.length - 1][0], m1: chgBp(s.points, 1), y1: chgBp(s.points, 12), sp: s.points.slice(-24).map((p: any) => p[1]) }))
+  const latestMonth = sovRows.reduce((m: string, r: any) => r.date.slice(0, 7) > m ? r.date.slice(0, 7) : m, '')
+  const lagging = sovRows.filter((r: any) => r.date.slice(0, 7) < latestMonth)
+  const sovCols = [
+    { k: 'name', label: wL('Country', 'País'), color: () => C.amber },
+    { k: 'last', label: wL('Last', 'Última'), align: 'r' as const, fmt: (v: number) => wfiNum(v, 2) },
+    { k: 'date', label: wL('Ref.', 'Ref.'), align: 'r' as const, fmt: (v: string) => v ? fmtMonth(v.slice(0, 7) + '-01') : '—' },
+    { k: 'm1', label: wL('1M bp', '1M pb'), align: 'r' as const, fmt: (v: number) => wfiNum(v, 0), color: clr },
+    { k: 'y1', label: wL('1Y bp', '1A pb'), align: 'r' as const, fmt: (v: number) => wfiNum(v, 0), color: clr },
+    { k: 'sp', label: wL('2 years', '2 anos'), align: 'c' as const, tip: wL('Sparkline of the last 24 monthly average yields.', 'Mini-gráfico das últimas 24 médias mensais.'), fmt: (v: any) => <Spark data={v} w={80} h={14} /> },
+  ]
+  const idxRows = d.indexes.map((s: any) => { const p = s.points; const lt = p[p.length - 1]; return { name: wfiIdx(s.name), last: lt[1], m1: ret(p, 1), y1: ret(p, 12), ytd: retSince(p.map((x: any) => x[0]), p.map((x: any) => x[1]), `${lt[0].slice(0, 4)}-01-00`) } })
+  const idxCols = [
+    { k: 'name', label: wL('Index', 'Índice'), color: () => C.amber },
+    { k: 'last', label: wL('Level', 'Nível'), align: 'r' as const, fmt: (v: number) => wfiNum(v, 1) },
+    { k: 'm1', label: wL('1M%', '1M%'), align: 'r' as const, fmt: (v: number) => wfiPf(v), color: clr },
+    { k: 'ytd', label: 'YTD%', align: 'r' as const, fmt: (v: number) => wfiPf(v), color: clr },
+    { k: 'y1', label: wL('12M%', '12M%'), align: 'r' as const, fmt: (v: number) => wfiPf(v), color: clr },
+  ]
+  const oasRows = d.spreads.map((s: any) => ({ name: wfiIdx(s.name), last: s.points[s.points.length - 1][1] * 100, m1: chgBp(s.points, 1), y1: chgBp(s.points, 12), pts: s.points }))
+  const oasCols = [
+    { k: 'name', label: wL('Spread (OAS)', 'Spread (OAS)'), color: () => C.amber },
+    { k: 'last', label: 'bp', align: 'r' as const, fmt: (v: number) => wfiNum(v, 0) },
+    { k: 'm1', label: wL('1M bp', '1M pb'), align: 'r' as const, fmt: (v: number) => wfiNum(v, 0), color: clr },
+    { k: 'y1', label: wL('1Y bp', '1A pb'), align: 'r' as const, fmt: (v: number) => wfiNum(v, 0), color: clr },
+  ]
+  const pick = (cols: any[], keys: string[]) => (desk || more) ? cols : cols.filter(c => keys.includes(c.k))
+  const csvBtn = (tab === 1 || tab === 2) && <button data-wfi-csv className="px-2 py-[1px] text-[12px] border" style={{ borderColor: C.amber, color: C.amber }} onClick={() => {
+    if (tab === 1) downloadCSV('wfi-sovereigns.csv', sovCols.filter(c => c.k !== 'sp').map(c => String(c.label)), sovRows.map((r: any) => [r.name, r.last, r.date.slice(0, 7), r.m1, r.y1]))
+    else downloadCSV('wfi-credit.csv', [...idxCols.map(c => String(c.label)), ...oasCols.map(c => String(c.label))], [
+      ...idxRows.map((r: any) => [r.name, r.last, r.m1, r.ytd, r.y1, '', '', '', '']),
+      ...oasRows.map((r: any) => ['', '', '', '', '', r.name, r.last, r.m1, r.y1]),
+    ])
+  }}>{wL('Export CSV', 'Exportar CSV')}</button>
   return (
-    <FnScreen code="WFI" title="World Fixed Income" tabs={['US Curve', '10-year sovereigns', 'Credit (indices / spreads)', 'Brazil']} tab={tab} setTab={setTab}
-      source={uc.source ? d.source : 'FRED (St. Louis Fed): Treasuries (DGS*), OECD 10-year (IRLTLT01*), ICE BofA indices and OAS; BCB SGS (Selic/CDI).'}
-      note="US curve: par yields at each tenor, evenly spaced on the X axis (categorical, not to scale). The very short end (1M) is anchored by the Fed funds target, so curves from different dates can almost coincide there. 10-year sovereigns are monthly averages (latest month published with a lag). Brazilian curves (DI1, Tesouro Direto) are in GC and WB.">
-      {tab === 0 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 360px' }}>
-        <XYChart height={480} series={[['y1', tc('#555'), '1 year ago'], ['m1', tc('#888'), '1 month ago'], ['w1', C.blue, '1 week ago'], ['now', C.amber, 'Current']].map(([k, c, n]) => ({ name: `${n} (${dBR(uc[k].date)})`, points: tn.map((_, i) => [i, uc[k].y[i]] as [number, number]), color: c, width: k === 'now' ? 2.5 : 1.3 }))} xTicks={lab.map((l, i) => ({ v: i, l }))} xFmt={v => lab[Math.max(0, Math.min(lab.length - 1, Math.round(v)))]} yFmt={v => nf(v, 2) + '%'} />
-        <Panel title="US Treasuries"><Grid cols={[{ k: 'l', label: 'Tenor', color: () => C.amber }, { k: 'now', label: 'Rate', align: 'r', fmt: v => nf(v, 2) }, { k: 'w', label: '1W bp', align: 'r', fmt: v => nf(v, 0), color: clr }, { k: 'm', label: '1M bp', align: 'r', fmt: v => nf(v, 0), color: clr }, { k: 'y', label: '1Y bp', align: 'r', fmt: v => nf(v, 0), color: clr }]} rows={tn.map((_, i) => ({ l: lab[i], now: uc.now.y[i], w: (uc.now.y[i] - uc.w1.y[i]) * 100, m: (uc.now.y[i] - uc.m1.y[i]) * 100, y: (uc.now.y[i] - uc.y1.y[i]) * 100 }))} /></Panel>
+    <FnScreen code="WFI" title={title} ownTitle wrap
+      tabs={[wL('US curve', 'Curva'), wL('10-year', '10 anos'), wL('Credit', 'Crédito'), wL('Brazil', 'Brasil')]} tab={tab} setTab={changeTab}
+      right={csvBtn || undefined} source={src} note={note}>
+      {tab === 0 && <div className="grid gap-2 fn-grid min-w-0" style={{ gridTemplateColumns: desk ? 'minmax(0,1fr) 360px' : 'minmax(0,1fr)' }}>
+        <div data-wfi-curve className="min-w-0"><XYChart height={desk ? 480 : 320} alwaysLegend niceY yLabel="% p.a." series={curveSeries} xTicks={xTicks} xFmt={v => lab[Math.max(0, Math.min(lab.length - 1, Math.round(v)))]} yFmt={v => wfiNum(v, 2)} /></div>
+        <Panel className="min-w-0 w-full overflow-hidden" title={wL('US government yields', 'Títulos do governo dos EUA')}>
+          {!desk && !more && <div data-wfi-hint className="px-2 pt-1 text-[11px]" style={{ color: C.muted }}>{wL('Showing tenor, rate and 1-month change.', 'Mostrando prazo, taxa e variação de 1 mês.')}</div>}
+          <div data-wfi-ust className="min-w-0 w-full overflow-x-auto"><Grid stickyFirst cols={pick(ustCols, ['l', 'now', 'm'])} rows={ustRows} /></div>
+          {moreBtn}
+        </Panel>
       </div>}
-      {tab === 1 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Panel title="10-year yield (% p.a.)"><Grid cols={[{ k: 'name', label: 'Country', color: () => C.amber }, { k: 'last', label: 'Last', align: 'r', fmt: v => nf(v, 2) }, { k: 'date', label: 'Ref.', align: 'r', fmt: v => v?.slice(0, 7) }, { k: 'm1', label: '1M bp', align: 'r', fmt: v => nf(v, 0), color: clr }, { k: 'y1', label: '1Y bp', align: 'r', fmt: v => nf(v, 0), color: clr }, { k: 'sp', label: '24M', align: 'c', fmt: v => <Spark data={v} w={80} h={14} /> }]} rows={d.sovereign10y.map((s: any) => ({ name: en(s.name), last: s.points[s.points.length - 1][1], date: s.points[s.points.length - 1][0], m1: chgBp(s.points, 1), y1: chgBp(s.points, 12), sp: s.points.slice(-24).map((p: any) => p[1]) }))} /></Panel>
-        <Panel title="History (selected countries)"><FnChart height={440} panes={[{ series: d.sovereign10y.filter((s: any) => ['US', 'DE', 'JP', 'GB', 'IT', 'MX'].includes(s.country)).map((s: any, i: number) => ({ kind: 'line' as const, data: s.points.map((p: any) => ({ time: p[0], value: p[1] })), color: PALETTE[i], title: s.country, pct: true })) }]} /></Panel>
+      {tab === 1 && <div className="grid gap-2 fn-grid min-w-0" style={{ gridTemplateColumns: desk ? 'minmax(0,1fr) minmax(0,1fr)' : 'minmax(0,1fr)' }}>
+        <Panel className="min-w-0 w-full overflow-hidden" title={wL('10-year yield (% p.a.)', 'Taxa de 10 anos (% a.a.)')}>
+          {lagging.length > 0 && <div data-wfi-lag className="px-2 pt-1 text-[11px]" style={{ color: C.muted }}>{wL(
+            `${lagging.map((r: any) => r.name).join(', ')} ${lagging.length === 1 ? 'is' : 'are'} behind the latest published month (${fmtMonth(latestMonth + '-01')}).`,
+            `${lagging.map((r: any) => r.name).join(', ')} ${lagging.length === 1 ? 'está' : 'estão'} atrás do último mês publicado (${fmtMonth(latestMonth + '-01')}).`)}</div>}
+          {!desk && !more && <div data-wfi-hint className="px-2 pt-1 text-[11px]" style={{ color: C.muted }}>{wL('Showing country, last yield and 1-month change.', 'Mostrando país, última taxa e variação de 1 mês.')}</div>}
+          <div data-wfi-sov className="min-w-0 w-full overflow-x-auto"><Grid stickyFirst cols={pick(sovCols, ['name', 'last', 'm1'])} rows={sovRows} /></div>
+          {moreBtn}
+        </Panel>
+        <Panel className="min-w-0 w-full overflow-hidden" title={wL('History (selected countries)', 'Histórico (países selecionados)')}>
+          <FnChart height={desk ? 440 : 300} alwaysLegend panes={[{ series: d.sovereign10y.filter((s: any) => ['US', 'DE', 'JP', 'GB', 'IT', 'MX'].includes(s.country)).map((s: any, i: number) => ({ kind: 'line' as const, data: s.points.map((p: any) => ({ time: p[0], value: p[1] })), color: PALETTE[i], title: wfiCty(s.country), decimals: 2 })) }]} />
+        </Panel>
       </div>}
-      {tab === 2 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Panel title="Total return indices (ICE BofA)"><Grid cols={[{ k: 'name', label: 'Index', color: () => C.amber }, { k: 'last', label: 'Level', align: 'r', fmt: v => nf(v, 1) }, { k: 'm1', label: '1M%', align: 'r', fmt: v => pf(v), color: clr }, { k: 'ytd', label: 'YTD%', align: 'r', fmt: v => pf(v), color: clr }, { k: 'y1', label: '12M%', align: 'r', fmt: v => pf(v), color: clr }]} rows={d.indexes.map((s: any) => { const p = s.points; const lt = p[p.length - 1]; return { name: s.name, last: lt[1], m1: ret(p, 1), y1: ret(p, 12), ytd: retSince(p.map((x: any) => x[0]), p.map((x: any) => x[1]), `${lt[0].slice(0, 4)}-01-00`) } })} />
-          <div className="mt-2"><Grid cols={[{ k: 'name', label: 'Spread (OAS)', color: () => C.amber }, { k: 'last', label: 'bp', align: 'r', fmt: v => nf(v, 0) }, { k: 'm1', label: '1M bp', align: 'r', fmt: v => nf(v, 0), color: clr }, { k: 'y1', label: '1Y bp', align: 'r', fmt: v => nf(v, 0), color: clr }]} rows={d.spreads.map((s: any) => ({ name: s.name, last: s.points[s.points.length - 1][1] * 100, m1: chgBp(s.points, 1), y1: chgBp(s.points, 12) }))} /></div></Panel>
-        <Panel title="Spreads OAS (p.p.)"><FnChart height={440} panes={[{ series: d.spreads.map((s: any, i: number) => ({ kind: 'line' as const, data: s.points.map((p: any) => ({ time: p[0], value: p[1] })), color: [C.amber, C.down, C.blue][i], title: s.id })) }]} /></Panel>
+      {tab === 2 && <div className="grid gap-2 fn-grid min-w-0" style={{ gridTemplateColumns: desk ? 'minmax(0,1fr) minmax(0,1fr)' : 'minmax(0,1fr)' }}>
+        <Panel className="min-w-0 w-full overflow-hidden" title={wL('Total-return credit indices', 'Índices de retorno total de crédito')}>
+          {!desk && !more && <div data-wfi-hint className="px-2 pt-1 text-[11px]" style={{ color: C.muted }}>{wL('Showing index, level and 12-month return.', 'Mostrando índice, nível e retorno de 12 meses.')}</div>}
+          <div data-wfi-idx className="min-w-0 w-full overflow-x-auto"><Grid stickyFirst cols={pick(idxCols, ['name', 'last', 'y1'])} rows={idxRows} /></div>
+          <div className="mt-2 min-w-0 w-full overflow-x-auto" data-wfi-oas><Grid stickyFirst cols={pick(oasCols, ['name', 'last', 'm1'])} rows={oasRows} /></div>
+          {moreBtn}
+        </Panel>
+        <Panel className="min-w-0 w-full overflow-hidden" title={wL('Option-adjusted spreads (bp)', 'Spreads ajustados por opção (pb)')}>
+          <FnChart height={desk ? 440 : 300} alwaysLegend panes={[{ series: oasRows.map((s: any, i: number) => ({ kind: 'line' as const, data: s.pts.map((p: any) => ({ time: p[0], value: p[1] * 100 })), color: [C.amber, C.down, C.blue][i], title: s.name, decimals: 0 })) }]} />
+        </Panel>
       </div>}
-      {tab === 3 && <Panel title="Brazil — policy rates"><KV rows={[['Selic target (Copom)', `${nf(d.br.selic.v)}% p.a.`, C.amber], ['Effective', dBRfull(d.br.selic.date)], ['Annualized CDI (252)', `${nf(d.br.cdi_aa.v)}% p.a.`, C.amber], ['CDI date', dBRfull(d.br.cdi_aa.date)], ['DI1 / Tesouro Direto curves', 'see GC (yield curves) and WB (Brazil row)', C.muted]]} /></Panel>}
+      {tab === 3 && <Panel className="min-w-0 w-full" title={wL('Brazil — policy rates', 'Brasil — taxas básicas')}>
+        <div data-wfi-br>
+          <KV rows={[
+            [wL('Selic target', 'Meta da Selic'), `${wfiNum(d.br.selic.v)}% ${wL('p.a.', 'a.a.')}`, C.amber],
+            [wL('Selic date', 'Data da Selic'), dBRfull(d.br.selic.date)],
+            [wL('Annualized CDI (252)', 'CDI anualizado (252)'), `${wfiNum(d.br.cdi_aa.v)}% ${wL('p.a.', 'a.a.')}`, C.amber],
+            [wL('CDI date', 'Data do CDI'), dBRfull(d.br.cdi_aa.date)],
+          ]} />
+          <div className="px-2 py-2 text-[12px]" style={{ color: C.muted }}>{wL('This file has only the latest policy and overnight rates, not a history. Government curves:', 'Este arquivo traz só as taxas básica e overnight mais recentes, não um histórico. Curvas de títulos públicos:')}{' '}
+            <a href={href('/gc/')} style={{ color: C.amber }}>{wL('Yield curves', 'Curvas de juros')}</a>
+            {' · '}
+            <a href={href('/wb/')} style={{ color: C.amber }}>{wL('World bonds', 'Títulos mundiais')}</a>
+          </div>
+        </div>
+      </Panel>}
     </FnScreen>
   )
 }
