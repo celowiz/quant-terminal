@@ -9,6 +9,7 @@
 # O CAL (calendário de resultados) tem um job leve próprio, todo dia às 21:30 BRT: calendar.yml.
 # Push que só muda o frontend (nada em pipeline/, tests/, alerts.yaml ou neste workflow) não roda o pipeline:
 # reaproveita os dados do último site publicado (artefato github-pages) e faz só o build (~3 min em vez de ~30).
+# Commit vazio (nenhum arquivo no compare, ex. "chore: retrigger pages deploy") também é só frontend.
 # Nas execuções completas os dados publicados também são restaurados antes do pipeline, para o load_prev()
 # manter o último valor bom quando uma fonte falha (antes o runner começava sem public/data).
 # Minuto :47 escolhido para evitar picos do Actions e os minutos já usados (:04 :07 :09 :11 :13 :17 :23 :34 :39 :41).
@@ -137,9 +138,13 @@ jobs:
         run: |
           full=true
           if [ "$EVENT" = push ] && [ "$BASE_OK" = true ] && [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
-            files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$GITHUB_SHA" --jq '.files[].filename' 2>/dev/null) || files=PIPELINE
-            echo "$files"
-            if [ -n "$files" ] && ! echo "$files" | grep -qE '^(pipeline/|tests/|alerts\.yaml$|public/data/|\.github/workflows/pages\.yml$)|^PIPELINE$'; then full=false; fi
+            if files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$GITHUB_SHA" --jq '.files[].filename' 2>/dev/null); then
+              echo "$files"
+              # Lista vazia = commit vazio (retrigger de deploy): só frontend.
+              if [ -z "$files" ] || ! echo "$files" | grep -qE '^(pipeline/|tests/|alerts\.yaml$|public/data/|\.github/workflows/pages\.yml$)'; then full=false; fi
+            else
+              echo PIPELINE
+            fi
           fi
           echo "full=$full" >> "$GITHUB_OUTPUT"
           if [ "$full" = true ]; then echo "Modo: pipeline completo"; else echo "Modo: só frontend (dados do último deploy)"; fi
