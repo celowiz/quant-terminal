@@ -14,12 +14,13 @@ import { lang } from '@/lib/settings'
 import { t } from '@/lib/i18n'
 
 // rótulo do arquivo na lista de datas; arquivos com nome de fonte ganham um nome neutro
-const REF_ALIAS: Record<string, string> = { focus: 'survey' }
+const REF_ALIAS: Record<string, string | [string, string]> = { focus: 'survey', wirp: ['implied path', 'trajetória implícita'] }
 // arquivos por ativo (pasta/ATIVO) ganham um nome legível em vez do caminho interno
 const DIR_LABEL: Record<string, [string, string]> = { corp: ['Company data', 'Dados da empresa'] }
 const refLabel = (p: string) => {
   const k = p.replace(/\.json$/, '')
-  if (REF_ALIAS[k]) return REF_ALIAS[k]
+  const alias = REF_ALIAS[k]
+  if (alias) return Array.isArray(alias) ? alias[lang() === 'pt' ? 1 : 0] : alias
   const m = /^([a-z]+)\/(.+)$/.exec(k), dl = m && DIR_LABEL[m[1]]
   return dl ? `${lang() === 'pt' ? dl[1] : dl[0]} — ${m![2].replace(/\.SA$/, '')}` : k
 }
