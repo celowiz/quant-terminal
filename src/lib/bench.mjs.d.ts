@@ -5,7 +5,7 @@ export const BENCH_DEFAULTS: BenchPrefs
 export const BENCH_OPTIONS: Record<BenchMarket, string[]>
 export function validBench(b: any): BenchPrefs
 export function sameBench(a: any, b: any): boolean
-export function tracksUS(name: string | null | undefined): boolean
+export function tracksUS(name: string | null | undefined, ticker?: string | null): boolean
 export function benchMarket(ticker: string, meta?: { class?: string; name?: string } | null): BenchMarket | 'index'
 export function pickBench(ticker: string, meta?: { class?: string; name?: string } | null, prefs?: Partial<BenchPrefs> | null): string
 export function benchName(ticker: string, lang?: 'en' | 'pt'): string | null

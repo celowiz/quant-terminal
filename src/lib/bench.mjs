@@ -21,9 +21,22 @@ export function validBench(b) {
 }
 export const sameBench = (a, b) => BENCH_MARKETS.every(m => a?.[m] === b?.[m])
 
+/** ETFs da B3 que replicam um índice dos EUA, pela sigla. A classificação não depende do nome no cadastro
+ *  (o registro pode devolver "ISHARE SP500" ou outro rótulo que não casa com a regex). Os nomes exibidos
+ *  continuam os curados em tickers.json. A regex abaixo cobre listagens novas que ainda não estão neste conjunto. */
+const US_TRACK_TICKERS = new Set([
+  'IVVB11.SA', 'NASD11.SA', 'SPXI11.SA', 'SPXB11.SA', 'SPXH11.SA', 'SPXR11.SA', 'SPXU11.SA',
+  'SPYR11.SA', 'SPBZ11.SA', 'GPUS11.SA', 'SVAL11.SA', 'USTK11.SA', 'UTEC11.SA', 'TECK11.SA',
+  'ALUG11.SA', 'BIZD11.SA', 'CHIP11.SA', 'EUAT11.SA', 'HTEK11.SA', 'IWMI11.SA', 'MILL11.SA',
+  'PEVC11.SA', 'QQQI11.SA', 'QQQQ11.SA', 'REVE11.SA', 'RICO11.SA', 'SPYI11.SA', 'XSPI11.SA',
+])
 /** ETF listado na B3 que replica índice dos EUA (S&P 500, Nasdaq-100, Russell, NYSE FANG+, "US …"). */
 const US_TRACK = /S&P\s?500|NASDAQ|RUSSELL|NYSE|SMALLCAP\s?600|(^|[^A-Z])US([^A-Z]|$)|\bEUA\b/i
-export const tracksUS = name => US_TRACK.test(String(name || '')) && !/\bEX[\s-]US\b/i.test(String(name || ''))
+export const tracksUS = (name, ticker) => {
+  const u = String(ticker || '').toUpperCase()
+  if (US_TRACK_TICKERS.has(u)) return true
+  return US_TRACK.test(String(name || '')) && !/\bEX[\s-]US\b/i.test(String(name || ''))
+}
 
 /** Mercado do ativo para o benchmark: 'us' | 'br' | 'crypto' | 'fx' | 'cmd' | 'index' */
 export function benchMarket(ticker, meta) {
@@ -32,7 +45,7 @@ export function benchMarket(ticker, meta) {
   if (cls === 'index' || u.startsWith('^') || u === 'DX-Y.NYB') return 'index'
   if (cls === 'us_equity' || cls === 'bdr') return 'us'
   if (cls === 'br_equity' || cls === 'fii') return 'br'
-  if (cls === 'etf') return u.endsWith('.SA') && !tracksUS(meta?.name) ? 'br' : 'us'
+  if (cls === 'etf' || US_TRACK_TICKERS.has(u)) return u.endsWith('.SA') && !tracksUS(meta?.name, u) ? 'br' : 'us'
   if (cls === 'crypto') return 'crypto'
   if (cls === 'fx') return 'fx'
   if (cls === 'commodity') return 'cmd'

@@ -14,6 +14,12 @@ test('padrões por classe: EUA/BDR → S&P 500, Brasil → Ibovespa, cripto → 
   const fii = T.find(x => x.class === 'fii'); assert.equal(pick(fii.ticker), '^BVSP')
   assert.equal(pick('IVVB11.SA'), '^GSPC')
   assert.equal(pick('NASD11.SA'), '^GSPC')
+  // mesmo com nome do cadastro que não casa a regex, ou sem cadastro: a sigla basta
+  for (const tk of ['IVVB11.SA', 'NASD11.SA']) {
+    assert.equal(pickBench(tk, { class: 'etf', name: 'ISHARE SP500' }), '^GSPC', tk)
+    assert.equal(pickBench(tk, { class: 'etf', name: '' }), '^GSPC', tk)
+    assert.equal(pickBench(tk, null), '^GSPC', tk)
+  }
   assert.equal(pick('ETH-USD'), 'BTC-USD')
   assert.equal(pick('BTC-USD'), '^GSPC')               // o próprio Bitcoin não é seu benchmark
   for (const t of ['EURUSD=X', 'BRL=X', 'GC=F', 'CL=F']) assert.equal(pick(t), 'DX-Y.NYB', t)
