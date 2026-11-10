@@ -95,6 +95,10 @@ export const HELP: Record<string, HelpDoc> = {
       { tex: R`\#\text{moves} = \frac{\Delta_{cum}}{25\ \text{bp}}`, en: 'Cumulative move expressed in 25 bp steps.', pt: 'Movimento acumulado em passos de 25 bp.' },
     ],
   },
+  FOMC: {
+    en: 'Fed and Copom meeting calendar: the policy target after each decision, the change in basis points, and the move implied by exchange-traded futures (not a forecast). The history tab shows the Fed target (upper bound) and the Selic target as a step series built from published decisions. Unscheduled Fed decisions appear as extra rows.',
+    pt: 'Calendário de reuniões do Fed e do Copom: a meta após cada decisão, a variação em pontos-base e o movimento implícito nos futuros negociados em bolsa (não é uma projeção). A aba de histórico mostra o teto da meta do Fed e a meta da Selic em degraus, a partir das decisões publicadas. Decisões extraordinárias do Fed aparecem como linhas extras.',
+  },
   GC: {
     en: 'Yield curves: Brazilian DI1 (settlement), Tesouro Direto bonds (morning buy rate) and US Treasuries. Compare two dates; the bar chart below shows each vertex\'s change in basis points (green = rate up, red = rate down). X axis in business years (bd/252). DI1 history only covers sessions already collected by the pipeline.',
     pt: 'Curvas de juros: DI1 (ajuste), títulos do Tesouro Direto (taxa de compra, manhã) e Treasuries. Compare duas datas; o gráfico de barras mostra a variação de cada vértice em pontos-base (verde = alta da taxa, vermelho = queda). Eixo X em anos úteis (du/252). O histórico do DI1 cobre só as sessões já coletadas pelo pipeline.',

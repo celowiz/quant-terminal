@@ -12,11 +12,11 @@ export type SeriesDef = {
   data: any[]; color?: string; width?: number; title?: string; dashed?: boolean; base?: number
   lines?: { price: number; color?: string; title?: string }[]
   markers?: { time: string; text: string; color?: string; position?: 'aboveBar' | 'belowBar'; shape?: 'arrowDown' | 'arrowUp' | 'circle' | 'square' }[]
-  decimals?: number; pct?: boolean; lastValue?: boolean
+  decimals?: number; pct?: boolean; lastValue?: boolean; locale?: string
 }
 export type PaneDef = { stretch?: number; series: SeriesDef[] }
 
-const fmt = (d = 2, pct = false) => ({ type: 'custom', minMove: 1 / 10 ** d, formatter: (v: number) => v.toLocaleString(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: d }) + (pct ? '%' : '') }) as any
+const fmt = (d = 2, pct = false, loc = numLocale()) => ({ type: 'custom', minMove: 1 / 10 ** d, formatter: (v: number) => v.toLocaleString(loc, { minimumFractionDigits: d, maximumFractionDigits: d }) + (pct ? '%' : '') }) as any
 
 export default function FnChartImpl({ panes, height = 420, log = false, intraday = false, alwaysLegend }: { panes: PaneDef[]; height?: number; log?: boolean; intraday?: boolean; alwaysLegend?: boolean }) {
   const ref = useRef<HTMLDivElement | null>(null)
@@ -43,7 +43,7 @@ export default function FnChartImpl({ panes, height = 420, log = false, intraday
     let maxPts = 0
     panes.forEach((p, pi) => {
       p.series.forEach(s => {
-        const priceFormat = fmt(s.decimals ?? 2, s.pct)
+        const priceFormat = fmt(s.decimals ?? 2, s.pct, s.locale)
         const common = { priceFormat, priceLineVisible: false, lastValueVisible: s.lastValue ?? true, title: active && !alwaysLegend ? s.title || '' : '' } // mobile: nome da série fica na legenda acima do gráfico, não sobre o plot
         let ser: any
         if (s.kind === 'line') ser = chart.addSeries(LineSeries, { ...common, color: s.color || C.white, lineWidth: (s.width || 1) as any, lineStyle: s.dashed ? LineStyle.Dashed : LineStyle.Solid, crosshairMarkerVisible: true }, pi)
