@@ -4,7 +4,9 @@ import { lang } from '@/lib/settings'
 /** WIRP (probabilidades de juros), FOMC (calendário Fed/Copom), TAYL (regra de Taylor), WB (títulos soberanos). Strings em inglês por tela. */
 import React, { useEffect, useMemo, useState } from 'react'
 import FnChart from '@/components/fn/FnChart'
-import { C, useJSON, FnScreen, Panel, Grid, Btns, Field, KV, Spark } from '@/components/fn/kit'
+import { C, useJSON, FnScreen, Panel, Grid, Btns, Field, KV, Spark, useDesktop } from '@/components/fn/kit'
+import { href } from '../../lib/static'
+import { downloadCSV, CsvBtn } from './v4util'
 import { n, sn, bps, cl, dUS, dUSfull, mLab, Kpis, NumIn, BarLine, Loading2, Unavailable, todaySP } from './fn11util'
 
 // ======================= WIRP =======================
@@ -89,19 +91,31 @@ export function WIRPView() {
 }
 
 // ======================= FOMC =======================
-const S_FOMC = {
-  title: 'Central Bank Meeting Calendar – Fed & Copom', tabs: ['Calendar', 'Rate history'],
-  fed: 'Federal Reserve – FOMC', copom: 'Banco Central do Brasil – Copom',
-  k: { fedRange: 'Fed target range', effr: 'Effective FFR', nextFed: 'Next FOMC', selic: 'Selic target', nextCopom: 'Next Copom', wirpFed: 'Priced (ZQ)', wirpBr: 'Priced (DI1)' },
-  c: { decision: 'Decision', start: 'Start', range: 'Target range', change: 'Change (bp)', sep: 'SEP', note: 'Note', label: 'Meeting', selic: 'Selic', implied: 'Implied (bp)' },
-  upcoming: 'Upcoming', decided: 'Decided', all: 'All', range: 'Show',
-  hist: 'Policy rates (%)', fedLine: 'Fed funds upper bound', selicLine: 'Selic target',
-  note: 'SEP = Summary of Economic Projections (dot plot). Implied moves come from WIRP (futures pricing, not forecasts). Unscheduled Fed moves appear as extra rows.',
+const fPT = () => lang() === 'pt'
+const fL = (en: string, pt: string) => (fPT() ? pt : en)
+const fomcNum = (v: any, d = 2) => {
+  if (v == null || v === '' || !isFinite(+v)) return '—'
+  const x = Math.abs(+v) < 0.5 * Math.pow(10, -d) ? 0 : +v
+  return x.toLocaleString(fPT() ? 'pt-BR' : 'en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+}
+const fomcBp = (v: any, d = 1) => {
+  if (v == null || !isFinite(+v)) return '—'
+  const x = Math.abs(+v) < 0.5 * Math.pow(10, -d) ? 0 : +v
+  return `${x > 0 ? '+' : ''}${fomcNum(x, d)}`
+}
+const fomcNote = (m: any) => {
+  if (m?.note && /notation\s*vote/i.test(String(m.note))) return fL('Notation vote', 'Voto por escrito')
+  if (m?.extra) return fL('Extraordinary', 'Extraordinária')
+  return m?.note || ''
 }
 export function FOMCView() {
   const { data: d, err } = useJSON<any>('fomc.json'), w = useJSON<any>('wirp.json')
-  const [tab, setTab] = useState(0), [show, setShow] = useState<'up' | 'all' | 'past'>('all')
-  const S = S_FOMC, today = todaySP()
+  const [tab, setTab] = useState(0), [show, setShow] = useState<'up' | 'all' | 'past'>('up')
+  const [more, setMore] = useState(false)
+  const desk = useDesktop()
+  const today = todaySP()
+  const title = fL('Fed & Copom Meetings', 'Reuniões do Fed e do Copom')
+  const tabs = [fL('Calendar', 'Calendário'), fL('Rate history', 'Histórico das taxas')]
   const v = useMemo(() => {
     if (!d) return null
     const fedImp = new Map<string, number>((w.data?.us?.meetings || []).map((m: any) => [m.decision, m.move_bp]))
@@ -110,52 +124,106 @@ export function FOMCView() {
     const cop = (d.copom?.meetings || []).map((m: any) => ({ ...m, implied: brImp.get(m.decision) ?? null }))
     const flt = (L: any[]) => show === 'all' ? L.filter(m => m.decision >= `${+today.slice(0, 4) - 2}`) : L.filter(m => show === 'up' ? m.decision >= today : m.decision < today)
     const nf = fed.find((m: any) => m.decision >= today), nc = cop.find((m: any) => m.decision >= today)
-    // Selic em degraus a partir das decisões
     const selicPts: { time: string; value: number }[] = []
     cop.filter((m: any) => m.selic != null && m.decided).forEach((m: any) => selicPts.push({ time: m.decision, value: m.selic }))
     return { fed: flt(fed), cop: flt(cop), nf, nc, selicPts }
   }, [d, w.data, show])
-  if (!d || !v) return <FnScreen code="FOMC" title={S.title}><Loading2 err={err} /></FnScreen>
-  const rowSt = (m: any) => m.decision >= today ? (m === v.nf || m === v.nc ? { background: tc('#2a1d05') } : undefined) : { opacity: 0.85 }
-  const chg = { k: 'change_bp', label: S.c.change, align: 'r' as const, fmt: (x: any, m: any) => m.decided ? bps(x, 0) : '—', color: (x: any) => cl(x) }
-  const imp = { k: 'implied', label: S.c.implied, align: 'r' as const, fmt: (x: any) => x == null ? '' : bps(x), color: () => C.cyan }
+  if (!d || !v) return <FnScreen code="FOMC" title={title} ownTitle><Loading2 err={err} /></FnScreen>
+  const rowSt = (m: any) => {
+    if (m.note && /notation\s*vote/i.test(String(m.note))) return { background: tc('#1a2230') }
+    if (m.decision >= today) return (m === v.nf || m === v.nc) ? { background: tc('#2a1d05') } : undefined
+    return { opacity: 0.85 }
+  }
+  const loc = fPT() ? 'pt-BR' : 'en-US'
+  const chg = { k: 'change_bp', label: fL('Change (bp)', 'Variação (pb)'), align: 'r' as const, fmt: (x: any, m: any) => m.decided ? fomcBp(x, 0) : '—', color: (x: any) => cl(x) }
+  const imp = { k: 'implied', label: fL('Implied (bp)', 'Implícito (pb)'), align: 'r' as const, fmt: (x: any) => x == null ? '' : fomcBp(x, 1), color: () => C.cyan }
+  const fedHasStart = v.fed.some((m: any) => m.start)
+  const copHasStart = v.cop.some((m: any) => m.start)
+  const fedCols = [
+    ...(fedHasStart ? [{ k: 'start', label: fL('Start', 'Início'), fmt: (x: any) => dUS(x) }] : []),
+    { k: 'decision', label: fL('Decision', 'Decisão'), fmt: (x: any) => dUS(x), color: (x: any) => x >= today ? C.amber : C.text },
+    { k: 'upper', label: fL('Target range', 'Faixa-alvo'), align: 'r' as const, fmt: (x: any, m: any) => m.decided && x != null ? `${fomcNum(m.lower, 2)}–${fomcNum(x, 2)}` : '—' },
+    chg, imp,
+    { k: 'sep', label: 'SEP', align: 'c' as const, tip: fL('Projections meeting', 'Reunião de projeções'), fmt: (x: any) => x ? '●' : '', color: () => C.amber },
+    { k: 'note', label: fL('Note', 'Nota'), fmt: (_: any, m: any) => fomcNote(m) },
+  ]
+  const copCols = [
+    { k: 'label', label: fL('Meeting', 'Reunião'), fmt: (x: any, m: any) => x || (m.n ? `#${m.n}` : '—'), color: () => C.amber },
+    ...(copHasStart ? [{ k: 'start', label: fL('Start', 'Início'), fmt: (x: any) => dUS(x) }] : []),
+    { k: 'decision', label: fL('Decision', 'Decisão'), fmt: (x: any) => dUS(x), color: (x: any) => x >= today ? C.amber : C.text },
+    { k: 'selic', label: 'Selic', align: 'r' as const, fmt: (x: any, m: any) => m.decided ? fomcNum(x, 2) : '—' },
+    chg, imp,
+    { k: 'extra', label: fL('Note', 'Nota'), fmt: (_: any, m: any) => fomcNote(m) },
+  ]
+  const pick = (cols: any[], keys: string[]) => (desk || more) ? cols : cols.filter(c => keys.includes(c.k))
+  const moreBtn = !desk && <button data-fomc-more className="mt-1 px-2 py-[1px] text-[11px] border" style={{ borderColor: C.line, color: C.amber }} onClick={() => setMore(!more)}>{more ? fL('Fewer columns', 'Menos colunas') : fL('More columns', 'Mais colunas')}</button>
+  const hint = (en: string, pt: string) => !desk && !more && <div data-fomc-hint className="px-2 pt-1 text-[11px]" style={{ color: C.muted }}>{fL(en, pt)}</div>
+  const nextFed = v.nf ? `${dUS(v.nf.decision)}${v.nf.implied != null ? ` · ${fomcBp(v.nf.implied, 1)} bp` : ''}` : '—'
+  const nextCop = v.nc ? `${v.nc.label ?? ''} ${dUS(v.nc.decision)}${v.nc.implied != null ? ` · ${fomcBp(v.nc.implied, 1)} bp` : ''}`.trim() : '—'
+  const cards = [
+    [fL('Fed target range', 'Faixa-alvo do Fed'), `${fomcNum(d.fed?.target_lower, 2)}–${fomcNum(d.fed?.target_upper, 2)}%`, C.amber],
+    [fL('Effective rate', 'Taxa efetiva'), `${fomcNum(d.fed?.effr, 2)}% (${dUS(d.fed?.effr_date)})`],
+    [fL('Next FOMC', 'Próximo FOMC'), nextFed, C.white],
+    [fL('Selic target', 'Meta da Selic'), `${fomcNum(d.copom?.selic, 2)}%`, C.amber],
+    [fL('Next Copom', 'Próximo Copom'), nextCop, C.white],
+  ]
+  const shownCards = desk ? cards : cards.slice(0, 4)
+  const fifth = !desk ? cards[4] : null
+  const source = fL('Policy-rate decisions and the published target path. Implied moves come from exchange-traded futures, not official forecasts.',
+    'Decisões de taxa básica e a trajetória-alvo publicada. Os movimentos implícitos vêm de futuros negociados em bolsa, não de projeções oficiais.')
+  const note = <>
+    {fL('A filled dot in the projections column marks a meeting with a published set of rate projections. Implied moves come from exchange-traded futures, not official forecasts. Unscheduled Fed decisions appear as extra rows. ',
+      'Um ponto na coluna de projeções marca uma reunião com um conjunto publicado de projeções de juros. Os movimentos implícitos vêm de futuros negociados em bolsa, não de projeções oficiais. Decisões extraordinárias do Fed aparecem como linhas extras. ')}
+    <a href={href('/wirp/')} style={{ color: C.amber }}>{fL('Implied policy path', 'Trajetória implícita de juros')}</a>
+  </>
+  const exp = () => {
+    if (tab === 1) {
+      const rows: (string | number | null)[][] = []
+      for (const p of (d.fed?.target_series || [])) rows.push([p[0], 'fed', p[1], null])
+      for (const p of v.selicPts) rows.push([p.time, 'selic', null, p.value])
+      downloadCSV('fomc-history.csv', [fL('Date', 'Data'), fL('Series', 'Série'), fL('Fed target (upper)', 'Teto da meta do Fed'), fL('Selic target', 'Meta da Selic')], rows)
+    } else {
+      const head = [fL('Bank', 'Banco'), fL('Meeting', 'Reunião'), fL('Start', 'Início'), fL('Decision', 'Decisão'), fL('Target', 'Meta'), fL('Change (bp)', 'Variação (pb)'), fL('Implied (bp)', 'Implícito (pb)'), fL('Note', 'Nota')]
+      const rows = [
+        ...v.fed.map((m: any) => ['Fed', '', m.start, m.decision, m.decided && m.upper != null ? `${m.lower}–${m.upper}` : '', m.change_bp, m.implied, fomcNote(m)]),
+        ...v.cop.map((m: any) => ['Copom', m.label || (m.n ? `#${m.n}` : ''), m.start, m.decision, m.decided ? m.selic : '', m.change_bp, m.implied, fomcNote(m)]),
+      ]
+      downloadCSV('fomc-calendar.csv', head, rows)
+    }
+  }
   return (
-    <FnScreen code="FOMC" title={S.title} tabs={S.tabs} tab={tab} setTab={setTab}
-      right={tab === 0 && <Field label={S.range}><Btns opts={[{ v: 'all', l: S.all }, { v: 'up', l: S.upcoming }, { v: 'past', l: S.decided }]} value={show} onChange={setShow} /></Field>}
-      source={d.source} note={S.note}>
-      <Kpis items={[
-        [S.k.fedRange, `${n(d.fed?.target_lower, 2)}–${n(d.fed?.target_upper, 2)}%`, C.amber],
-        [S.k.effr, `${n(d.fed?.effr, 2)}% (${dUS(d.fed?.effr_date)})`],
-        [S.k.nextFed, v.nf ? `${dUS(v.nf.decision)}${v.nf.implied != null ? ` · ${bps(v.nf.implied)} bp` : ''}` : '—', C.white],
-        [S.k.selic, `${n(d.copom?.selic, 2)}%`, C.amber],
-        [S.k.nextCopom, v.nc ? `${v.nc.label ?? ''} ${dUS(v.nc.decision)}${v.nc.implied != null ? ` · ${bps(v.nc.implied)} bp` : ''}` : '—', C.white],
-      ]} />
-      {tab === 0 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)' }}>
-        <Panel title={S.fed}>
-          <Grid maxH={560} rows={v.fed} rowStyle={rowSt} cols={[
-            { k: 'start', label: S.c.start, fmt: x => dUS(x) },
-            { k: 'decision', label: S.c.decision, fmt: x => dUS(x), color: (x: any) => x >= today ? C.amber : C.text },
-            { k: 'upper', label: S.c.range, align: 'r', fmt: (x, m: any) => m.decided && x != null ? `${n(m.lower, 2)}–${n(x, 2)}` : '—' },
-            chg, imp,
-            { k: 'sep', label: S.c.sep, align: 'c', fmt: x => x ? '●' : '', color: () => C.amber },
-            { k: 'note', label: S.c.note, fmt: x => x || '' },
-          ]} />
+    <FnScreen code="FOMC" title={title} ownTitle wrap tabs={tabs} tab={tab} setTab={setTab}
+      right={<>
+        {tab === 0 && <Field label={fL('Show', 'Exibir')}><Btns opts={[{ v: 'all', l: fL('All', 'Todas') }, { v: 'up', l: fL('Upcoming', 'Próximas') }, { v: 'past', l: fL('Decided', 'Decididas') }]} value={show} onChange={setShow} /></Field>}
+        <span data-fomc-csv><CsvBtn onClick={exp} /></span>
+      </>}
+      source={source} note={note}>
+      <div data-fomc-cards className="mb-2 grid gap-2 text-[12px] fn-kpi min-w-0" style={{ gridTemplateColumns: desk ? 'repeat(5,minmax(0,1fr))' : 'repeat(2,minmax(0,1fr))' }}>
+        {shownCards.map(([k, val, c], i) => <div key={i} className="border px-2 py-1 min-w-0" style={{ borderColor: C.line, background: C.panel }}>
+          <div className="truncate" style={{ color: C.muted }}>{k}</div>
+          <div className="text-[16px] whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: (c as string) || C.text }}>{val}</div>
+        </div>)}
+      </div>
+      {fifth && <div data-fomc-fifth className="mb-2 text-[12px] border px-2 py-1 min-w-0" style={{ borderColor: C.line, background: C.panel }}>
+        <span style={{ color: C.muted }}>{fifth[0]} · </span>
+        <span className="whitespace-nowrap" style={{ color: (fifth[2] as string) || C.text }}>{fifth[1]}</span>
+      </div>}
+      {tab === 0 && <div className="grid gap-2 fn-grid min-w-0 w-full max-w-full" style={{ gridTemplateColumns: desk ? 'minmax(0,1fr) minmax(0,1fr)' : 'minmax(0,1fr)' }}>
+        <Panel title={fL('Federal Reserve — FOMC', 'Federal Reserve — FOMC')}>
+          {hint('Showing decision, target range and change.', 'Mostrando decisão, faixa-alvo e variação.')}
+          <div data-fomc-fed className="min-w-0 w-full overflow-x-auto"><Grid stickyFirst maxH={560} rows={v.fed} rowStyle={rowSt} cols={pick(fedCols, ['decision', 'upper', 'change_bp'])} /></div>
+          {moreBtn}
         </Panel>
-        <Panel title={S.copom}>
-          <Grid maxH={560} rows={v.cop} rowStyle={rowSt} cols={[
-            { k: 'label', label: S.c.label, fmt: (x, m: any) => x || (m.n ? `#${m.n}` : '—'), color: () => C.amber },
-            { k: 'start', label: S.c.start, fmt: x => dUS(x) },
-            { k: 'decision', label: S.c.decision, fmt: x => dUS(x), color: (x: any) => x >= today ? C.amber : C.text },
-            { k: 'selic', label: S.c.selic, align: 'r', fmt: (x, m: any) => m.decided ? n(x, 2) : '—' },
-            chg, imp,
-            { k: 'extra', label: S.c.note, fmt: x => x ? 'extraordinary' : '' },
-          ]} />
+        <Panel title={fL('Central Bank of Brazil — Copom', 'Banco Central do Brasil — Copom')}>
+          {hint('Showing meeting, decision, Selic and change.', 'Mostrando reunião, decisão, Selic e variação.')}
+          <div data-fomc-cop className="min-w-0 w-full overflow-x-auto"><Grid stickyFirst maxH={560} rows={v.cop} rowStyle={rowSt} cols={pick(copCols, ['label', 'decision', 'selic', 'change_bp'])} /></div>
+          {moreBtn}
         </Panel>
       </div>}
-      {tab === 1 && <Panel title={S.hist}>
-        <FnChart height={520} panes={[{ series: [
-          { kind: 'line', data: (d.fed?.target_series || []).map((p: any) => ({ time: p[0], value: p[1] })), color: C.cyan, title: S.fedLine, decimals: 2 },
-          { kind: 'line', data: v.selicPts, color: C.amber, title: S.selicLine, decimals: 2 },
+      {tab === 1 && <Panel title={fL('Policy rates (%)', 'Taxas básicas (%)')}>
+        <FnChart height={520} alwaysLegend panes={[{ series: [
+          { kind: 'line', data: (d.fed?.target_series || []).map((p: any) => ({ time: p[0], value: p[1] })), color: C.cyan, title: fL('Fed target (upper)', 'Teto da meta do Fed'), decimals: 2, locale: loc },
+          { kind: 'line', data: v.selicPts, color: C.amber, title: fL('Selic target', 'Meta da Selic'), decimals: 2, locale: loc },
         ] }]} />
       </Panel>}
     </FnScreen>
