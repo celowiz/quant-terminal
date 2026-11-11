@@ -6,6 +6,7 @@ mantém o último valor publicado (com a hora original) ou some do arquivo.
 Arquivos:
   world.json  último preço + fechamento anterior + hora do negócio + fuso da bolsa de índices mundiais e futuros (a cada 5 min)
   news.json   manchetes de fontes que o navegador não alcança (RSS oficiais, fatos relevantes, plantão da bolsa)
+  dispatch.json  dia do último disparo dos builds diários (manhã/noite) — ver fase 4 abaixo
   fred.json   últimas observações das séries dos EUA do ECON (a cada 30 min, a cada 1 min perto de uma divulgação
               dos EUA na agenda; chave só no segredo do Actions)
 
@@ -222,8 +223,50 @@ def agenda(state):
 def fred_every(state):
     return 60 if release_near(agenda(state), now()) else 1800
 
+# ---------------------------------------------------------------- fase 4: builds diários na hora certa
+# O agendamento deste repo atrasa horas; o watcher, que já está rodando, dispara o pages.yml nos horários do cron:
+#   manhã  — ter–sex a partir das 07:47 (sábado fica com o cron)
+#   noite  — seg–sex quando o arquivo diário oficial da bolsa sair (checado a cada 5 min a partir das 20:00), ou às 21:55
+# O pages.yml pula o cron atrasado quando já houve esse disparo (job gate). Estado em dispatch.json (sobrevive ao encadeamento).
+COTAHIST = 'https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_D{d}.ZIP'
+
+def due_slot(t, done, official_ok):
+    day, hm, dow = t.date().isoformat(), t.hour * 60 + t.minute, t.isoweekday()
+    if 2 <= dow <= 5 and 7 * 60 + 47 <= hm < 9 * 60 + 30 and done.get('morning') != day: return 'morning'
+    if 1 <= dow <= 5 and 20 * 60 <= hm < 22 * 60 and done.get('evening') != day and (official_ok or hm >= 21 * 60 + 55): return 'evening'
+    return None
+
+def cotahist_ready(t):
+    try:
+        r = requests.head(COTAHIST.format(d=t.strftime('%d%m%Y')), headers=UA, timeout=30, allow_redirects=True)
+        return r.status_code == 200
+    except Exception: return False
+
+def dispatch_pages(slot):
+    tok, repo = os.environ.get('GH_TOKEN', ''), os.environ.get('REPO', '')
+    if not tok or not repo: print('disparo (simulado):', slot); return False
+    try:
+        r = requests.post(f'https://api.github.com/repos/{repo}/actions/workflows/pages.yml/dispatches', timeout=30,
+                          headers={'Authorization': f'Bearer {tok}', 'Accept': 'application/vnd.github+json', 'User-Agent': UA['User-Agent']},
+                          json={'ref': 'main', 'inputs': {'slot': slot}})
+        print('disparo do build', slot, r.status_code)
+        return r.status_code == 204
+    except Exception as e: print('disparo falhou', type(e).__name__); return False
+
+def task_dispatch(state):
+    t = now()
+    old = state['files'].get('dispatch.json') or {}
+    done = {k: old.get(k) for k in ('morning', 'evening') if old.get(k)}
+    hm = t.hour * 60 + t.minute
+    if t.isoweekday() <= 5 and 20 * 60 <= hm < 22 * 60 and done.get('evening') != t.date().isoformat() and time.time() - state.get('off_t', 0) >= 300:
+        state['off_t'] = time.time(); state['off'] = cotahist_ready(t)
+        print('arquivo oficial do dia:', 'disponível' if state['off'] else 'ainda não')
+    slot = due_slot(t, done, state.get('off', False))
+    if slot and dispatch_pages(slot): done[slot] = t.date().isoformat()
+    return done or None
+
 # intervalo em segundos (número ou função do estado)
-TASKS = [('world.json', task_world, 300), ('news.json', task_news, 240), ('fred.json', task_fred, fred_every)]
+TASKS = [('world.json', task_world, 300), ('news.json', task_news, 240), ('fred.json', task_fred, fred_every), ('dispatch.json', task_dispatch, 60)]
 
 # ---------------------------------------------------------------- publicação
 def git(*a, check=True, **kw): return subprocess.run(['git', '-C', OUT, *a], check=check, capture_output=True, text=True, **kw)
