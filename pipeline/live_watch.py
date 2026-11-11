@@ -6,7 +6,8 @@ mantém o último valor publicado (com a hora original) ou some do arquivo.
 Arquivos:
   world.json  último preço + fechamento anterior + hora do negócio + fuso da bolsa de índices mundiais e futuros (a cada 5 min)
   news.json   manchetes de fontes que o navegador não alcança (RSS oficiais, fatos relevantes, plantão da bolsa)
-  fred.json   últimas observações das séries dos EUA do ECON (a cada 30 min; chave só no segredo do Actions)
+  fred.json   últimas observações das séries dos EUA do ECON (a cada 30 min, a cada 1 min perto de uma divulgação
+              dos EUA na agenda; chave só no segredo do Actions)
 
 Uso: python live_watch.py            (loop até o fim da janela ou QT_LIVE_MAX_S)
      python live_watch.py --once     (uma passada, útil para teste)
@@ -201,7 +202,28 @@ def task_fred(state):
     print(f'fred: {len(series)}/{len(state["fred_ids"])}')
     return {'series': series} if series else None
 
-TASKS = [('world.json', task_world, 300), ('news.json', task_news, 240), ('fred.json', task_fred, 1800)]
+def release_near(events, t, countries=('US',), before=2, after=40):
+    """Modo rápido da agenda: há divulgação com horário exato dos países pedidos entre `before` min antes e `after` min depois?"""
+    for e in events or []:
+        if not isinstance(e, dict) or e.get('country') not in countries or e.get('allday') or e.get('time_approx'): continue
+        try: et = dt.datetime.fromisoformat(e['time'])
+        except Exception: continue
+        if et - dt.timedelta(minutes=before) <= t <= et + dt.timedelta(minutes=after): return True
+    return False
+
+def agenda(state):
+    """Eventos da agenda publicada (relida a cada 2 h); [] se faltar."""
+    if time.time() - state.get('agenda_t', 0) > 7200:
+        state['agenda_t'] = time.time()
+        try: state['agenda'] = http_get(f'{PAGES}/eco.json').json().get('events') or []
+        except Exception as e: print('eco.json (agenda) falhou', e); state.setdefault('agenda', [])
+    return state.get('agenda', [])
+
+def fred_every(state):
+    return 60 if release_near(agenda(state), now()) else 1800
+
+# intervalo em segundos (número ou função do estado)
+TASKS = [('world.json', task_world, 300), ('news.json', task_news, 240), ('fred.json', task_fred, fred_every)]
 
 # ---------------------------------------------------------------- publicação
 def git(*a, check=True, **kw): return subprocess.run(['git', '-C', OUT, *a], check=check, capture_output=True, text=True, **kw)
@@ -238,7 +260,7 @@ def run(once=False):
         if not in_window(): print('fora da janela (dias úteis 07:00–22:00 BRT)'); break
         changed = []
         for name, fn, every in TASKS:
-            if time.time() - last[name] < every: continue
+            if time.time() - last[name] < (every(state) if callable(every) else every): continue
             last[name] = time.time()
             try: body = fn(state)
             except Exception as e: print(name, 'erro', e); body = None

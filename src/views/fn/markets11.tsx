@@ -3,6 +3,8 @@ import { tc } from '../../lib/themeRuntime'
 /** ECO (calendário econômico), GMM (movimentos macro globais), FXC (matriz de cruzamento), FXFC (projeções Focus de câmbio). Strings em inglês por tela. */
 import React, { useEffect, useMemo, useState } from 'react'
 import { fetchIbgeLive } from '@/lib/ibgeLive'
+import { useLive, blsLive } from '@/lib/liveFetch'
+import { blsPending, ecoFill, type LiveInfo } from '@/lib/live.mjs'
 import { lang } from '@/lib/settings'
 import FnChart from '@/components/fn/FnChart'
 import XYChart from '@/components/fn/XYChart'
@@ -29,6 +31,9 @@ const S_ECO = () => ({
   liveNo: L('Brazil releases unavailable right now.', 'Divulgações do Brasil indisponíveis no momento.'), approx: L('≈ time approximate', '≈ horário aproximado'),
   allday: L('all day', 'dia todo'), count: L('events', 'eventos'), times: L('Times in Brasília time (BRT).', 'Horários de Brasília (BRT).'),
   imp3: (t: number) => L(`importance ${t} of 3`, `importância ${t} de 3`),
+  usLive: L('US consumer prices, payrolls and the unemployment rate: when the daily update has not brought the number yet, it is checked at the official source while this page is open (every minute in the 30 minutes after the release, then once when the page opens). ● next to an actual = number fetched now; a release whose comparison month has no official value stays “—”.',
+    'Preços ao consumidor, payroll e taxa de desemprego dos EUA: se a atualização diária ainda não trouxe o número, ele é consultado na fonte oficial enquanto esta página estiver aberta (a cada minuto nos 30 minutos seguintes à divulgação; depois, uma vez ao abrir a página). ● ao lado do realizado = número buscado agora; uma divulgação cujo mês de comparação não tem valor oficial fica “—”.'),
+  usFilled: (k: number) => L(`${k} filled now.`, `${k} preenchido(s) agora.`),
 })
 const fmtV = (v: any, u?: string) => v == null ? '' : n(v, u === 'US$ bn' || u === 'US$ mn' || u === 'R$ bn' ? 2 : Math.abs(+v) >= 100 ? 1 : 2)
 const tierOf = (e: any) => e.tier ?? (e.key ? 3 : 1)
@@ -48,7 +53,7 @@ function EcoCards({ rows, S, pt, today, showSurvey, when }: { rows: any[]; S: Re
         const day = e.time.slice(0, 10), t = tierOf(e), first = day !== last; last = day
         const cells: [string, React.ReactNode, string][] = [
           ...(showSurvey ? [[S.c.survey, val(e.survey, e), C.purple] as [string, React.ReactNode, string]] : []),
-          [S.c.actual, val(e.actual, e), actColor(e)], [S.c.prior, val(e.prior, e), C.text]]
+          [S.c.actual, e.live ? <span data-eco-live="1">{val(e.actual, e)}<span style={{ color: C.up }}> ●</span></span> : val(e.actual, e), actColor(e)], [S.c.prior, val(e.prior, e), C.text]]
         return (
           <li key={i} data-eco-card className="min-w-0 px-2 py-[6px] border-b"
             style={{ borderColor: tc('#1a1a1a'), borderTop: first ? `1px solid ${C.amberDim}` : undefined, background: day === today ? tc('#1a1405') : i % 2 ? tc('#0a0a0a') : 'transparent' }}>
@@ -77,7 +82,18 @@ export function ECOView() {
   const noBR = !!d0 && !(d0.events as any[]).some(e => e.agency === 'IBGE')
   // eco.json sem o IBGE: completa a agenda do Brasil direto do navegador
   useEffect(() => { if (noBR) fetchIbgeLive(d0.from, d0.to, today).then(setLive) }, [noBR]) // eslint-disable-line react-hooks/exhaustive-deps
-  const d = useMemo(() => d0 && live?.length ? { ...d0, events: [...d0.events, ...live] } : d0, [d0, live])
+  // CPI, payroll e desemprego dos EUA: se o retrato diário ainda não trouxe o realizado, busca na fonte oficial
+  // (a cada minuto nos 30 min seguintes à divulgação; depois, uma vez ao abrir a tela)
+  const pend = useMemo(() => (d0 ? blsPending(d0.events, Date.now()) : []), [d0])
+  const ids = Array.from(new Set(pend.map((e: any) => e.series as string))).sort()
+  const bls = useLive(ids.length ? () => blsLive(ids) : null,
+    now => (pend.some((e: any) => now - Date.parse(e.time) <= 30 * 60000) ? 60000 : null), [ids.join(',')])
+  const filled = useMemo(() => (d0 && bls.data ? ecoFill(d0.events, bls.data, Date.now()) : null), [d0, bls.data])
+  const d = useMemo(() => {
+    const base = filled?.filled ? { ...d0, events: filled.events } : d0
+    return base && live?.length ? { ...base, events: [...base.events, ...live] } : base
+  }, [d0, filled, live])
+  const liveB: LiveInfo | null = bls.at ? { kind: 'checked', at: bls.at } : null
   const ctys = useMemo(() => {
     const have = new Set(((d?.events || []) as any[]).map(e => e.country))
     return ECO_CTRY.filter(c => have.has(c[0]))
@@ -100,7 +116,7 @@ export function ECOView() {
   const when = (e: any) => { const x = e.time; return <span className="whitespace-nowrap"><span style={{ color: C.muted }}>{pt ? WD_PT[new Date(x.slice(0, 10) + 'T12:00:00Z').getUTCDay()] : weekday(x)} </span>{dUS(x)} {e.allday ? <span style={{ color: C.muted }}>{S.allday}</span> : <span style={{ color: C.white }}>{x.slice(11, 16)}</span>}{e.time_approx && !e.allday ? <span style={{ color: C.muted }}>≈</span> : ''}</span> }
   let last = ''
   return (
-    <FnScreen code="ECO" title={S.title}
+    <FnScreen code="ECO" title={S.title} live={liveB}
       right={<>
         <Field label={S.week}><Btns opts={S.weeks} value={wk} onChange={setWk} /></Field>
         <Field label={S.country}>
@@ -112,7 +128,7 @@ export function ECOView() {
         </Field>
         <Field label={S.view}><Btns opts={S.imps} value={imp} onChange={setImp} /></Field>
       </>}
-      note={<>{note}{d.note ? '' : ` ${S.approx}.`}{noBR && live !== undefined ? <> {live?.length ? S.live : S.liveNo}</> : null}</>}>
+      note={<>{note}{d.note ? '' : ` ${S.approx}.`}{noBR && live !== undefined ? <> {live?.length ? S.live : S.liveNo}</> : null} {S.usLive}{filled?.filled ? ` ${S.usFilled(filled.filled)}` : ''}</>}>
       <Panel title={`${wk === 9 ? `${dUS(d.from)} – ${dUS(d.to)}` : `${dShort(v.a)} – ${dShort(v.b)}`} · ${v.ev.length} ${S.count}`}>
         {!v.ev.length ? <div className="p-4 text-[12px]" style={{ color: C.muted }}>{S.empty}</div> :
           !desk ? <EcoCards rows={v.ev} S={S} pt={pt} today={today} showSurvey={showSurvey} when={when} /> :
@@ -123,7 +139,7 @@ export function ECOView() {
             { k: 'event', label: S.c.event, fmt: (x, e: any) => <span style={{ color: tierOf(e) >= 3 ? C.amber : C.text }}>{(pt && e.event_pt) || x}</span> },
             { k: 'period', label: S.c.period, fmt: (x: any) => <span className="whitespace-nowrap" title={x || undefined}>{ecoPeriod(x, lg)}</span>, color: () => C.muted },
             ...(showSurvey ? [{ k: 'survey', label: S.c.survey, align: 'r' as const, fmt: (x: any, e: any) => fmtV(x, e.unit), color: () => C.purple }] : []),
-            { k: 'actual', label: S.c.actual, align: 'r', fmt: (x, e: any) => fmtV(x, e.unit), color: (_x, e: any) => actColor(e) },
+            { k: 'actual', label: S.c.actual, align: 'r', fmt: (x, e: any) => <span data-eco-live={e.live ? '1' : undefined}>{fmtV(x, e.unit)}{e.live ? <span style={{ color: C.up }}> ●</span> : null}</span>, color: (_x, e: any) => actColor(e) },
             { k: 'prior', label: S.c.prior, align: 'r', fmt: (x, e: any) => fmtV(x, e.unit) },
             { k: 'unit', label: S.c.unit, fmt: (x: any) => ecoUnit(x, lg), color: () => C.muted },
             { k: 'agency', label: S.c.agency, color: () => C.muted },

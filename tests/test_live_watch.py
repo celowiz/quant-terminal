@@ -60,3 +60,16 @@ def test_so_publica_quando_muda(tmp_path, monkeypatch):
     body = json.load(open(tmp_path / 'world.json'))
     assert body['quotes'] == payload['quotes'] and 'generated_at' in body
     assert L.content_hash({'generated_at': 'a', **payload}) == L.content_hash({'generated_at': 'b', **payload})
+
+def test_modo_rapido_da_agenda():
+    ev = [{'country': 'US', 'time': '2026-11-12T10:30-03:00'}, {'country': 'US', 'time': '2026-11-12T12:00-03:00', 'time_approx': True},
+          {'country': 'BR', 'time': '2026-11-12T09:00-03:00'}, {'bad': 1}, {'country': 'US', 'time': 'x'}]
+    t = lambda h, m: dt.datetime(2026, 11, 12, h, m, tzinfo=BRT)
+    assert L.release_near(ev, t(10, 28)) and L.release_near(ev, t(11, 10))
+    assert not L.release_near(ev, t(10, 27)) and not L.release_near(ev, t(11, 11))
+    assert not L.release_near(ev, t(12, 5))  # horário aproximado não acelera
+    assert L.release_near(ev, t(9, 5), ('BR',))
+    st = {'agenda_t': 1e18, 'agenda': ev}
+    import time as _t
+    st['agenda_t'] = _t.time()
+    assert L.fred_every(st) in (60, 1800)
