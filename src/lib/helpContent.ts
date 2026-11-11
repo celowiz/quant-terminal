@@ -213,6 +213,10 @@ export const HELP: Record<string, HelpDoc> = {
       { tex: R`\text{52w Low} = \min_{t-52w < s \le t} P_s,\quad \text{52w High} = \max_{t-52w < s \le t} P_s`, en: '52-week range on daily closes.', pt: 'Faixa de 52 semanas nos fechamentos diários.' },
     ],
   },
+  ECON: {
+    en: 'Official statistical series for Brazil and the United States: the latest reading, the previous reading, and a history chart. The survey table shows market-survey medians for the coming years, not a release-by-release consensus. Click a row to plot that series. Missing values appear as —.',
+    pt: 'Séries estatísticas oficiais do Brasil e dos Estados Unidos: a leitura mais recente, a anterior e o gráfico de histórico. A tabela de pesquisa mostra as medianas da pesquisa de mercado para os próximos anos, não um consenso por data de divulgação. Clique numa linha para ver a série. Valores ausentes aparecem como —.',
+  },
   WFI: {
     en: 'World fixed income: the US government par yield curve (daily), long-term sovereign rates (monthly averages), total-return credit indices and option-adjusted spreads, and Brazil\'s policy and overnight rates. Changes compare the latest value with 1 week, 1 month and 1 year ago. On the curve chart the tenors are evenly spaced (categorical axis), so the short end is readable; the slope between two points is therefore not to scale. The 1-month yield sits close to the policy-rate target, so curves from different dates often start at almost the same point.',
     pt: 'Renda fixa mundial: a curva de taxas par dos títulos do governo dos EUA (diária), juros soberanos de longo prazo (médias mensais), índices de retorno total de crédito e spreads ajustados por opção, e as taxas básica e overnight do Brasil. As variações comparam o último valor com 1 semana, 1 mês e 1 ano atrás. No gráfico da curva os vértices ficam igualmente espaçados (eixo categórico), para o trecho curto ser legível; a inclinação entre dois pontos, portanto, não está em escala. A taxa de 1 mês fica perto da meta da taxa básica, por isso curvas de datas diferentes costumam começar quase no mesmo ponto.',
