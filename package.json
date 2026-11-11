@@ -18,7 +18,7 @@
     "build": "next build && node scripts/csp.mjs out && node scripts/sw.mjs out",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --test src/lib/intraday.test.mjs src/lib/analytics.test.mjs src/lib/bench.test.mjs src/lib/activeTicker.test.mjs src/lib/dataFix.test.mjs src/lib/command.test.mjs src/lib/bsm.test.mjs src/lib/theme.test.mjs src/lib/launchpad.test.mjs src/lib/j3.test.mjs src/lib/marketStats.test.mjs src/lib/safe.test.mjs src/lib/fns7.test.mjs src/lib/ecoPeriod.test.mjs src/lib/tickerPicker.test.mjs src/lib/gpTools.test.mjs src/lib/studies.test.mjs src/lib/seasonality.test.mjs src/lib/filings.test.mjs src/lib/fund.test.mjs src/lib/fa.test.mjs src/lib/val.test.mjs src/lib/calNames.test.mjs src/lib/live.test.mjs scripts/csp.test.mjs scripts/sw.test.mjs"
+    "test": "node --test src/lib/intraday.test.mjs src/lib/analytics.test.mjs src/lib/bench.test.mjs src/lib/activeTicker.test.mjs src/lib/dataFix.test.mjs src/lib/command.test.mjs src/lib/bsm.test.mjs src/lib/theme.test.mjs src/lib/launchpad.test.mjs src/lib/j3.test.mjs src/lib/marketStats.test.mjs src/lib/safe.test.mjs src/lib/fns7.test.mjs src/lib/ecoPeriod.test.mjs src/lib/tickerPicker.test.mjs src/lib/gpTools.test.mjs src/lib/studies.test.mjs src/lib/seasonality.test.mjs src/lib/filings.test.mjs src/lib/fund.test.mjs src/lib/fa.test.mjs src/lib/val.test.mjs src/lib/calNames.test.mjs src/lib/live.test.mjs scripts/csp.test.mjs scripts/liveHosts.test.mjs scripts/sw.test.mjs"
   },
   "type": "module",
   "devDependencies": {
