@@ -4,7 +4,7 @@
  * Cada host aqui precisa estar no connect-src de scripts/csp.mjs (LIVE_HOSTS).
  */
 import { useEffect, useRef, useState } from 'react'
-import { b3Quote, b3Day, copomTitle, ptaxBulletins, feedDate, brt, LIVE_RAW, type B3Quote, type WQuote } from './live.mjs'
+import { b3Quote, b3Day, copomTitle, ptaxBulletins, feedDate, brt, LIVE_RAW, LIVE_PULSE, refSha, BLS_SERIES, blsPoints, type B3Quote, type WQuote } from './live.mjs'
 
 const B3 = 'https://cotacao.b3.com.br/mds/api/v1'
 
@@ -140,8 +140,54 @@ export async function cryptoProducts(): Promise<Set<string> | null> {
 
 /** arquivo publicado pelo watcher no branch `live` (null se faltar ou vier fora do formato esperado) */
 export async function liveFile<T = any>(name: 'world.json' | 'news.json' | 'fred.json'): Promise<(T & { generated_at: string }) | null> {
-  const j = await getLive<any>(LIVE_RAW + name)
-  return j && typeof j === 'object' && typeof j.generated_at === 'string' ? j : null
+  const ok = (j: any) => (j && typeof j === 'object' && typeof j.generated_at === 'string' ? j : null)
+  // pulso: com o sha do último commit o endereço é novo a cada publicação (sem os ~5 min de cache do branch)
+  const sha = await liveSha()
+  if (sha) { const j = ok(await getLive<any>(LIVE_RAW.replace(/live\/$/, `${sha}/`) + name)); if (j) return j }
+  return ok(await getLive<any>(LIVE_RAW + name))
+}
+
+const PULSE_KEY = 'qt.live.pulse.v1'
+const PULSE_MS = 90000, PULSE_BACKOFF_MS = 15 * 60000
+let pulseInflight: Promise<string | null> | null = null
+/**
+ * sha do branch live pela API pública do GitHub (60 consultas/h por IP sem login): no máximo uma consulta a cada
+ * 90 s, compartilhada entre telas e abas (localStorage); limite atingido ou falha → 15 min só com o endereço do branch.
+ */
+export function liveSha(): Promise<string | null> {
+  if (typeof window === 'undefined') return Promise.resolve(null)
+  let c: any = null
+  try { c = JSON.parse(localStorage.getItem(PULSE_KEY) || 'null') } catch { c = null }
+  const now = Date.now()
+  if (c && typeof c.t === 'number' && now - c.t < (c.sha ? PULSE_MS : PULSE_BACKOFF_MS) && now >= c.t) return Promise.resolve(c.sha || null)
+  if (pulseInflight) return pulseInflight
+  pulseInflight = (async () => {
+    const j = await getLive<any>(LIVE_PULSE, { ms: 6000 })
+    const sha = refSha(j)
+    try { localStorage.setItem(PULSE_KEY, JSON.stringify({ t: Date.now(), sha })) } catch { /* modo privado */ }
+    return sha
+  })().finally(() => { pulseInflight = null })
+  return pulseInflight
+}
+
+const BLS_KEY = 'qt.bls.v1', BLS_DAY_MAX = 20, BLS_CACHE_MS = 60000
+/**
+ * Séries mensais dos EUA direto no órgão oficial (sem chave: cota diária pequena por IP). Cache de 1 min e no máximo
+ * 20 consultas por dia neste navegador; fora disso devolve o último resultado guardado (ou null).
+ */
+export async function blsLive(ids: string[]): Promise<Record<string, [string, number][]> | null> {
+  if (typeof window === 'undefined') return null
+  let c: any = null
+  try { c = JSON.parse(localStorage.getItem(BLS_KEY) || 'null') } catch { c = null }
+  const day = brt(Date.now()).day
+  if (!c || c.day !== day) c = { day, n: 0, t: 0, data: {} }
+  const have = ids.every(i => c.data && Array.isArray(c.data[i]))
+  if ((have && Date.now() - c.t < BLS_CACHE_MS) || c.n + ids.length > BLS_DAY_MAX) return have ? c.data : null
+  const r = await Promise.all(ids.map(i => getLive<any>(`https://api.bls.gov/publicAPI/v2/timeseries/data/${(BLS_SERIES as any)[i]}`, { ms: 10000 })))
+  c.n += ids.length; c.t = Date.now()
+  ids.forEach((i, k) => { const p = blsPoints(r[k]); if (p && p.length) c.data[i] = p })
+  try { localStorage.setItem(BLS_KEY, JSON.stringify(c)) } catch { /* modo privado */ }
+  return ids.some(i => Array.isArray(c.data[i])) ? c.data : null
 }
 /** cadência das telas que leem o watcher: dias úteis 07:00–22:30 a cada 2 min (a origem guarda ~5 min); fora disso só ao abrir */
 export const watcherNext = (now: number) => { const t = brt(now); return t.dow >= 1 && t.dow <= 5 && t.min >= 420 && t.min <= 1350 ? 120000 : null }

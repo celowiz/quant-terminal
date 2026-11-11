@@ -24,5 +24,5 @@ test('connect-src: só os hosts ao vivo verificados, sem curinga', () => {
   const c = buildPolicy([]).split('; ').find(d => d.startsWith('connect-src'))
   for (const h of LIVE_HOSTS) assert.ok(c.includes(h), h)
   assert.ok(!/\s\*(\s|$)/.test(c) && !c.includes('https://*.b3') && !c.includes('wss://*'))
-  assert.equal(LIVE_HOSTS.length, 8)
+  assert.equal(LIVE_HOSTS.length, 10)
 })

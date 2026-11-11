@@ -19,9 +19,17 @@ export function ptaxBulletins(j: any): { kind: 'open' | 'mid' | 'close'; time: s
 export function mergeNews<T extends { link?: string; date: string }>(items: T[], live: T[]): { items: T[]; fresh: number }
 export function feedDate(s: string): string | null
 export const LIVE_RAW: string
+export const LIVE_PULSE: string
 export type WQuote = [number, number, number, number]
 export function tradeDay(q: WQuote | null | undefined): string | null
 export function quoteFresh(q: WQuote | null | undefined, nowMs: number, maxMin?: number): boolean
 export function applyQuote(dates: string[], close: (number | null)[], q: WQuote | null | undefined): { dates: string[]; close: (number | null)[]; applied: boolean }
 export function quotesBadge(quotes: WQuote[], atMs: number | null | undefined, nowMs: number): LiveInfo | null
 export function mergePoints(points: [string, number][], pts: [string, number][]): { points: [string, number][]; fresh: number }
+export function refSha(j: any): string | null
+export const BLS_SERIES: Record<'CPIAUCSL' | 'PAYEMS' | 'UNRATE', string>
+export function blsPoints(j: any): [string, number][] | null
+export function blsActual(points: [string, number][], series: string, period: string): number | null
+export function blsPending<T = any>(events: T[], nowMs: number): T[]
+export function ecoFill<T = any>(events: T[], bySeries: Record<string, [string, number][]> | null, nowMs: number): { events: T[]; filled: number }
+export function releaseNear(events: any[], nowMs: number, countries: string[], before?: number, after?: number): boolean

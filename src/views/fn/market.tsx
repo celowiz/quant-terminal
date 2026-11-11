@@ -14,7 +14,7 @@ import { fmtDayMonth, fmtMonth, brToIso } from '../../lib/dates'
 import { mean, std, maxDrawdown, regress } from '../../lib/quant'
 import { safeUrl, readStoredJSON, validPortfolio, validLocalAlerts } from '../../lib/safe.mjs'
 import { useLive, feedLive, sgsLive, focusLive, ptaxLive, liveFile, useWorldLive, watcherNext, type FeedItem } from '../../lib/liveFetch'
-import { mergeNews, mergeSgs, mergePoints, brt, applyQuote, quoteFresh, quotesBadge, type LiveInfo, type WQuote } from '../../lib/live.mjs'
+import { mergeNews, mergeSgs, mergePoints, releaseNear, brt, applyQuote, quoteFresh, quotesBadge, type LiveInfo, type WQuote } from '../../lib/live.mjs'
 
 const lastIdx = (a: (number | null)[]) => { let i = a.length - 1; while (i >= 0 && a[i] == null) i--; return i }
 const prevVal = (a: (number | null)[], i: number) => { let j = i - 1; while (j >= 0 && a[j] == null) j--; return j >= 0 ? a[j] : null }
@@ -275,7 +275,9 @@ async function econLive(d: any) {
 }
 export function ECONView() {
   const { data: d0, err } = useJSON<any>('econ.json')
-  const lv = useLive(d0 ? () => econLive(d0) : null, econNext, [d0])
+  // modo rápido da agenda: perto de uma divulgação do Brasil (de 1 min antes a 20 min depois) consulta a cada 30 s
+  const cal = useJSON<any>('eco.json').data
+  const lv = useLive(d0 ? () => econLive(d0) : null, now => (releaseNear(cal?.events, now, ['BR'], 1, 20) ? 30000 : econNext(now)), [d0])
   // séries dos EUA: últimas observações lidas pelo monitor de dados do site (a cada 30 min nos dias úteis)
   const usLv = useLive(() => liveFile<{ series: Record<string, [string, number][]> }>('fred.json').then(j => (j && j.series && typeof j.series === 'object' ? j.series : null)), watcherNext, [])
   const d = useMemo(() => {
@@ -319,8 +321,8 @@ export function ECONView() {
   const fInd = Array.from(new Set(focus.map(f => f.indicator))), fYears = Array.from(new Set(focus.map(f => f.year))).sort()
   const source = eL('Official statistical series and a market survey of expectations (medians).',
     'Séries estatísticas oficiais e uma pesquisa de mercado de expectativas (medianas).')
-  const note = eL('Click an indicator to see its history. There is no per-release consensus calendar; the survey table uses market-survey medians. Brazil indicators and the survey are checked again at the official source while this page is open (every 5 minutes on weekdays from 08:00 to 19:00, every 2 minutes on Monday morning, when the survey comes out), so a new release shows up without waiting for the daily update. United States indicators are refreshed by the site’s data watcher every 30 minutes on weekdays from 07:00 to 22:00 and read here every 2 minutes; without it they come from the daily update.',
-    'Clique num indicador para ver o histórico. Não há calendário de consenso por divulgação; a tabela de pesquisa usa as medianas da pesquisa de mercado. Os indicadores do Brasil e a pesquisa são consultados de novo na fonte oficial enquanto esta página estiver aberta (a cada 5 minutos nos dias úteis, das 08:00 às 19:00, e a cada 2 minutos na segunda de manhã, quando sai a pesquisa); assim, uma divulgação nova aparece sem esperar a atualização diária. Os indicadores dos Estados Unidos são atualizados pelo monitor de dados do site a cada 30 minutos nos dias úteis, das 07:00 às 22:00, e lidos aqui a cada 2 minutos; sem o monitor, vêm da atualização diária.')
+  const note = eL('Click an indicator to see its history. There is no per-release consensus calendar; the survey table uses market-survey medians. Brazil indicators and the survey are checked again at the official source while this page is open (every 5 minutes on weekdays from 08:00 to 19:00, every 2 minutes on Monday morning, when the survey comes out, and every 30 seconds from 1 minute before to 20 minutes after a scheduled Brazil release), so a new release shows up without waiting for the daily update. United States indicators are refreshed by the site’s data watcher every 30 minutes on weekdays from 07:00 to 22:00 (every minute around a scheduled US release) and read here every 2 minutes; without it they come from the daily update.',
+    'Clique num indicador para ver o histórico. Não há calendário de consenso por divulgação; a tabela de pesquisa usa as medianas da pesquisa de mercado. Os indicadores do Brasil e a pesquisa são consultados de novo na fonte oficial enquanto esta página estiver aberta (a cada 5 minutos nos dias úteis, das 08:00 às 19:00, a cada 2 minutos na segunda de manhã, quando sai a pesquisa, e a cada 30 segundos de 1 minuto antes a 20 minutos depois de uma divulgação do Brasil na agenda); assim, uma divulgação nova aparece sem esperar a atualização diária. Os indicadores dos Estados Unidos são atualizados pelo monitor de dados do site a cada 30 minutos nos dias úteis, das 07:00 às 22:00 (a cada minuto perto de uma divulgação dos EUA na agenda), e lidos aqui a cada 2 minutos; sem o monitor, vêm da atualização diária.')
   const expInd = () => {
     const head = [eL('Country', 'País'), eL('Indicator', 'Indicador'), eL('Ref.', 'Ref.'), eL('Last', 'Último'), eL('Previous', 'Anterior'), eL('Change', 'Variação'), eL('Unit', 'Unidade')]
     const pack = (cty: string, list: any[]) => list.map(r => [cty, r.label, r.date, r.last, r.prev, r.chg, r.unitLabel])

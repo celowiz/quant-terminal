@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { brt, b3Open, b3FutOpen, dolCodes, b3Sym, b3Quote, b3Day, liveSession, delayMin, liveLabel, mergeSgs, copomTitle, ptaxBulletins, mergeNews, feedDate, dmy, tradeDay, quoteFresh, applyQuote, quotesBadge, mergePoints } from './live.mjs'
+import { brt, b3Open, b3FutOpen, dolCodes, b3Sym, b3Quote, b3Day, liveSession, delayMin, liveLabel, mergeSgs, copomTitle, ptaxBulletins, mergeNews, feedDate, dmy, tradeDay, quoteFresh, applyQuote, quotesBadge, mergePoints, refSha, blsPoints, blsActual, blsPending, ecoFill, releaseNear } from './live.mjs'
 
 const at = s => Date.parse(s)
 test('brt e pregão da B3', () => {
@@ -80,9 +80,45 @@ test('cotações do watcher: dia no fuso da bolsa, troca/acrescenta, nunca volta
   const b = quotesBadge([ny, [1, 1, ny[2] - 600, 0], [1, 1, ny[2] - 7200, 0]], now - 60000, now)
   assert.equal(b.kind, 'delayed'); assert.equal(b.delay, 10)
   assert.deepEqual(quotesBadge([ny], null, now + 3600e3), { kind: 'closed', last: ny[2] * 1000 })
+  assert.deepEqual(quotesBadge([ny], now, now + 3600e3), { kind: 'checked', at: now })
   assert.equal(quotesBadge([], 0, now), null)
 })
 test('observações recentes sobre a série publicada', () => {
   const r = mergePoints([['2026-09-01', 1], ['2026-10-01', 2]], [['2026-10-01', 2.5], ['2026-11-01', 3], ['x', 1], ['2026-12-01', NaN]])
   assert.deepEqual(r.points, [['2026-09-01', 1], ['2026-10-01', 2.5], ['2026-11-01', 3]]); assert.equal(r.fresh, 1)
+})
+
+test('pulso: sha do branch live', () => {
+  assert.equal(refSha({ object: { sha: 'a'.repeat(40) } }), 'a'.repeat(40))
+  assert.equal(refSha({ object: { sha: 'x' } }), null); assert.equal(refSha(null), null)
+})
+test('divulgações dos EUA: pontos, realizado e preenchimento sem estimar', () => {
+  const j = { status: 'REQUEST_SUCCEEDED', Results: { series: [{ data: [
+    { year: '2026', period: 'M10', value: '159293' }, { year: '2026', period: 'M09', value: '159128' }, { year: '2025', period: 'M13', value: '1' },
+    { year: '2025', period: 'M10', value: '-' }, { year: '2025', period: 'M09', value: '152000' }] }] } }
+  const p = blsPoints(j)
+  assert.deepEqual(p, [['2025-09-01', 152000], ['2026-09-01', 159128], ['2026-10-01', 159293]])
+  assert.equal(blsPoints({ status: 'REQUEST_NOT_PROCESSED' }), null)
+  assert.equal(blsActual(p, 'PAYEMS', '10/2026'), 165)
+  assert.equal(blsActual(p, 'CPIAUCSL', '10/2026'), null) // mês de comparação sem valor: não estima
+  assert.equal(blsActual(p, 'CPIAUCSL', '09/2026'), +((159128 / 152000 - 1) * 100).toFixed(2))
+  assert.equal(blsActual([['2026-01-01', 4.24]], 'UNRATE', '01/2026'), 4.2)
+  assert.equal(blsActual([['2026-01-01', 10], ['2025-12-01', 7]], 'PAYEMS', '01/2026'), 3)
+  const now = Date.parse('2026-11-10T23:00:00-03:00')
+  const ev = [{ country: 'US', series: 'PAYEMS', period: '10/2026', time: '2026-11-06T10:30-03:00', actual: null, prior: null },
+              { country: 'US', series: 'PAYEMS', period: '11/2026', time: '2026-12-04T10:30-03:00', actual: null },
+              { country: 'US', series: 'UNRATE', period: '10/2026', time: '2026-11-06T10:30-03:00', actual: 4.1, prior: 4.2 },
+              { country: 'US', series: 'PAYEMS', period: '01/2026', time: '2026-02-06T10:30-03:00', actual: null }]
+  assert.equal(blsPending(ev, now).length, 1)
+  const r = ecoFill(ev, { PAYEMS: p }, now)
+  assert.equal(r.filled, 1); assert.equal(r.events[0].actual, 165); assert.equal(r.events[0].prior, null); assert.equal(r.events[0].live, true)
+  assert.equal(r.events[1], ev[1]); assert.equal(r.events[2], ev[2])
+  assert.equal(ecoFill(ev, null, now).filled, 0)
+})
+test('modo rápido da agenda: perto de uma divulgação', () => {
+  const ev = [{ country: 'BR', time: '2026-11-12T09:00-03:00' }, { country: 'US', time: '2026-11-12T10:30-03:00', time_approx: true }]
+  assert.equal(releaseNear(ev, Date.parse('2026-11-12T09:10:00-03:00'), ['BR']), true)
+  assert.equal(releaseNear(ev, Date.parse('2026-11-12T08:57:00-03:00'), ['BR']), false)
+  assert.equal(releaseNear(ev, Date.parse('2026-11-12T09:31:00-03:00'), ['BR']), false)
+  assert.equal(releaseNear(ev, Date.parse('2026-11-12T10:31:00-03:00'), ['US']), false) // horário aproximado não acelera
 })

@@ -18,6 +18,8 @@ export const LIVE_HOSTS = [
   'https://api.exchange.coinbase.com',    // lista de pares de cripto
   'wss://ws-feed.exchange.coinbase.com',  // cotações de cripto por websocket
   'https://raw.githubusercontent.com',   // arquivos pequenos do watcher (branch live do próprio repositório)
+  'https://api.github.com',              // pulso: sha do último commit do branch live
+  'https://api.bls.gov',                 // CPI, payroll e desemprego dos EUA no dia da divulgação
 ]
 
 export function inlineScriptHashes(html) {
