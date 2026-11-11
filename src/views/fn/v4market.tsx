@@ -11,6 +11,8 @@ import { lang } from '@/lib/settings'
 import { fmtMonth, fmtQuarter, monthAbbr, fmtDayMonth } from '@/lib/dates'
 import { calName } from '@/lib/calNames.mjs'
 import { downloadCSV, CsvBtn, dayNum, fromDay, heat, HBars, VertexBars } from './v4util'
+import { useLive, b3QuoteLive, b3DayLive } from '@/lib/liveFetch'
+import { b3FutOpen, dolCodes, delayMin, type LiveInfo } from '@/lib/live.mjs'
 
 const bp = (v: any, d = 1) => v == null || !isFinite(+v) ? '—' : `${+v > 0 ? '+' : ''}${nf(v, d)}`
 const mLabel = (iso: string) => fmtMonth(iso)  // 'Sep 26' (EN) / 'set 26' (PT), igual ao resto do site
@@ -643,24 +645,41 @@ export function BTMMView() {
     const mm = Object.entries(cv.data.us_money).map(([k, x]: any) => ({ l: ({ DFF: 'Effective Fed Funds', SOFR: 'SOFR', DTB3: 'T-bill 3M' } as any)[k] || k, v: x.last, chg: x.prev != null ? (x.last - x.prev) * 100 : null, date: x.date }))
     return { d, pick, pre: tdRows('pre'), ipca: tdRows('ipca'), us, mm, prevK }
   }, [di.data, cv.data])
+  // DI1 e dólar futuro ao vivo (cotação com atraso da bolsa), a cada minuto com o pregão de futuros aberto
+  const codes = v ? (v.pick as any[]).map(c => c.code as string) : []
+  const lv = useLive(codes.length ? async () => {
+    const dol = dolCodes(Date.now())
+    const [qs, dq, day] = await Promise.all([Promise.all(codes.map(b3QuoteLive)), Promise.all(dol.map(b3QuoteLive)), b3DayLive(codes[0])])
+    const di = new Map<string, number>(); codes.forEach((c, i) => { if (qs[i]) di.set(c, qs[i]!.last) })
+    const k = dq.findIndex(q => q)
+    const dolQ = k >= 0 ? { code: dol[k], ...dq[k]! } : null
+    if (!di.size && !dolQ) return null
+    return { di, dol: dolQ, last: day ? day.pts[day.pts.length - 1][0] * 1000 : null, day: day?.day || null }
+  } : null, now => (b3FutOpen(now) ? 60000 : null), [codes.join(',')])
   if (!v) return <FnScreen code="BTMM"><Loading err={di.err || cv.err} /></FnScreen>
   const d = v.d, h = d.history?.[d.history.length - 1]
+  const L2 = lv.data
+  const live: LiveInfo | null = L2 && lv.at && L2.last ? (b3FutOpen(lv.at) ? { kind: 'delayed', delay: delayMin(L2.last, lv.at), at: lv.at } : { kind: 'closed', last: L2.last }) : null
+  // com a cotação ao vivo, a variação é contra o último ajuste publicado (em pb)
+  const diRows = (v.pick as any[]).map((c: any) => { const x = L2?.di.get(c.code); return x != null ? { l: `${c.code} ${dBR(c.mat)}`, v: x, chg: (x - c.rate) * 100, live: true } : { l: `${c.code} ${dBR(c.mat)}`, v: c.rate, chg: c.chg } })
+  const nDiLive = diRows.filter((r: any) => r.live).length
   const fxr = (() => { if (!fx.data) return []; const L = fx.data.dates.length - 1, b = fx.data.usd_per.BRL, e = fx.data.usd_per.EUR; return [{ l: 'USD/BRL', v: b[L], chg: (b[L] / b[L - 1] - 1) * 100 }, { l: 'EUR/BRL', v: b[L] / e[L], chg: ((b[L] / e[L]) / (b[L - 1] / e[L - 1]) - 1) * 100 }, { l: 'DXY', v: fx.data.dxy[L], chg: (fx.data.dxy[L] / fx.data.dxy[L - 1] - 1) * 100 }] })()
   const com = (fu.data?.rows || []).filter((r: any) => ['BZ=F', 'CL=F', 'GC=F'].includes(r.ticker)).map((r: any) => ({ l: r.name, v: r.last, chg: r.pct }))
   const tbl = (rows: any[], unit: 'bp' | '%', dec = 2) => <Grid rows={rows} cols={[{ k: 'l', label: 'Instrument', color: () => C.amber }, { k: 'v', label: 'Last', align: 'r', fmt: x => nf(x, dec), color: () => C.white }, { k: 'chg', label: unit === 'bp' ? 'Δ pb' : 'Var.%', align: 'r', fmt: x => unit === 'bp' ? bp(x, 1) : pf(x), color: x => clr(x) }]} />
   const sgs = (id: string) => ((ec.data?.series as any[]) || []).find(x => x.id === id)?.points as [string, number][] | undefined
   const selic = sgs('SGS432'), dff = sgs('FEDFUNDS')
   return (
-    <FnScreen code="BTMM" title="Rates and money-market monitor – Brazil and US"
+    <FnScreen code="BTMM" title="Rates and money-market monitor – Brazil and US" live={live}
       source="B3 (DI1, Daily Bulletin), BCB (Selic, CDI, Copom), Tesouro Transparente (Tesouro Direto), FRED (Fed Funds, SOFR, T-bills, Treasuries), Yahoo (FX and commodities)."
       note={`DI1 Δ vs previous session (${dBR(v.prevK)}); Tesouro and Treasuries vs 1 week; US money market vs previous print. No market-consensus column (no open source).`}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'repeat(4,minmax(0,1fr))' }}>
         <Panel title="Brazil – monetary policy">
           <KV rows={[['Selic target', `${nf(d.selic, 2)}%`, C.amber], ['CDI', `${nf(d.cdi, 2)}%`, C.amber], ['Spread Selic−CDI', `${nf(d.spread_selic_cdi, 2)} p.p.`], ['Next meeting', d.path?.[0] ? `${d.path[0].label} ${dBR(d.path[0].decision)}` : '—'], ['Implied move', d.path?.[0] ? `${bp(d.path[0].move_bp)} pb` : '—', clr(d.path?.[0]?.move_bp)], ['12m cumulative', h ? `${bp(h.cum_12m_bp)} pb` : '—', clr(h?.cum_12m_bp)], ['Implied year-end CDI', h ? `${nf(h.year_end_cdi, 2)}%` : '—'], ['Survey Selic next meeting', d.path?.[0]?.focus ? `${nf(d.path[0].focus.median, 2)}%` : '—', C.purple]]} />
         </Panel>
-        <Panel title={`DI futures – settlement rate (${dBR(d.ref_date)})`}>{tbl(v.pick.map((c: any) => ({ l: `${c.code} ${dBR(c.mat)}`, v: c.rate, chg: c.chg })), 'bp', 3)}</Panel>
+        <Panel title={nDiLive ? LL('DI futures – last trade, delayed (Δ vs last settlement)', 'Futuros de DI – último negócio, com atraso (Δ vs último ajuste)') : `DI futures – settlement rate (${dBR(d.ref_date)})`}><div data-btmm-di={nDiLive ? 'live' : 'daily'}>{tbl(diRows, 'bp', 3)}</div></Panel>
         <Panel title={`Tesouro Direto (${dBR(cv.data.td.pre?.now?.date)})`}>{tbl([...v.pre, ...v.ipca], 'bp')}</Panel>
-        <Panel title="US – money market">{tbl(v.mm, 'bp')}<div className="mt-1" />{tbl([...fxr, ...com], '%', 2)}</Panel>
+        <Panel title="US – money market">{tbl(v.mm, 'bp')}<div className="mt-1" />{tbl([...fxr, ...com], '%', 2)}
+          {L2?.dol && <div className="mt-1" data-btmm-dol>{tbl([{ l: LL(`US dollar future ${L2.dol.code} (BRL per USD 1,000)`, `Dólar futuro ${L2.dol.code} (R$ por US$ 1.000)`), v: L2.dol.last, chg: L2.dol.pct }], '%', 1)}</div>}</Panel>
       </div>
       <div className="mt-2 grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.6fr)' }}>
         <Panel title={`Treasuries (${dBR(cv.data.us.now.date)})`}>{tbl(v.us, 'bp')}</Panel>

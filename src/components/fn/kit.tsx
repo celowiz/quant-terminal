@@ -17,6 +17,7 @@ import { refScope, getRefs, subscribeRefs, latestRef } from '../../lib/refDates'
 import { en as tx } from '../../lib/enText'
 import '../../lib/coverage'
 import { covers, FUNCTION_UNIVERSE } from '../../lib/activeTicker.mjs'
+import { liveLabel, type LiveInfo } from '../../lib/live.mjs'
 
 export const C = {
   bg: tc('#000000'), panel: tc('#0d0d0d'), panel2: tc('#151515'), line: tc('#2a2a2a'), text: tc('#e6e6e6'), muted: tc('#8a8a8a'),
@@ -153,7 +154,7 @@ export function FitArea({ children, className = '' }: { children: React.ReactNod
 }
 
 // ---------- layout ----------
-export function FnScreen({ code, ticker, title, ownTitle, tabs, tab, setTab, right, children, source, note, asOf, fill, wrap }: {
+export function FnScreen({ code, ticker, title, ownTitle, tabs, tab, setTab, right, children, source, note, asOf, fill, wrap, live }: {
   code: string; ticker?: string; title?: string; /** título já curado EN/PT: vale também em PT */ ownTitle?: boolean; tabs?: string[]; tab?: number; setTab?: (i: number) => void
   right?: React.ReactNode; children: React.ReactNode; source?: React.ReactNode; note?: React.ReactNode
   /** data de referência da tela quando não é a do último arquivo carregado (ex.: trimestre do balanço) */
@@ -162,6 +163,8 @@ export function FnScreen({ code, ticker, title, ownTitle, tabs, tab, setTab, rig
   fill?: boolean
   /** mobile: controles quebram em linhas em vez de rolar de lado (telas com muitos controles, ex.: HS) */
   wrap?: boolean
+  /** selo ao vivo (atraso / horário da última atualização); null = só o retrato diário */
+  live?: LiveInfo | null
 }) {
   const fi = FUNCTION_LIST.find(f => f.code === code)
   const desc = ownTitle && title ? title : lang() === 'pt' && fi ? fi.pt : tx(title) || fi?.desc || code
@@ -178,6 +181,7 @@ export function FnScreen({ code, ticker, title, ownTitle, tabs, tab, setTab, rig
         <span className="px-2 py-1 text-[13px] max-lg:flex-1 max-lg:min-w-0 max-lg:truncate" style={{ color: C.text }} title={desc}>{desc}</span>
         <AsOfChip asOf={asOf} />
         <div className={`ml-auto flex items-center gap-2 pr-2 text-[12px] fn-strip max-lg:ml-0 max-lg:w-full max-lg:pl-2 max-lg:py-1 max-lg:border-t max-lg:border-[#2a2a2a] ${wrap ? 'max-lg:flex-wrap max-lg:gap-y-1' : 'max-lg:overflow-x-auto max-lg:whitespace-nowrap max-lg:[&>*]:shrink-0'} ${right ? '' : 'max-lg:hidden'}`}>{right}</div>
+        {live && <LiveBadge info={live} />}
       </div>
       {tabs && tabs.length > 0 && (
         <div className="flex flex-wrap gap-0 border-b shrink-0 fn-strip max-lg:flex-nowrap max-lg:overflow-x-auto" style={{ borderColor: C.line, background: tc('#050505') }}>
@@ -191,6 +195,17 @@ export function FnScreen({ code, ticker, title, ownTitle, tabs, tab, setTab, rig
       )}
       {fill ? <div className="pt-2 lg:flex-1 lg:min-h-0 flex flex-col">{children}</div> : <FitArea className="pt-2">{children}</FitArea>}
     </div>
+  )
+}
+
+/** Selo ao vivo: verde = tempo real, âmbar = com atraso, cinza = pregão encerrado / consultado. Mobile: linha própria. */
+export function LiveBadge({ info }: { info: LiveInfo }) {
+  const col = info.kind === 'rt' ? C.up : info.kind === 'delayed' ? C.amber : C.muted
+  return (
+    <span data-live={info.kind} className="px-2 py-1 text-[11px] whitespace-nowrap shrink-0 max-lg:w-full max-lg:border-t max-lg:border-[#2a2a2a]" style={{ color: C.muted }}
+      title={lang() === 'pt' ? 'Dados buscados agora na fonte oficial; se a busca falhar, a tela usa o retrato diário publicado.' : 'Data fetched now from the official source; if the fetch fails, the screen uses the published daily snapshot.'}>
+      <span style={{ color: col }}>●</span> <span style={{ color: C.white }}>{liveLabel(info, lang())}</span>
+    </span>
   )
 }
 

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { inlineScriptHashes, injectCsp, buildPolicy } from './csp.mjs'
+import { inlineScriptHashes, injectCsp, buildPolicy, LIVE_HOSTS } from './csp.mjs'
 
 const html = '<!DOCTYPE html><html><head><meta charSet="utf-8"/><script src="/a.js"></script><script>boot()</script></head><body><script>self.__next_f.push([1])</script><script type="application/ld+json">{}</script></body></html>'
 const h = s => `'sha256-${createHash('sha256').update(s).digest('base64')}'`
@@ -19,4 +19,10 @@ test('política sem unsafe-inline/eval em scripts', () => {
   const script = p.split('; ').find(d => d.startsWith('script-src'))
   assert.ok(!/unsafe-(inline|eval)/.test(script))
   assert.ok(p.includes("object-src 'none'") && p.includes("base-uri 'self'"))
+})
+test('connect-src: só os hosts ao vivo verificados, sem curinga', () => {
+  const c = buildPolicy([]).split('; ').find(d => d.startsWith('connect-src'))
+  for (const h of LIVE_HOSTS) assert.ok(c.includes(h), h)
+  assert.ok(!/\s\*(\s|$)/.test(c) && !c.includes('https://*.b3') && !c.includes('wss://*'))
+  assert.equal(LIVE_HOSTS.length, 7)
 })

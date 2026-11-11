@@ -13,6 +13,8 @@ import { t } from '../../lib/i18n'
 import { fmtDayMonth, fmtMonth, brToIso } from '../../lib/dates'
 import { mean, std, maxDrawdown, regress } from '../../lib/quant'
 import { safeUrl, readStoredJSON, validPortfolio, validLocalAlerts } from '../../lib/safe.mjs'
+import { useLive, feedLive, sgsLive, focusLive, ptaxLive, type FeedItem } from '../../lib/liveFetch'
+import { mergeNews, mergeSgs, brt, type LiveInfo } from '../../lib/live.mjs'
 
 const lastIdx = (a: (number | null)[]) => { let i = a.length - 1; while (i >= 0 && a[i] == null) i--; return i }
 const prevVal = (a: (number | null)[], i: number) => { let j = i - 1; while (j >= 0 && a[j] == null) j--; return j >= 0 ? a[j] : null }
@@ -239,8 +241,36 @@ const ECON_BARS = new Set(['SGS433', 'SGS189', 'SGS188', 'SGS22707'])
 const econName = (id: string, fallback?: string) => { const L = ECON_LAB[id]; return L ? eL(L[0], L[1]) : (fallback || id) }
 const econUnit = (id: string, fallback?: string) => { const L = ECON_LAB[id]; return L ? eL(L[2], L[3]) : (fallback || '—') }
 const econFocus = (ind: string) => { const L = ECON_FOCUS[ind]; return L ? eL(L[0], L[1]) : ind }
+const FOCUS_IND = ['IPCA', 'Selic', 'PIB Total', 'Câmbio', 'IGP-M']
+/** cadência ao vivo do ECON: dias úteis 08:00–19:00 a cada 5 min; segunda 08:00–09:30 (pesquisa de expectativas) a cada 2 min; fora disso só ao abrir */
+export const econNext = (now: number) => { const t = brt(now); if (t.dow < 1 || t.dow > 5) return null; if (t.dow === 1 && t.min >= 480 && t.min <= 570) return 120000; return t.min >= 480 && t.min <= 1140 ? 300000 : null }
+async function econLive(d: any) {
+  const today = brt(Date.now()).day
+  const br = (d.series as any[]).filter(s => s.country === 'BR' && /^SGS\d+$/.test(s.id))
+  const [rows, focus] = await Promise.all([
+    Promise.all(br.map(s => sgsLive(s.id.slice(3), s.freq === 'D', today))),
+    Promise.all(FOCUS_IND.map(focusLive)),
+  ])
+  const sgs: Record<string, any[]> = {}
+  br.forEach((s, i) => { if (rows[i]) sgs[s.id] = rows[i]! })
+  const f = focus.filter(Boolean).flat() as any[]
+  if (!Object.keys(sgs).length && !f.length) return null
+  return { sgs, focus: f, today }
+}
 export function ECONView() {
-  const { data: d, err } = useJSON<any>('econ.json')
+  const { data: d0, err } = useJSON<any>('econ.json')
+  const lv = useLive(d0 ? () => econLive(d0) : null, econNext, [d0])
+  const d = useMemo(() => {
+    if (!d0 || !lv.data) return d0
+    const L = lv.data
+    const series = (d0.series as any[]).map(s => L.sgs[s.id] ? { ...s, points: mergeSgs(s.points, L.sgs[s.id], L.today).points } : s)
+    // medianas: troca um indicador só quando a pesquisa ao vivo é mais nova que a publicada
+    const old = (d0.focus || []) as any[], byInd = new Map<string, any[]>()
+    for (const r of L.focus) byInd.set(r.indicator, [...(byInd.get(r.indicator) || []), r])
+    const focus = FOCUS_IND.flatMap(ind => { const o = old.filter(r => r.indicator === ind), n = byInd.get(ind); return n && (!o.length || n[0].date > o[0].date) ? n : o })
+    return { ...d0, series, focus }
+  }, [d0, lv.data])
+  const live: LiveInfo | null = lv.at ? { kind: 'checked', at: lv.at } : null
   const [sel, setSel] = useState<string>('SGS13522')
   const [more, setMore] = useState(false)
   const desk = useDesktop()
@@ -268,8 +298,8 @@ export function ECONView() {
   const fInd = Array.from(new Set(focus.map(f => f.indicator))), fYears = Array.from(new Set(focus.map(f => f.year))).sort()
   const source = eL('Official statistical series and a market survey of expectations (medians).',
     'Séries estatísticas oficiais e uma pesquisa de mercado de expectativas (medianas).')
-  const note = eL('Click an indicator to see its history. There is no per-release consensus calendar; the survey table uses market-survey medians.',
-    'Clique num indicador para ver o histórico. Não há calendário de consenso por divulgação; a tabela de pesquisa usa as medianas da pesquisa de mercado.')
+  const note = eL('Click an indicator to see its history. There is no per-release consensus calendar; the survey table uses market-survey medians. Brazil indicators and the survey are checked again at the official source while this page is open (every 5 minutes on weekdays from 08:00 to 19:00, every 2 minutes on Monday morning, when the survey comes out), so a new release shows up without waiting for the daily update. United States indicators come from the daily update.',
+    'Clique num indicador para ver o histórico. Não há calendário de consenso por divulgação; a tabela de pesquisa usa as medianas da pesquisa de mercado. Os indicadores do Brasil e a pesquisa são consultados de novo na fonte oficial enquanto esta página estiver aberta (a cada 5 minutos nos dias úteis, das 08:00 às 19:00, e a cada 2 minutos na segunda de manhã, quando sai a pesquisa); assim, uma divulgação nova aparece sem esperar a atualização diária. Os indicadores dos Estados Unidos vêm da atualização diária.')
   const expInd = () => {
     const head = [eL('Country', 'País'), eL('Indicator', 'Indicador'), eL('Ref.', 'Ref.'), eL('Last', 'Último'), eL('Previous', 'Anterior'), eL('Change', 'Variação'), eL('Unit', 'Unidade')]
     const pack = (cty: string, list: any[]) => list.map(r => [cty, r.label, r.date, r.last, r.prev, r.chg, r.unitLabel])
@@ -284,7 +314,7 @@ export function ECONView() {
   const chartName = s ? econName(s.id, s.name) : '—'
   const chartUnit = s ? econUnit(s.id, s.unit) : ''
   return (
-    <FnScreen code="ECON" title={title} ownTitle wrap source={source} note={note}
+    <FnScreen code="ECON" title={title} ownTitle wrap source={source} note={note} live={live}
       right={<span data-econ-csv className="flex flex-wrap items-center gap-1">
         <CsvBtn onClick={expInd} />
         <button data-econ-csv-survey type="button" onClick={expSurvey} className="px-2 py-[1px] text-[12px] border" style={{ borderColor: C.amber, color: C.amber }}>{eL('Survey CSV', 'CSV da pesquisa')}</button>
@@ -322,6 +352,8 @@ export function FXView() {
   const { data: d, err } = useJSON<any>('fx.json')
   const [tab, setTab] = useState(0)
   const [pair, setPair] = useState('BRL')
+  // aba PTAX: boletins do dia direto do BC (abertura ~10h, intermediários ~11h e ~12h, fechamento ~13h); dias úteis 10:00–13:30 a cada 2 min
+  const pt = useLive(tab === 2 ? () => ptaxLive(brt(Date.now()).day) : null, now => { const x = brt(now); return x.dow >= 1 && x.dow <= 5 && x.min >= 600 && x.min <= 810 ? 120000 : null }, [tab === 2])
   if (!d) return <FnScreen code="FX"><Loading err={err} /></FnScreen>
   const up = (c: string, i: number) => c === 'USD' ? 1 : d.usd_per[c]?.[i]
   const L = d.dates.length - 1
@@ -330,7 +362,7 @@ export function FXView() {
   const x = (row: string, col: string, i: number) => at(row, i) / at(col, i)
   const ptax = d.ptax?.USD || []
   return (
-    <FnScreen code="FX" title="Currency Monitor" tabs={['Cross matrix', '1D change %', 'PTAX', 'DXY / USDBRL']} tab={tab} setTab={setTab}
+    <FnScreen code="FX" title="Currency Monitor" tabs={['Cross matrix', '1D change %', 'PTAX', 'DXY / USDBRL']} tab={tab} setTab={setTab} live={tab === 2 && pt.at ? { kind: 'checked', at: pt.at } : null}
       source="Yahoo Finance (currency closes vs USD, DXY) and BCB PTAX (Olinda API); tools/pipeline/build_markets.py." note="Matrix: units of the row currency per 1 unit of the column currency. Crosses derived via USD. Daily closes, not real time.">
       {tab <= 1 && <div className="overflow-auto"><table className="border-collapse text-[12px] w-full">
         <thead><tr><th className="px-2 py-1" style={{ color: C.muted }}>{dBRfull(d.dates[L])}</th>{CCY.map(c => <th key={c} className="px-2 py-1 text-right" style={{ color: C.amber }}>{c}</th>)}</tr></thead>
@@ -338,6 +370,12 @@ export function FXView() {
       </table></div>}
       {tab === 2 && <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <Panel title="PTAX — latest bulletin"><Grid cols={[{ k: 'c', label: 'Currency', color: () => C.amber }, { k: 'date', label: 'Date', fmt: dBRfull }, { k: 'buy', label: 'Bid', align: 'r', fmt: v => nf(v, 4) }, { k: 'sell', label: 'Ask', align: 'r', fmt: v => nf(v, 4) }, { k: 'ch', label: 'Var%', align: 'r', fmt: v => pf(v), color: clr }]} rows={Object.entries(d.ptax).map(([c, a]: any) => ({ c, ...a[a.length - 1], ch: a.length > 1 ? (a[a.length - 1].sell / a[a.length - 2].sell - 1) * 100 : null }))} /></Panel>
+        <Panel title={eL('Today’s PTAX bulletins (USD)', 'Boletins PTAX de hoje (US$)')}>
+          <div data-fx-ptax-live>{pt.data == null ? <div className="px-2 py-2 text-[12px]" style={{ color: C.muted }}>—</div> : pt.data.length
+            ? <Grid cols={[{ k: 'kind', label: eL('Bulletin', 'Boletim'), color: () => C.amber, fmt: (v: string) => v === 'open' ? eL('Opening', 'Abertura') : v === 'close' ? eL('Closing (PTAX)', 'Fechamento (PTAX)') : eL('Intermediate', 'Intermediário') },
+                { k: 'time', label: eL('Time', 'Horário') }, { k: 'buy', label: eL('Bid', 'Compra'), align: 'r', fmt: v => nf(v, 4) }, { k: 'sell', label: eL('Ask', 'Venda'), align: 'r', fmt: v => nf(v, 4), color: () => C.white }]} rows={pt.data} />
+            : <div className="px-2 py-2 text-[12px]" style={{ color: C.muted }}>{eL('No bulletin today yet (the first one comes out around 10:00 on business days).', 'Ainda não há boletim hoje (o primeiro sai por volta das 10:00 nos dias úteis).')}</div>}</div>
+        </Panel>
         <Panel title="PTAX USD ask"><FnChart height={380} panes={[{ series: [{ kind: 'line', data: ptax.map((p: any) => ({ time: p.date, value: p.sell })), color: C.amber, title: 'PTAX', decimals: 4 }] }]} /></Panel>
       </div>}
       {tab === 3 && <div><div className="pb-1"><Btns opts={CCY.filter(c => c !== 'USD')} value={pair} onChange={setPair} /></div>
@@ -445,18 +483,36 @@ export function TOPView() {
   )
 }
 
+/** feeds que o navegador lê direto (CORS aberto); mesmos rótulos de publicador do pipeline (build_news.py) */
+const NEWS_LIVE: [string, string, string][] = [
+  ['Agência Brasil – Economia', 'https://agenciabrasil.ebc.com.br/rss/economia/feed.xml', 'CC BY 4.0'],
+  ['Agência Brasil – Internacional', 'https://agenciabrasil.ebc.com.br/rss/internacional/feed.xml', 'CC BY 4.0'],
+  ['Agência Brasil – Política', 'https://agenciabrasil.ebc.com.br/rss/politica/feed.xml', 'CC BY 4.0'],
+  ['BCB – Notas à imprensa', 'https://www.bcb.gov.br/api/feed/sitebcb/sitefeeds/notasImprensa', 'gov.br'],
+]
+const newsLive = async (): Promise<FeedItem[] | null> => {
+  const r = await Promise.all(NEWS_LIVE.map(([s, u, l]) => feedLive(u, s, l)))
+  const ok = r.filter(Boolean) as FeedItem[][]
+  return ok.length ? ok.flat() : null
+}
 export function NEWSView() {
   const { data: d, err } = useJSON<any>('news.json')
   const [src, setSrc] = useState('All'); const [q, setQ] = useState('')
   const desk = useDesktop()
-  if (!d) return <FnScreen code="NEWS"><Loading err={err} /></FnScreen>
+  // manchetes novas dos feeds abertos a cada 3 minutos com a aba visível
+  const lv = useLive(newsLive, () => 180000, [])
+  const merged = useMemo(() => (d ? mergeNews(d.items, lv.data || []) : null), [d, lv.data])
+  const live: LiveInfo | null = lv.at ? { kind: 'checked', at: lv.at } : null
+  if (!d || !merged) return <FnScreen code="NEWS"><Loading err={err} /></FnScreen>
+  const items = merged.items
   // filtros por publicador (atribuição por manchete); 'All' é o valor interno, rótulo traduzido
-  const srcs = ['All', ...Array.from(new Set(d.items.map((n: any) => n.source))) as string[]]
-  const rows = d.items.filter((n: any) => (src === 'All' || n.source === src) && (!q || n.title.toLowerCase().includes(q.toLowerCase())))
+  const srcs = ['All', ...Array.from(new Set(items.map((n: any) => n.source))) as string[]]
+  const rows = items.filter((n: any) => (src === 'All' || n.source === src) && (!q || n.title.toLowerCase().includes(q.toLowerCase())))
   const when = (v: string) => `${fmtDayMonth(v)} ${v.slice(11, 16)}`
   return (
-    <FnScreen code="NEWS" title={t('news.title')} right={<Field label={t('news.search')}><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
-      source={<>Open-license RSS feeds. Headline + link only (no text reproduced).</>} note="No paid news agency. Time = feed publication time, converted to Brasília time.">
+    <FnScreen code="NEWS" title={t('news.title')} live={live} right={<Field label={t('news.search')}><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
+      source={<>Open-license RSS feeds. Headline + link only (no text reproduced).</>} note={eL(`No paid news agency. Time = feed publication time, converted to Brasília time. Headlines from the feeds that allow direct reading are checked again every 3 minutes while this page is open${merged.fresh ? ` (${merged.fresh} new since the daily update)` : ''}; the others arrive with the daily update.`,
+        `Sem agência de notícias paga. Horário = horário de publicação no feed, convertido para o horário de Brasília. As manchetes dos feeds que permitem leitura direta são consultadas de novo a cada 3 minutos enquanto esta página estiver aberta${merged.fresh ? ` (${merged.fresh} novas desde a atualização diária)` : ''}; as demais chegam com a atualização diária.`)}>
       <div className="flex flex-wrap gap-0 pb-2">{srcs.map(s => <button key={s} onClick={() => setSrc(s)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: src === s ? C.amber : 'transparent', color: src === s ? tc('#000') : C.amber }}>{s === 'All' ? t('news.all') : s}</button>)}</div>
       {desk
         ? <Grid maxH={700} cols={[{ k: 'date', label: t('news.time'), w: '110px', fmt: when }, { k: 'source', label: t('news.source'), w: '220px', color: () => C.amber, fmt: (v: string) => v.length > 30 ? v.slice(0, 29) + '…' : v }, { k: 'title', label: t('news.headline'), fmt: (v: string, r: any) => <a href={safeUrl(r.link)} target="_blank" rel="noopener noreferrer" style={{ color: C.text }}>{v}</a> }]} rows={rows} />

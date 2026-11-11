@@ -8,6 +8,8 @@ import { C, useJSON, FnScreen, Panel, Grid, Btns, Field, KV, Spark, useDesktop }
 import { href } from '../../lib/static'
 import { downloadCSV, CsvBtn } from './v4util'
 import { n, sn, bps, cl, dUS, dUSfull, mLab, Kpis, NumIn, BarLine, Loading2, Unavailable, todaySP } from './fn11util'
+import { useLive, copomLive } from '@/lib/liveFetch'
+import { brt, type LiveInfo } from '@/lib/live.mjs'
 
 // ======================= WIRP =======================
 const S_WIRP = {
@@ -116,18 +118,28 @@ export function FOMCView() {
   const today = todaySP()
   const title = fL('Fed & Copom Meetings', 'Reuniões do Fed e do Copom')
   const tabs = [fL('Calendar', 'Calendário'), fL('Rate history', 'Histórico das taxas')]
+  // Copom: comunicado oficial lido direto do BC; no dia da decisão, a cada 30 s das 18:00 às 20:30 (Brasília)
+  const copDay = !!d && (d.copom?.meetings || []).some((m: any) => m.decision === today)
+  const cl0 = useLive(d ? () => copomLive(3) : null, now => { const t = brt(now); return copDay && t.min >= 1080 && t.min <= 1230 ? 30000 : null }, [!!d, copDay])
   const v = useMemo(() => {
     if (!d) return null
     const fedImp = new Map<string, number>((w.data?.us?.meetings || []).map((m: any) => [m.decision, m.move_bp]))
     const brImp = new Map<string, number>((w.data?.br?.meetings || []).map((m: any) => [m.decision, m.move_bp]))
     const fed = (d.fed?.meetings || []).map((m: any) => ({ ...m, implied: fedImp.get(m.decision) ?? null }))
-    const cop = (d.copom?.meetings || []).map((m: any) => ({ ...m, implied: brImp.get(m.decision) ?? null }))
+    const cop0 = (d.copom?.meetings || []).map((m: any) => ({ ...m, implied: brImp.get(m.decision) ?? null }))
+    // decisão nova no comunicado oficial antes da atualização diária: marca a reunião como decidida (variação contra a reunião anterior)
+    const cop = cop0.map((m: any, i: number) => {
+      const hit = !m.decided && (cl0.data || []).find(c => c.selic != null && ((m.n && c.n === m.n) || c.date === m.decision))
+      if (!hit) return m
+      const prev = cop0.slice(0, i).reverse().find((x: any) => x.decided && x.selic != null)
+      return { ...m, decided: true, selic: hit.selic, change_bp: prev ? Math.round((hit.selic! - prev.selic) * 100) : null, live: true }
+    })
     const flt = (L: any[]) => show === 'all' ? L.filter(m => m.decision >= `${+today.slice(0, 4) - 2}`) : L.filter(m => show === 'up' ? m.decision >= today : m.decision < today)
     const nf = fed.find((m: any) => m.decision >= today), nc = cop.find((m: any) => m.decision >= today)
     const selicPts: { time: string; value: number }[] = []
     cop.filter((m: any) => m.selic != null && m.decided).forEach((m: any) => selicPts.push({ time: m.decision, value: m.selic }))
-    return { fed: flt(fed), cop: flt(cop), nf, nc, selicPts }
-  }, [d, w.data, show])
+    return { fed: flt(fed), cop: flt(cop), nf, nc, selicPts, liveCop: cop.some((m: any) => m.live) }
+  }, [d, w.data, show, cl0.data])
   if (!d || !v) return <FnScreen code="FOMC" title={title} ownTitle><Loading2 err={err} /></FnScreen>
   const rowSt = (m: any) => {
     if (m.note && /notation\s*vote/i.test(String(m.note))) return { background: tc('#1a2230') }
@@ -174,8 +186,11 @@ export function FOMCView() {
   const note = <>
     {fL('A filled dot in the projections column marks a meeting with a published set of rate projections. Implied moves come from exchange-traded futures, not official forecasts. Unscheduled Fed decisions appear as extra rows. ',
       'Um ponto na coluna de projeções marca uma reunião com um conjunto publicado de projeções de juros. Os movimentos implícitos vêm de futuros negociados em bolsa, não de projeções oficiais. Decisões extraordinárias do Fed aparecem como linhas extras. ')}
+    {fL('The latest Copom statements are read straight from the central bank when this page opens and, on a decision day, every 30 seconds from 18:00 to 20:30 (Brasília time), so a new decision appears before the daily update.',
+      'Os comunicados mais recentes do Copom são lidos direto do Banco Central quando esta página abre e, no dia da decisão, a cada 30 segundos das 18:00 às 20:30 (horário de Brasília); assim, uma decisão nova aparece antes da atualização diária.')}
     {' '}<a href={href('/wirp/')} style={{ color: C.amber }}>{fL('Implied policy path', 'Trajetória implícita de juros')}</a>
   </>
+  const live: LiveInfo | null = cl0.at && (copDay || v.liveCop) ? { kind: 'checked', at: cl0.at } : null
   const exp = () => {
     if (tab === 1) {
       const rows: (string | number | null)[][] = []
@@ -192,7 +207,7 @@ export function FOMCView() {
     }
   }
   return (
-    <FnScreen code="FOMC" title={title} ownTitle wrap tabs={tabs} tab={tab} setTab={setTab}
+    <FnScreen code="FOMC" title={title} ownTitle wrap tabs={tabs} tab={tab} setTab={setTab} live={live}
       right={<>
         {tab === 0 && <Field label={fL('Show', 'Exibir')}><Btns opts={[{ v: 'all', l: fL('All', 'Todas') }, { v: 'up', l: fL('Upcoming', 'Próximas') }, { v: 'past', l: fL('Decided', 'Decididas') }]} value={show} onChange={setShow} /></Field>}
         <span data-fomc-csv><CsvBtn onClick={exp} /></span>
