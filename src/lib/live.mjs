@@ -38,7 +38,7 @@ export function b3Quote(j) {
   const q = j?.BizSts?.cd === 'OK' ? j?.Trad?.[0]?.scty?.SctyQtn : null
   if (!q || !Number.isFinite(+q.curPrc)) return null
   const n = v => (v == null || !Number.isFinite(+v) ? null : +v)
-  return { last: +q.curPrc, open: n(q.opngPric), high: n(q.maxPric), low: n(q.minPric), avg: n(q.avrgPric), pct: n(q.prcFlcn) }
+  return { last: +q.curPrc, open: n(q.opngPric), high: n(q.maxPric), low: n(q.minPric), avg: n(q.avrgPric), pct: n(q.prcFlcn), qty: n(j?.Trad?.[0]?.ttlQty) }
 }
 
 /** histórico do dia (DailyFluctuationHistory) → { day, pts: [[unix UTC, fechamento do minuto]] } ou null */
@@ -262,4 +262,14 @@ export function ecoFill(events, bySeries, nowMs) {
 export function releaseNear(events, nowMs, countries, before = 2, after = 30) {
   return (events || []).some(e => e && countries.includes(e.country) && !e.allday && !e.time_approx && typeof e.time === 'string'
     && nowMs >= Date.parse(e.time) - before * 60000 && nowMs <= Date.parse(e.time) + after * 60000)
+}
+
+/**
+ * Selo do BTMM. O atraso só é medido pelo último minuto do histórico do dia de um contrato líquido (a cotação não traz
+ * a hora do negócio). Sem histórico (contrato ainda sem negócios no dia), mostra só a hora da consulta — nunca um atraso estimado.
+ */
+export function futBadge(lastMs, atMs, open, haveQuotes) {
+  if (!atMs || !haveQuotes) return null
+  if (lastMs) return open ? { kind: 'delayed', delay: delayMin(lastMs, atMs), at: atMs } : { kind: 'closed', last: lastMs }
+  return { kind: 'checked', at: atMs }
 }

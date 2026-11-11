@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { brt, b3Open, b3FutOpen, dolCodes, b3Sym, b3Quote, b3Day, liveSession, delayMin, liveLabel, mergeSgs, copomTitle, ptaxBulletins, mergeNews, feedDate, dmy, tradeDay, quoteFresh, applyQuote, quotesBadge, mergePoints, refSha, blsPoints, blsActual, blsPending, ecoFill, releaseNear } from './live.mjs'
+import { brt, b3Open, b3FutOpen, dolCodes, b3Sym, b3Quote, b3Day, liveSession, delayMin, liveLabel, mergeSgs, copomTitle, ptaxBulletins, mergeNews, feedDate, dmy, tradeDay, quoteFresh, applyQuote, quotesBadge, mergePoints, refSha, blsPoints, blsActual, blsPending, ecoFill, releaseNear, futBadge } from './live.mjs'
 
 const at = s => Date.parse(s)
 test('brt e pregão da B3', () => {
@@ -19,7 +19,7 @@ test('código B3', () => {
 })
 test('cotação e histórico do dia', () => {
   const q = b3Quote({ BizSts: { cd: 'OK' }, Trad: [{ scty: { SctyQtn: { opngPric: 45.08, minPric: 44.5, maxPric: 45.69, avrgPric: 45.078, curPrc: 44.95, prcFlcn: -0.53 } } }] })
-  assert.deepEqual(q, { last: 44.95, open: 45.08, high: 45.69, low: 44.5, avg: 45.078, pct: -0.53 })
+  assert.deepEqual(q, { last: 44.95, open: 45.08, high: 45.69, low: 44.5, avg: 45.078, pct: -0.53, qty: null })
   assert.equal(b3Quote({ BizSts: { cd: 'NOK' } }), null)
   const d = b3Day({ BizSts: { cd: 'OK' }, TradgFlr: { date: '2026-11-10', scty: { lstQtn: [{ closPric: 44.9, dtTm: '10:03:00' }, { closPric: 'x', dtTm: '10:04:00' }, { closPric: 44.95, dtTm: '18:05:00' }] } } })
   assert.equal(d.day, '2026-11-10'); assert.equal(d.pts.length, 2)
@@ -121,4 +121,12 @@ test('modo rápido da agenda: perto de uma divulgação', () => {
   assert.equal(releaseNear(ev, Date.parse('2026-11-12T08:57:00-03:00'), ['BR']), false)
   assert.equal(releaseNear(ev, Date.parse('2026-11-12T09:31:00-03:00'), ['BR']), false)
   assert.equal(releaseNear(ev, Date.parse('2026-11-12T10:31:00-03:00'), ['US']), false) // horário aproximado não acelera
+})
+
+test('selo do BTMM: atraso só quando medido', () => {
+  const at = Date.parse('2026-11-11T11:53:00-03:00'), last = Date.parse('2026-11-11T11:38:00-03:00')
+  assert.deepEqual(futBadge(last, at, true, true), { kind: 'delayed', delay: 15, at })
+  assert.deepEqual(futBadge(last, at, false, true), { kind: 'closed', last })
+  assert.deepEqual(futBadge(null, at, true, true), { kind: 'checked', at })  // sem histórico: só a hora da consulta
+  assert.equal(futBadge(null, null, true, true), null); assert.equal(futBadge(last, at, true, false), null)
 })
