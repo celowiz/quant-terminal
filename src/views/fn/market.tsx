@@ -477,7 +477,8 @@ export function HEATView() {
   const scale = per === '1D' ? 3 : per === '1S' ? 6 : per === '1M' ? 10 : 25
   return (
     <FnScreen code="HEAT" title="Heatmap — Ibovespa by sector" right={<><span>IBOV <b style={{ color: C.amber }}>{nf(ibov?.last, 0)}</b> <span style={{ color: clr(ibov?.chg) }}>{pf(ibov?.chg)}</span></span><Btns opts={PER} value={per} onChange={setPer} /></>}
-      source={`B3 — Ibovespa theoretical portfolio (${u?.date_portfolio || ''}) + Yahoo Finance closes.`} note={`Area = weight in the theoretical portfolio; color = change over the period (scale ±${scale}%). Grouped by B3 sector.`}>
+      source={lang() === 'pt' ? `Carteira oficial do Ibovespa (${u?.date_portfolio || ''}) e preços de fechamento.` : `Official Ibovespa portfolio (${u?.date_portfolio || ''}) and closing prices.`}
+      note={lang() === 'pt' ? `Área = peso na carteira oficial do índice; cor = variação no período (escala ±${scale}%). Agrupado pelo setor oficial de cada ação. Preços de fechamento, não em tempo real. Conteúdo educacional, não é recomendação de investimento.` : `Area = weight in the official index portfolio; color = change over the period (scale ±${scale}%). Grouped by each stock's official sector. Closing prices, not real time. Educational content, not investment advice.`}>
       <HeatMap rows={rows} scale={scale} />
     </FnScreen>
   )
@@ -495,7 +496,8 @@ export function TOPView() {
   const cols = [{ k: 'cod', label: 'Ticker', color: () => C.amber }, { k: 'name', label: 'Name' }, { k: 'last', label: 'Last', align: 'r' as const, fmt: (x: number) => nf(x) }, { k: 'chg', label: 'Var%', align: 'r' as const, fmt: (x: number) => pf(x), color: clr }, { k: 'weight', label: 'Weight', align: 'r' as const, fmt: (x: number) => nf(x, 2) }]
   return (
     <FnScreen code="TOP" title="Top gainers / losers — Ibovespa" right={<><span>Up <b style={{ color: C.up }}>{adv}</b> · Down <b style={{ color: C.down }}>{dec}</b></span><span>IBOV <span style={{ color: clr(ibov?.chg) }}>{pf(ibov?.chg)}</span></span><Btns opts={PER} value={per} onChange={setPer} /></>}
-      source="B3 (Ibovespa theoretical portfolio) + Yahoo Finance (close); 30d average traded value." note="Universe: Ibovespa components. Closing prices, not real time.">
+      source={lang() === 'pt' ? 'Carteira oficial do Ibovespa e preços de fechamento; volume financeiro médio de 30 dias.' : 'Official Ibovespa portfolio and closing prices; 30-day average traded value.'}
+      note={lang() === 'pt' ? 'Universo: ações do Ibovespa. Preços de fechamento, não em tempo real. Para ver quantos pontos cada ação somou ou tirou do índice, use MOV (hoje) e HMOV (histórico). Conteúdo educacional, não é recomendação de investimento.' : 'Universe: Ibovespa members. Closing prices, not real time. To see how many index points each stock added or took away, use MOV (today) and HMOV (history). Educational content, not investment advice.'}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
         <Panel title="▲ Top gainers"><Grid cols={cols} rows={up} /></Panel>
         <Panel title="▼ Top losers"><Grid cols={cols} rows={dn} /></Panel>

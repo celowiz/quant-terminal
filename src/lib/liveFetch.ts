@@ -139,7 +139,7 @@ export async function cryptoProducts(): Promise<Set<string> | null> {
 }
 
 /** arquivo publicado pelo watcher no branch `live` (null se faltar ou vier fora do formato esperado) */
-export async function liveFile<T = any>(name: 'world.json' | 'news.json' | 'fred.json'): Promise<(T & { generated_at: string }) | null> {
+export async function liveFile<T = any>(name: 'world.json' | 'news.json' | 'fred.json' | 'mov.json'): Promise<(T & { generated_at: string }) | null> {
   const ok = (j: any) => (j && typeof j === 'object' && typeof j.generated_at === 'string' ? j : null)
   // pulso: com o sha do último commit o endereço é novo a cada publicação (sem os ~5 min de cache do branch)
   const sha = await liveSha()

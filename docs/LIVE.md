@@ -30,6 +30,7 @@ force-push, só quando o conteúdo muda:
 - `world.json` — índices mundiais e futuros (Yahoo chart: último, fechamento anterior, hora, fuso), 5 min
 - `news.json` — RSS de CVM, Receita, Fed e SEC; fatos relevantes (CVM RAD, categoria IPE 4); plantão de notícias da B3 (sem informes rotineiros), 4 min
 - `fred.json` — séries dos EUA do ECON (FRED, chave só no segredo `FRED_API_KEY`), 30 min; 1 min perto de divulgação dos EUA na agenda
+- `mov.json` — MOV: carteira do dia de IBOV/IBXX/IBXL/SMLL/IDIV (`part` = peso no fechamento anterior, uma vez por dia) e cotações com atraso de ~15 min de `cotacao.b3.com.br` (último, var. % vs. fechamento anterior) dos membros e dos índices, 3 min no pregão (09:55–18:35), 1 h fora; nada é publicado se menos da metade das cotações responder. Reserva no navegador: se o arquivo faltar ou estiver velho (> 12 min) no pregão, o MOV busca as mesmas cotações direto (CORS liberado) com os pesos do último fechamento (`last_w` de `mov/<IDX>.json`)
 - `dispatch.json` — dia do último disparo dos builds diários (fase 4)
 
 O site lê esses arquivos por `raw.githubusercontent.com`. Pulso: a API pública do GitHub dá o sha do último commit

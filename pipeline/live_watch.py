@@ -7,6 +7,8 @@ Arquivos:
   world.json  último preço + fechamento anterior + hora do negócio + fuso da bolsa de índices mundiais e futuros (a cada 5 min)
   news.json   manchetes de fontes que o navegador não alcança (RSS oficiais, fatos relevantes, plantão da bolsa)
   dispatch.json  dia do último disparo dos builds diários (manhã/noite) — ver fase 4 abaixo
+  mov.json    MOV ao vivo: carteira do dia (peso no fechamento anterior) dos índices IBOV, IBrX-100, IBrX-50, SMLL e IDIV
+              e cotação com atraso de cada membro e do índice (a cada 3 min no pregão; uma vez por hora fora dele)
   fred.json   últimas observações das séries dos EUA do ECON (a cada 30 min, a cada 1 min perto de uma divulgação
               dos EUA na agenda; chave só no segredo do Actions)
 
@@ -14,7 +16,8 @@ Uso: python live_watch.py            (loop até o fim da janela ou QT_LIVE_MAX_S
      python live_watch.py --once     (uma passada, útil para teste)
      python live_watch.py --in-window (sai 0 se ainda estamos na janela; 1 caso contrário)
 """
-import os, re, sys, json, time, html, hashlib, subprocess, email.utils, datetime as dt, xml.etree.ElementTree as ET
+import os, re, sys, json, time, html, base64, hashlib, subprocess, email.utils, datetime as dt, xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
 import requests
 
 BRT = dt.timezone(dt.timedelta(hours=-3))
@@ -265,8 +268,68 @@ def task_dispatch(state):
     if slot and dispatch_pages(slot): done[slot] = t.date().isoformat()
     return done or None
 
+
+# ---------------------------------------------------------------- MOV ao vivo
+B3Q = 'https://cotacao.b3.com.br/mds/api/v1/instrumentQuotation/'
+B3_PORT = 'https://sistemaswebb3-listados.b3.com.br/indexProxy/indexCall/GetPortfolioDay/'
+MOV_IDX = ('IBOV', 'IBXX', 'IBXL', 'SMLL', 'IDIV')
+
+def b3_session(t):
+    """Pregão de ações (com folga para o leilão de fechamento): dias úteis 09:55–18:35 BRT."""
+    m = t.hour * 60 + t.minute
+    return t.weekday() < 5 and 595 <= m <= 1115
+
+def br_num(x):
+    x = (x or '').strip()
+    try: return float(x.replace('.', '').replace(',', '.')) if x else None
+    except ValueError: return None
+
+def parse_b3q(j):
+    """Cotação com atraso → [último, variação % vs fechamento anterior]; None sem negócio ou fora do formato."""
+    try:
+        if j.get('BizSts', {}).get('cd') != 'OK': return None
+        q = j['Trad'][0]['scty']['SctyQtn']
+        last, pct = float(q['curPrc']), q.get('prcFlcn')
+        return [last, None if pct is None else round(float(pct), 4)] if last > 0 else None
+    except Exception: return None
+
+def parse_port(j):
+    """Carteira do dia → (data ISO, {código: peso %}) — o peso é o do fechamento do pregão anterior."""
+    h = j.get('header') or {}
+    d, mth, y = (h.get('date') or '').split('/')
+    y = int(y); y = y + 2000 if y < 100 else y
+    parts = {r['cod'].strip(): br_num(r.get('part')) for r in j.get('results') or [] if r.get('cod')}
+    return f'{y:04d}-{int(mth):02d}-{int(d):02d}', {c: p for c, p in parts.items() if p}
+
+def mov_every(state):
+    return 180 if b3_session(now()) else 3600
+
+def task_mov(state):
+    t = now(); day = t.date().isoformat()
+    ports = state.setdefault('mov_ports', {})
+    for idx in MOV_IDX:
+        if (ports.get(idx) or {}).get('day') == day: continue
+        q = base64.b64encode(json.dumps({'language': 'pt-br', 'pageNumber': 1, 'pageSize': 200, 'index': idx, 'segment': '2'}).encode()).decode()
+        try:
+            d, parts = parse_port(http_get(B3_PORT + q).json())
+            if parts and d == day: ports[idx] = {'day': d, 'parts': parts}
+        except Exception as e: print('mov: carteira', idx, 'falhou', e)
+    ok_idx = [i for i in MOV_IDX if (ports.get(i) or {}).get('day') == day]
+    if not ok_idx: return None
+    syms = sorted(set(ok_idx) | {c for i in ok_idx for c in ports[i]['parts']})
+    def one(s):
+        try: return s, parse_b3q(http_get(B3Q + s, timeout=15).json())
+        except Exception: return s, None
+    with ThreadPoolExecutor(6) as ex: got = dict(ex.map(one, syms))
+    quotes = {s: v for s, v in got.items() if v}
+    print(f'mov: {len(quotes)}/{len(syms)} cotações')
+    if len(quotes) < 0.5 * len(syms): return None
+    return {'day': day, 'session': b3_session(t),
+            'indices': {i: {'quote': quotes.get(i), 'parts': ports[i]['parts']} for i in ok_idx},
+            'quotes': {s: v for s, v in quotes.items() if s not in MOV_IDX}}
+
 # intervalo em segundos (número ou função do estado)
-TASKS = [('world.json', task_world, 300), ('news.json', task_news, 240), ('fred.json', task_fred, fred_every), ('dispatch.json', task_dispatch, 60)]
+TASKS = [('world.json', task_world, 300), ('news.json', task_news, 240), ('fred.json', task_fred, fred_every), ('dispatch.json', task_dispatch, 60), ('mov.json', task_mov, mov_every)]
 
 # ---------------------------------------------------------------- publicação
 def git(*a, check=True, **kw): return subprocess.run(['git', '-C', OUT, *a], check=check, capture_output=True, text=True, **kw)

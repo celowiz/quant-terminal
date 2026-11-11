@@ -54,6 +54,8 @@ export const FUNCTION_LIST: FunctionItem[] = [
   { code: 'HEAT', desc: 'Sector Heatmap', pt: 'Mapa de calor setorial', cat: 'monitors' },
   { code: 'TOP', desc: 'Top Winners/Losers', pt: 'Maiores altas e baixas', cat: 'monitors' },
   { code: 'MOST', desc: 'Most Active Stocks', pt: 'Ações mais negociadas', cat: 'monitors' },
+  { code: 'MOV', desc: 'Index Movers (today)', pt: 'Contribuição por ação no índice (hoje)', cat: 'monitors' },
+  { code: 'HMOV', desc: 'Index Movers (history)', pt: 'Contribuição por ação no índice (histórico)', cat: 'monitors' },
   { code: 'EQS', desc: 'Equity Screening', pt: 'Screener de ações', cat: 'monitors' },
   { code: 'CORR', desc: 'Correlation Matrix', pt: 'Matriz de correlação', cat: 'monitors' },
   { code: 'ANB', desc: 'Flows of Funds by Category', pt: 'Captação de fundos por categoria', cat: 'monitors' },

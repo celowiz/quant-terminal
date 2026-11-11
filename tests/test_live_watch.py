@@ -96,3 +96,16 @@ def test_disparo_dos_builds_diarios(monkeypatch):
     monkeypatch.setattr(L, 'dispatch_pages', lambda slot: False)
     monkeypatch.setattr(L, 'now', lambda: t(11, 7, 50))
     assert L.task_dispatch({'files': {}}) is None  # disparo falhou: tenta de novo no próximo minuto
+
+
+def test_mov_cotacao_carteira_e_pregao():
+    ok = {'BizSts': {'cd': 'OK'}, 'Trad': [{'scty': {'SctyQtn': {'curPrc': 44.07, 'prcFlcn': -1.9577308}}}]}
+    assert L.parse_b3q(ok) == [44.07, -1.9577]
+    assert L.parse_b3q({'BizSts': {'cd': 'NOK'}}) is None
+    assert L.parse_b3q({'BizSts': {'cd': 'OK'}, 'Trad': [{'scty': {'SctyQtn': {'curPrc': 0}}}]}) is None
+    d, parts = L.parse_port({'header': {'date': '11/11/26'}, 'results': [{'cod': 'PETR4', 'part': '7,999'}, {'cod': 'X', 'part': ''}]})
+    assert d == '2026-11-11' and parts == {'PETR4': 7.999}
+    t = lambda h, m, day=11: L.dt.datetime(2026, 11, day, h, m, tzinfo=L.BRT)
+    assert L.b3_session(t(10, 0)) and L.b3_session(t(18, 30)) and not L.b3_session(t(9, 0)) and not L.b3_session(t(19, 0))
+    assert not L.b3_session(t(12, 0, day=14))   # sábado
+    assert 'mov.json' in [n for n, *_ in L.TASKS]

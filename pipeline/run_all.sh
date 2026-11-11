@@ -41,6 +41,7 @@ run() {
     run options  build_options.py  # B3 COTAHIST diário (opções) + gregas Black-Scholes
   ) &
   run corp     build_corp.py       # CVM DFP/ITR/FCA/IPE + Yahoo (proventos, splits, perfil)
+  run mov      build_mov.py        # MOV/HMOV: carteiras dos índices B3 (arquivo diário) + contribuição por ação (Yahoo ajustado)
   wait
 ) &
 # trilha sem Yahoo e sem dependência dos JSONs acima
