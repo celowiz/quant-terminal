@@ -11,8 +11,8 @@ import { lang } from '@/lib/settings'
 import { fmtMonth, fmtQuarter, monthAbbr, fmtDayMonth } from '@/lib/dates'
 import { calName } from '@/lib/calNames.mjs'
 import { downloadCSV, CsvBtn, dayNum, fromDay, heat, HBars, VertexBars } from './v4util'
-import { useLive, b3QuoteLive, b3DayLive } from '@/lib/liveFetch'
-import { b3FutOpen, dolCodes, delayMin, type LiveInfo } from '@/lib/live.mjs'
+import { useLive, b3QuoteLive, b3DayLive, useWorldLive } from '@/lib/liveFetch'
+import { b3FutOpen, dolCodes, delayMin, applyQuote, quoteFresh, quotesBadge, type LiveInfo, type WQuote } from '@/lib/live.mjs'
 
 const bp = (v: any, d = 1) => v == null || !isFinite(+v) ? '—' : `${+v > 0 ? '+' : ''}${nf(v, d)}`
 const mLabel = (iso: string) => fmtMonth(iso)  // 'Sep 26' (EN) / 'set 26' (PT), igual ao resto do site
@@ -589,16 +589,34 @@ export function WCRSView() {
 // ======================= GLCO =======================
 export function GLCOView() {
   const { data: f, err } = useJSON<any>('futures.json')
+  const wl = useWorldLive()
   const [sel, setSel] = useState('CL=F')
   if (!f) return <FnScreen code="GLCO"><Loading err={err} /></FnScreen>
-  const rows = (f.rows as any[]).map((r, i, a) => ({ ...r, g: i === 0 || a[i - 1].group !== r.group ? r.group : '', spark: r.series.slice(-60).map((p: any) => p[1]) }))
+  const now = Date.now(), used: WQuote[] = []
+  const rows = (f.rows as any[]).map((r0, i, a) => {
+    const q = wl?.quotes?.[r0.ticker]
+    const ap = applyQuote(r0.series.map((p: any) => p[0]), r0.series.map((p: any) => p[1]), q)
+    let r = r0
+    if (ap.applied && q) {
+      used.push(q)
+      // último negócio sobre o ajuste anterior; as variações de período seguem nos fechamentos (retrato diário)
+      r = { ...r0, last: q[0], chg: q[0] - q[1], pct: (q[0] / q[1] - 1) * 100, date: ap.dates[ap.dates.length - 1], series: ap.dates.map((t: string, k: number) => [t, ap.close[k]]), live: quoteFresh(q, now) }
+    }
+    return { ...r, g: i === 0 || a[i - 1].group !== r.group ? r.group : '', spark: r.series.slice(-60).map((p: any) => p[1]) }
+  })
   const cur = rows.find(r => r.ticker === sel) || rows[0]
+  const live: LiveInfo | null = used.length ? quotesBadge(used, wl ? Date.parse(wl.generated_at) : null, now) : null
+  const nLive = rows.filter(r => r.live).length
+  const pt = lang() === 'pt'
+  const note = pt
+    ? 'Contrato contínuo do primeiro vencimento. Último, Var. e Var.% usam o último negócio visto pelo monitor de dados do site (atualizado a cada poucos minutos nos dias úteis, com atraso) sobre o ajuste anterior; ● = negociou nos últimos 30 minutos. As variações de 1S a 1A e a faixa de 52 semanas usam os fechamentos diários. Sem o monitor, a tela mostra o fechamento diário. Clique numa linha para ver o gráfico.'
+    : 'Front-month continuous contract. Last, Var. and Var.% use the latest trade seen by the site’s data watcher (refreshed every few minutes on weekdays, delayed) over the previous settlement; ● = traded in the last 30 minutes. 1W to 1Y changes and the 52-week range use daily closes. When the watcher is unavailable the screen shows the daily close. Click a row for the chart.'
   return (
-    <FnScreen code="GLCO" title="Global commodities – futures (front month)"
-      source={f.source} note="Front-month continuous contract, delayed daily close. Period changes are on the close; 52w = 52-week low/high range. Click a row for the chart.">
+    <FnScreen code="GLCO" title="Global commodities – futures (front month)" note={note} live={live}
+      right={nLive ? <span className="text-[11px]" style={{ color: C.muted }} data-glco-nlive>{pt ? `● negociando agora: ${nLive} de ${rows.length}` : `● trading now: ${nLive} of ${rows.length}`}</span> : undefined}>
       <Grid onRow={(r: any) => setSel(r.ticker)} rowStyle={(r: any) => r.ticker === cur.ticker ? { background: tc('#2a1d08') } : undefined} rows={rows} cols={[
         { k: 'g', label: 'Group', color: () => C.amber }, { k: 'name', label: 'Commodity', color: () => C.white }, { k: 'ticker', label: 'Ticker', color: () => C.muted }, { k: 'exchange', label: 'Exchange', color: () => C.muted }, { k: 'unit', label: 'Unit', color: () => C.muted },
-        { k: 'last', label: 'Last', align: 'r', fmt: x => nf(x, x >= 1000 ? 1 : 2), color: () => C.amber }, { k: 'chg', label: 'Var.', align: 'r', fmt: x => nf(x, 2), color: x => clr(x) }, { k: 'pct', label: 'Var.%', align: 'r', fmt: x => pf(x), color: x => clr(x) },
+        { k: 'last', label: 'Last', align: 'r', fmt: (x, r: any) => <span data-glco-live={r.live ? '1' : undefined}>{nf(x, x >= 1000 ? 1 : 2)}{r.live ? <span style={{ color: C.up }}> ●</span> : null}</span>, color: () => C.amber }, { k: 'chg', label: 'Var.', align: 'r', fmt: x => nf(x, 2), color: x => clr(x) }, { k: 'pct', label: 'Var.%', align: 'r', fmt: x => pf(x), color: x => clr(x) },
         { k: 'w1', label: '1W', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) }, { k: 'm1', label: '1M', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) }, { k: 'm3', label: '3M', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) }, { k: 'ytd', label: 'YTD', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) }, { k: 'y1', label: '1Y', align: 'r', fmt: x => pf(x, 1), color: x => clr(x) },
         { k: 'lo52', label: '52w Low', align: 'r', fmt: x => nf(x, 2) }, { k: 'hi52', label: '52w High', align: 'r', fmt: x => nf(x, 2) }, { k: 'spark', label: '3 months', fmt: x => <Spark data={x} color={C.amber} /> }, { k: 'date', label: 'Date', fmt: x => dBR(x), color: () => C.muted },
       ]} />

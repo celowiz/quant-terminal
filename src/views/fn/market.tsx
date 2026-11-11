@@ -13,8 +13,8 @@ import { t } from '../../lib/i18n'
 import { fmtDayMonth, fmtMonth, brToIso } from '../../lib/dates'
 import { mean, std, maxDrawdown, regress } from '../../lib/quant'
 import { safeUrl, readStoredJSON, validPortfolio, validLocalAlerts } from '../../lib/safe.mjs'
-import { useLive, feedLive, sgsLive, focusLive, ptaxLive, type FeedItem } from '../../lib/liveFetch'
-import { mergeNews, mergeSgs, brt, type LiveInfo } from '../../lib/live.mjs'
+import { useLive, feedLive, sgsLive, focusLive, ptaxLive, liveFile, useWorldLive, watcherNext, type FeedItem } from '../../lib/liveFetch'
+import { mergeNews, mergeSgs, mergePoints, brt, applyQuote, quoteFresh, quotesBadge, type LiveInfo, type WQuote } from '../../lib/live.mjs'
 
 const lastIdx = (a: (number | null)[]) => { let i = a.length - 1; while (i >= 0 && a[i] == null) i--; return i }
 const prevVal = (a: (number | null)[], i: number) => { let j = i - 1; while (j >= 0 && a[j] == null) j--; return j >= 0 ? a[j] : null }
@@ -22,21 +22,37 @@ const prevVal = (a: (number | null)[], i: number) => { let j = i - 1; while (j >
 // ---------------- WEI ----------------
 export function WEIView() {
   const { data: d, err } = useJSON<any>('world.json')
+  const wl = useWorldLive()
   const [sel, setSel] = useState<any>(null)
   if (!d) return <FnScreen code="WEI"><Loading err={err} /></FnScreen>
-  const rowsOf = (r: any) => r.rows.map((x: any) => {
-    const i = lastIdx(x.close), last = x.close[i], prev = prevVal(x.close, i), dt = x.dates[i]
-    return { ...x, last, chg: last != null && prev != null ? last - prev : null, pct: last != null && prev != null ? (last / prev - 1) * 100 : null, date: dt, ytd: retSince(x.dates, x.close, `${dt.slice(0, 4)}-01-00`), y1: retSince(x.dates, x.close, isoMinus(dt, 0, 0, 1)), m1: retSince(x.dates, x.close, isoMinus(dt, 0, 1)), spark: x.close.slice(-22) }
+  const now = Date.now()
+  const used: WQuote[] = []
+  const rowsOf = (r: any) => r.rows.map((x0: any) => {
+    const q = wl?.quotes?.[x0.ticker]
+    const a = applyQuote(x0.dates, x0.close, q)
+    if (a.applied) used.push(q!)
+    const x = a.applied ? { ...x0, dates: a.dates, close: a.close } : x0
+    const i = lastIdx(x.close), last = x.close[i], dt = x.dates[i]
+    // anterior: o fechamento oficial que acompanha a cotação ao vivo; senão o fechamento anterior da série
+    const prev = a.applied ? q![1] : prevVal(x.close, i)
+    return { ...x, last, live: a.applied && quoteFresh(q, now), chg: last != null && prev != null ? last - prev : null, pct: last != null && prev != null ? (last / prev - 1) * 100 : null, date: dt, ytd: retSince(x.dates, x.close, `${dt.slice(0, 4)}-01-00`), y1: retSince(x.dates, x.close, isoMinus(dt, 0, 0, 1)), m1: retSince(x.dates, x.close, isoMinus(dt, 0, 1)), spark: x.close.slice(-22) }
   })
-  const cur = sel || d.regions[0].rows.find((x: any) => x.ticker === '^BVSP') || d.regions[0].rows[0]
+  const regions = d.regions.map((r: any) => ({ ...r, rows: rowsOf(r) }))
+  const all = regions.flatMap((r: any) => r.rows)
+  const cur = (sel && all.find((x: any) => x.ticker === sel)) || all.find((x: any) => x.ticker === '^BVSP') || all[0]
+  const live: LiveInfo | null = used.length ? quotesBadge(used, wl ? Date.parse(wl.generated_at) : null, now) : null
+  const nLive = all.filter((x: any) => x.live).length
+  const note = eL('Values and changes use the latest trade seen by the site’s data watcher (refreshed every few minutes on weekdays, delayed — each exchange publishes with its own delay) over the previous official close; ● = traded in the last 30 minutes. When the watcher is unavailable the screen shows the daily closes. Click a row to see the 2-year chart (daily closes; today’s point uses the latest trade). Sparkline = last month.',
+    'Valores e variações usam o último negócio visto pelo monitor de dados do site (atualizado a cada poucos minutos nos dias úteis, com atraso — cada bolsa divulga com o próprio atraso) sobre o fechamento oficial anterior; ● = negociou nos últimos 30 minutos. Sem o monitor, a tela mostra os fechamentos diários. Clique numa linha para ver o gráfico de 2 anos (fechamentos diários; o ponto de hoje usa o último negócio). Mini-gráfico = último mês.')
   return (
-    <FnScreen code="WEI" title="World Equity Indices" source="Yahoo Finance via yfinance (daily index closes), tools/pipeline/build_markets.py." note="Closing values (not real time). Click a row to see the 2-year chart. Sparkline = last month.">
+    <FnScreen code="WEI" title="World Equity Indices" note={note} live={live}
+      right={nLive ? <span className="text-[11px]" style={{ color: C.muted }} data-wei-nlive>{eL(`● trading now: ${nLive} of ${all.length}`, `● negociando agora: ${nLive} de ${all.length}`)}</span> : undefined}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1.4fr 1fr' }}>
-        <div className="flex flex-col gap-2">{d.regions.map((r: any) => (
+        <div className="flex flex-col gap-2">{regions.map((r: any) => (
           <Panel key={r.region} title={r.region}>
-            <Grid onRow={(x: any) => setSel(x)} rowStyle={(x: any) => x.ticker === cur.ticker ? { background: tc('#1a1205') } : undefined} cols={[
-              { k: 'name', label: 'Index', color: () => C.amber, w: '170px' }, { k: 'last', label: 'Value', align: 'r', fmt: v => nf(v) }, { k: 'chg', label: 'Var', align: 'r', fmt: v => nf(v), color: clr }, { k: 'pct', label: 'Var%', align: 'r', fmt: v => pf(v), color: clr },
-              { k: 'spark', label: '1M', align: 'c', fmt: v => <Spark data={v} w={70} h={14} /> }, { k: 'm1', label: '1M%', align: 'r', fmt: v => pf(v, 1), color: clr }, { k: 'ytd', label: 'YTD%', align: 'r', fmt: v => pf(v, 1), color: clr }, { k: 'y1', label: '12M%', align: 'r', fmt: v => pf(v, 1), color: clr }, { k: 'date', label: 'Date', align: 'r', fmt: dBR }]} rows={rowsOf(r)} />
+            <Grid onRow={(x: any) => setSel(x.ticker)} rowStyle={(x: any) => x.ticker === cur.ticker ? { background: tc('#1a1205') } : undefined} cols={[
+              { k: 'name', label: 'Index', color: () => C.amber, w: '170px' }, { k: 'last', label: 'Value', align: 'r', fmt: (v, x: any) => <span data-wei-live={x.live ? '1' : undefined}>{nf(v)}{x.live ? <span style={{ color: C.up }}> ●</span> : null}</span> }, { k: 'chg', label: 'Var', align: 'r', fmt: v => nf(v), color: clr }, { k: 'pct', label: 'Var%', align: 'r', fmt: v => pf(v), color: clr },
+              { k: 'spark', label: '1M', align: 'c', fmt: v => <Spark data={v} w={70} h={14} /> }, { k: 'm1', label: '1M%', align: 'r', fmt: v => pf(v, 1), color: clr }, { k: 'ytd', label: 'YTD%', align: 'r', fmt: v => pf(v, 1), color: clr }, { k: 'y1', label: '12M%', align: 'r', fmt: v => pf(v, 1), color: clr }, { k: 'date', label: 'Date', align: 'r', fmt: dBR }]} rows={r.rows} />
           </Panel>))}</div>
         <Panel title={`${cur.name} (${cur.ticker}) — 2 years`}>
           <FnChart height={420} panes={[{ series: [{ kind: 'area', data: cur.dates.map((t: string, i: number) => ({ time: t, value: cur.close[i] })).filter((p: any) => p.value != null), color: C.amber, title: cur.name }] }]} />
@@ -260,17 +276,22 @@ async function econLive(d: any) {
 export function ECONView() {
   const { data: d0, err } = useJSON<any>('econ.json')
   const lv = useLive(d0 ? () => econLive(d0) : null, econNext, [d0])
+  // séries dos EUA: últimas observações lidas pelo monitor de dados do site (a cada 30 min nos dias úteis)
+  const usLv = useLive(() => liveFile<{ series: Record<string, [string, number][]> }>('fred.json').then(j => (j && j.series && typeof j.series === 'object' ? j.series : null)), watcherNext, [])
   const d = useMemo(() => {
-    if (!d0 || !lv.data) return d0
-    const L = lv.data
-    const series = (d0.series as any[]).map(s => L.sgs[s.id] ? { ...s, points: mergeSgs(s.points, L.sgs[s.id], L.today).points } : s)
+    if (!d0 || (!lv.data && !usLv.data)) return d0
+    const L = lv.data || { sgs: {} as Record<string, any[]>, focus: [] as any[], today: brt(Date.now()).day }
+    const U = usLv.data || {}
+    const series = (d0.series as any[]).map(s => L.sgs[s.id] ? { ...s, points: mergeSgs(s.points, L.sgs[s.id], L.today).points }
+      : s.country === 'US' && Array.isArray(U[s.id]) ? { ...s, points: mergePoints(s.points, U[s.id]).points } : s)
     // medianas: troca um indicador só quando a pesquisa ao vivo é mais nova que a publicada
     const old = (d0.focus || []) as any[], byInd = new Map<string, any[]>()
     for (const r of L.focus) byInd.set(r.indicator, [...(byInd.get(r.indicator) || []), r])
     const focus = FOCUS_IND.flatMap(ind => { const o = old.filter(r => r.indicator === ind), n = byInd.get(ind); return n && (!o.length || n[0].date > o[0].date) ? n : o })
     return { ...d0, series, focus }
-  }, [d0, lv.data])
-  const live: LiveInfo | null = lv.at ? { kind: 'checked', at: lv.at } : null
+  }, [d0, lv.data, usLv.data])
+  const econAt = Math.max(lv.at || 0, usLv.at || 0)
+  const live: LiveInfo | null = econAt ? { kind: 'checked', at: econAt } : null
   const [sel, setSel] = useState<string>('SGS13522')
   const [more, setMore] = useState(false)
   const desk = useDesktop()
@@ -298,8 +319,8 @@ export function ECONView() {
   const fInd = Array.from(new Set(focus.map(f => f.indicator))), fYears = Array.from(new Set(focus.map(f => f.year))).sort()
   const source = eL('Official statistical series and a market survey of expectations (medians).',
     'Séries estatísticas oficiais e uma pesquisa de mercado de expectativas (medianas).')
-  const note = eL('Click an indicator to see its history. There is no per-release consensus calendar; the survey table uses market-survey medians. Brazil indicators and the survey are checked again at the official source while this page is open (every 5 minutes on weekdays from 08:00 to 19:00, every 2 minutes on Monday morning, when the survey comes out), so a new release shows up without waiting for the daily update. United States indicators come from the daily update.',
-    'Clique num indicador para ver o histórico. Não há calendário de consenso por divulgação; a tabela de pesquisa usa as medianas da pesquisa de mercado. Os indicadores do Brasil e a pesquisa são consultados de novo na fonte oficial enquanto esta página estiver aberta (a cada 5 minutos nos dias úteis, das 08:00 às 19:00, e a cada 2 minutos na segunda de manhã, quando sai a pesquisa); assim, uma divulgação nova aparece sem esperar a atualização diária. Os indicadores dos Estados Unidos vêm da atualização diária.')
+  const note = eL('Click an indicator to see its history. There is no per-release consensus calendar; the survey table uses market-survey medians. Brazil indicators and the survey are checked again at the official source while this page is open (every 5 minutes on weekdays from 08:00 to 19:00, every 2 minutes on Monday morning, when the survey comes out), so a new release shows up without waiting for the daily update. United States indicators are refreshed by the site’s data watcher every 30 minutes on weekdays from 07:00 to 22:00 and read here every 2 minutes; without it they come from the daily update.',
+    'Clique num indicador para ver o histórico. Não há calendário de consenso por divulgação; a tabela de pesquisa usa as medianas da pesquisa de mercado. Os indicadores do Brasil e a pesquisa são consultados de novo na fonte oficial enquanto esta página estiver aberta (a cada 5 minutos nos dias úteis, das 08:00 às 19:00, e a cada 2 minutos na segunda de manhã, quando sai a pesquisa); assim, uma divulgação nova aparece sem esperar a atualização diária. Os indicadores dos Estados Unidos são atualizados pelo monitor de dados do site a cada 30 minutos nos dias úteis, das 07:00 às 22:00, e lidos aqui a cada 2 minutos; sem o monitor, vêm da atualização diária.')
   const expInd = () => {
     const head = [eL('Country', 'País'), eL('Indicator', 'Indicador'), eL('Ref.', 'Ref.'), eL('Last', 'Último'), eL('Previous', 'Anterior'), eL('Change', 'Variação'), eL('Unit', 'Unidade')]
     const pack = (cty: string, list: any[]) => list.map(r => [cty, r.label, r.date, r.last, r.prev, r.chg, r.unitLabel])
@@ -495,14 +516,22 @@ const newsLive = async (): Promise<FeedItem[] | null> => {
   const ok = r.filter(Boolean) as FeedItem[][]
   return ok.length ? ok.flat() : null
 }
+/** manchetes que o navegador não alcança (comunicados oficiais, fatos relevantes, avisos da bolsa), lidas pelo monitor do site */
+const watcherNews = async (): Promise<FeedItem[] | null> => {
+  const j = await liveFile<{ items: FeedItem[] }>('news.json')
+  const it = Array.isArray(j?.items) ? j!.items.filter(n => n && typeof n.title === 'string' && typeof n.source === 'string' && /^https?:\/\//i.test(n.link || '') && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(n.date || '')) : []
+  return it.length ? it : null
+}
 export function NEWSView() {
   const { data: d, err } = useJSON<any>('news.json')
   const [src, setSrc] = useState('All'); const [q, setQ] = useState('')
   const desk = useDesktop()
   // manchetes novas dos feeds abertos a cada 3 minutos com a aba visível
   const lv = useLive(newsLive, () => 180000, [])
-  const merged = useMemo(() => (d ? mergeNews(d.items, lv.data || []) : null), [d, lv.data])
-  const live: LiveInfo | null = lv.at ? { kind: 'checked', at: lv.at } : null
+  const wv = useLive(watcherNews, watcherNext, [])
+  const merged = useMemo(() => (d ? mergeNews(d.items, [...(lv.data || []), ...(wv.data || [])]) : null), [d, lv.data, wv.data])
+  const at = Math.max(lv.at || 0, wv.at || 0)
+  const live: LiveInfo | null = at ? { kind: 'checked', at } : null
   if (!d || !merged) return <FnScreen code="NEWS"><Loading err={err} /></FnScreen>
   const items = merged.items
   // filtros por publicador (atribuição por manchete); 'All' é o valor interno, rótulo traduzido
@@ -511,8 +540,8 @@ export function NEWSView() {
   const when = (v: string) => `${fmtDayMonth(v)} ${v.slice(11, 16)}`
   return (
     <FnScreen code="NEWS" title={t('news.title')} live={live} right={<Field label={t('news.search')}><input className={inputCls + ' w-48'} style={inputStyle} value={q} onChange={e => setQ(e.target.value)} /></Field>}
-      source={<>Open-license RSS feeds. Headline + link only (no text reproduced).</>} note={eL(`No paid news agency. Time = feed publication time, converted to Brasília time. Headlines from the feeds that allow direct reading are checked again every 3 minutes while this page is open${merged.fresh ? ` (${merged.fresh} new since the daily update)` : ''}; the others arrive with the daily update.`,
-        `Sem agência de notícias paga. Horário = horário de publicação no feed, convertido para o horário de Brasília. As manchetes dos feeds que permitem leitura direta são consultadas de novo a cada 3 minutos enquanto esta página estiver aberta${merged.fresh ? ` (${merged.fresh} novas desde a atualização diária)` : ''}; as demais chegam com a atualização diária.`)}>
+      source={<>Open-license RSS feeds. Headline + link only (no text reproduced).</>} note={eL(`No paid news agency. Time = feed publication time, converted to Brasília time. Headlines from the feeds that allow direct reading are checked again every 3 minutes while this page is open; the others (official press releases, relevant-fact filings and exchange notices) are collected by the site’s data watcher every few minutes on weekdays from 07:00 to 22:00 and read here every 2 minutes${merged.fresh ? ` (${merged.fresh} new since the daily update)` : ''}. Without the watcher they arrive with the daily update.`,
+        `Sem agência de notícias paga. Horário = horário de publicação no feed, convertido para o horário de Brasília. As manchetes dos feeds que permitem leitura direta são consultadas de novo a cada 3 minutos enquanto esta página estiver aberta; as demais (comunicados oficiais, fatos relevantes e avisos da bolsa) são coletadas pelo monitor de dados do site a cada poucos minutos nos dias úteis, das 07:00 às 22:00, e lidas aqui a cada 2 minutos${merged.fresh ? ` (${merged.fresh} novas desde a atualização diária)` : ''}. Sem o monitor, elas chegam com a atualização diária.`)}>
       <div className="flex flex-wrap gap-0 pb-2">{srcs.map(s => <button key={s} onClick={() => setSrc(s)} className="px-2 py-[2px] text-[11px] border" style={{ borderColor: C.line, background: src === s ? C.amber : 'transparent', color: src === s ? tc('#000') : C.amber }}>{s === 'All' ? t('news.all') : s}</button>)}</div>
       {desk
         ? <Grid maxH={700} cols={[{ k: 'date', label: t('news.time'), w: '110px', fmt: when }, { k: 'source', label: t('news.source'), w: '220px', color: () => C.amber, fmt: (v: string) => v.length > 30 ? v.slice(0, 29) + '…' : v }, { k: 'title', label: t('news.headline'), fmt: (v: string, r: any) => <a href={safeUrl(r.link)} target="_blank" rel="noopener noreferrer" style={{ color: C.text }}>{v}</a> }]} rows={rows} />

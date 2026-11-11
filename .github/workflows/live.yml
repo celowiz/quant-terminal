@@ -1,0 +1,80 @@
+name: live
+
+# Watcher leve do tempo real (fase 2): em dias úteis, 07:00–22:00 BRT, busca a cada poucos minutos o que o
+# navegador não alcança (cotações mundiais com atraso, comunicados oficiais, fatos relevantes, avisos da bolsa,
+# séries dos EUA com a chave em segredo) e publica arquivos pequenos no branch órfão `live` — um único commit,
+# force-push, só quando o conteúdo muda. O site lê esses arquivos e cai no retrato diário se faltarem.
+#
+# Encadeamento: cada execução roda até ~5h40 (ou até 22:00) e, se ainda estiver na janela, dispara a próxima
+# (workflow_dispatch com o GITHUB_TOKEN). O cron de hora em hora é só rede de segurança (o agendamento deste
+# repo costuma atrasar horas); fora da janela ou com outra execução ativa, sai em segundos.
+on:
+  workflow_dispatch:
+    inputs:
+      after:
+        description: 'execução anterior do encadeamento (ainda terminando; não conta como ativa)'
+        required: false
+        default: '0'
+  schedule:
+    - cron: '17 * * * 1-6'
+
+permissions: {}
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    permissions:
+      contents: write   # só o branch `live` (force-push de um commit órfão)
+      actions: write    # disparar a próxima execução do encadeamento
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      AFTER: ${{ inputs.after || '0' }}
+    steps:
+      - name: Janela (dias úteis 07:00–22:00 BRT) e uma execução por vez
+        id: gate
+        run: |
+          go=true
+          dow=$(TZ=America/Sao_Paulo date +%u); hm=$(TZ=America/Sao_Paulo date +%H%M)
+          if [ "$dow" -gt 5 ] || [ "$hm" -lt 0700 ] || [ "$hm" -ge 2200 ]; then echo "fora da janela ($dow $hm BRT)"; go=false; fi
+          if [ "$go" = true ]; then
+            # a execução mais antiga em andamento continua; as demais saem (a que disparou esta não conta)
+            case "$AFTER" in ''|*[!0-9]*) AFTER=0;; esac
+            older=$(gh run list -R "$REPO" -w live.yml --status in_progress --limit 20 --json databaseId \
+              -q "[.[] | select(.databaseId < ${{ github.run_id }} and .databaseId != $AFTER)] | length")
+            if [ "${older:-0}" -gt 0 ]; then echo "outra execução já está ativa"; go=false; fi
+          fi
+          echo "go=$go" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.gate.outputs.go == 'true'
+        with:
+          ref: main
+          persist-credentials: false
+          sparse-checkout: pipeline/live_watch.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: steps.gate.outputs.go == 'true'
+        with:
+          python-version: '3.12'
+      - name: Dependência
+        if: steps.gate.outputs.go == 'true'
+        run: pip install --quiet 'requests==2.34.2'
+      - name: Estado atual do branch live
+        if: steps.gate.outputs.go == 'true'
+        run: |
+          mkdir live-out && cd live-out && git init -q
+          git remote add origin "https://github.com/$REPO.git"
+          git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          if git fetch -q --depth 1 origin live; then git checkout -q FETCH_HEAD -- . && ls -la; else echo "branch live ainda não existe"; fi
+      - name: Watcher
+        if: steps.gate.outputs.go == 'true'
+        env:
+          QT_LIVE_DIR: live-out
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python pipeline/live_watch.py
+      - name: Próxima execução (se ainda estiver na janela)
+        if: steps.gate.outputs.go == 'true' && success()
+        run: |
+          dow=$(TZ=America/Sao_Paulo date +%u); hm=$(TZ=America/Sao_Paulo date +%H%M)
+          if [ "$dow" -le 5 ] && [ "$hm" -ge 0700 ] && [ "$hm" -lt 2150 ]; then gh workflow run live.yml -R "$REPO" --ref main -f after=${{ github.run_id }} && echo "próxima disparada"; else echo "janela encerrada"; fi

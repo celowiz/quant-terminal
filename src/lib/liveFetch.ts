@@ -4,7 +4,7 @@
  * Cada host aqui precisa estar no connect-src de scripts/csp.mjs (LIVE_HOSTS).
  */
 import { useEffect, useRef, useState } from 'react'
-import { b3Quote, b3Day, copomTitle, ptaxBulletins, feedDate, type B3Quote } from './live.mjs'
+import { b3Quote, b3Day, copomTitle, ptaxBulletins, feedDate, brt, LIVE_RAW, type B3Quote, type WQuote } from './live.mjs'
 
 const B3 = 'https://cotacao.b3.com.br/mds/api/v1'
 
@@ -136,4 +136,18 @@ export async function cryptoProducts(): Promise<Set<string> | null> {
   const j = await getLive<any[]>('https://api.exchange.coinbase.com/products', { ms: 10000 })
   if (!Array.isArray(j)) return null
   return new Set(j.filter(p => p.quote_currency === 'USD' && !p.trading_disabled && p.status === 'online').map(p => p.id as string))
+}
+
+/** arquivo publicado pelo watcher no branch `live` (null se faltar ou vier fora do formato esperado) */
+export async function liveFile<T = any>(name: 'world.json' | 'news.json' | 'fred.json'): Promise<(T & { generated_at: string }) | null> {
+  const j = await getLive<any>(LIVE_RAW + name)
+  return j && typeof j === 'object' && typeof j.generated_at === 'string' ? j : null
+}
+/** cadência das telas que leem o watcher: dias úteis 07:00–22:30 a cada 2 min (a origem guarda ~5 min); fora disso só ao abrir */
+export const watcherNext = (now: number) => { const t = brt(now); return t.dow >= 1 && t.dow <= 5 && t.min >= 420 && t.min <= 1350 ? 120000 : null }
+
+export type WorldLive = { generated_at: string; quotes: Record<string, WQuote> }
+/** cotações do watcher (índices mundiais e futuros, com atraso de alguns minutos); null = só o retrato diário */
+export function useWorldLive(): WorldLive | null {
+  return useLive(() => liveFile<WorldLive>('world.json').then(j => (j && j.quotes && typeof j.quotes === 'object' ? j : null)), watcherNext, []).data
 }

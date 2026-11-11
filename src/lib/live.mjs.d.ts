@@ -18,3 +18,10 @@ export function copomTitle(it: any): { n: number | null; date: string | null; se
 export function ptaxBulletins(j: any): { kind: 'open' | 'mid' | 'close'; time: string; buy: number; sell: number }[]
 export function mergeNews<T extends { link?: string; date: string }>(items: T[], live: T[]): { items: T[]; fresh: number }
 export function feedDate(s: string): string | null
+export const LIVE_RAW: string
+export type WQuote = [number, number, number, number]
+export function tradeDay(q: WQuote | null | undefined): string | null
+export function quoteFresh(q: WQuote | null | undefined, nowMs: number, maxMin?: number): boolean
+export function applyQuote(dates: string[], close: (number | null)[], q: WQuote | null | undefined): { dates: string[]; close: (number | null)[]; applied: boolean }
+export function quotesBadge(quotes: WQuote[], atMs: number | null | undefined, nowMs: number): LiveInfo | null
+export function mergePoints(points: [string, number][], pts: [string, number][]): { points: [string, number][]; fresh: number }
