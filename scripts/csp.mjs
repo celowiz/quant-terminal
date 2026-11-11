@@ -17,6 +17,7 @@ export const LIVE_HOSTS = [
   'https://agenciabrasil.ebc.com.br',     // manchetes (licença aberta)
   'https://api.exchange.coinbase.com',    // lista de pares de cripto
   'wss://ws-feed.exchange.coinbase.com',  // cotações de cripto por websocket
+  'https://raw.githubusercontent.com',   // arquivos pequenos do watcher (branch live do próprio repositório)
 ]
 
 export function inlineScriptHashes(html) {

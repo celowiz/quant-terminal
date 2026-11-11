@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { brt, b3Open, b3FutOpen, dolCodes, b3Sym, b3Quote, b3Day, liveSession, delayMin, liveLabel, mergeSgs, copomTitle, ptaxBulletins, mergeNews, feedDate, dmy } from './live.mjs'
+import { brt, b3Open, b3FutOpen, dolCodes, b3Sym, b3Quote, b3Day, liveSession, delayMin, liveLabel, mergeSgs, copomTitle, ptaxBulletins, mergeNews, feedDate, dmy, tradeDay, quoteFresh, applyQuote, quotesBadge, mergePoints } from './live.mjs'
 
 const at = s => Date.parse(s)
 test('brt e pregão da B3', () => {
@@ -62,4 +62,27 @@ test('manchetes: sem duplicar e em ordem', () => {
   const r = mergeNews(a, b); assert.deepEqual(r.items.map(x => x.link), ['b', 'a']); assert.equal(r.fresh, 1)
   assert.equal(feedDate('Tue, 10 Nov 2026 20:26:00 GMT'), '2026-11-10T17:26-03:00')
   assert.equal(feedDate('2026-11-10T08:01:06-03:00'), '2026-11-10T08:01-03:00'); assert.equal(feedDate('x'), null)
+})
+
+test('cotações do watcher: dia no fuso da bolsa, troca/acrescenta, nunca volta no tempo', () => {
+  // Tóquio abre às 21:00 de Brasília do dia anterior: o pregão é o do dia seguinte no fuso da bolsa
+  const tk = [50000, 49000, Date.parse('2026-11-11T00:30:00Z') / 1000, 9 * 3600]
+  assert.equal(tradeDay(tk), '2026-11-11')
+  const ny = [7520.93, 7549.94, Date.parse('2026-11-10T21:00:00Z') / 1000, -5 * 3600]
+  assert.equal(tradeDay(ny), '2026-11-10')
+  const d = ['2026-11-09', '2026-11-10'], c = [7549.94, 7529.08]
+  assert.deepEqual(applyQuote(d, c, ny), { dates: d, close: [7549.94, 7520.93], applied: true })
+  assert.deepEqual(applyQuote(['2026-11-09'], [7549.94], ny).dates, ['2026-11-09', '2026-11-10'])
+  assert.equal(applyQuote(['2026-11-11'], [1], ny).applied, false)
+  assert.equal(applyQuote(d, c, null).applied, false); assert.equal(applyQuote(d, c, [0, 1, 2, 0]).applied, false)
+  const now = Date.parse('2026-11-10T21:10:00Z')
+  assert.equal(quoteFresh(ny, now), true); assert.equal(quoteFresh(ny, now + 31 * 60000), false)
+  const b = quotesBadge([ny, [1, 1, ny[2] - 600, 0], [1, 1, ny[2] - 7200, 0]], now - 60000, now)
+  assert.equal(b.kind, 'delayed'); assert.equal(b.delay, 10)
+  assert.deepEqual(quotesBadge([ny], null, now + 3600e3), { kind: 'closed', last: ny[2] * 1000 })
+  assert.equal(quotesBadge([], 0, now), null)
+})
+test('observações recentes sobre a série publicada', () => {
+  const r = mergePoints([['2026-09-01', 1], ['2026-10-01', 2]], [['2026-10-01', 2.5], ['2026-11-01', 3], ['x', 1], ['2026-12-01', NaN]])
+  assert.deepEqual(r.points, [['2026-09-01', 1], ['2026-10-01', 2.5], ['2026-11-01', 3]]); assert.equal(r.fresh, 1)
 })

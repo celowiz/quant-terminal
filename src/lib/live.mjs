@@ -138,3 +138,53 @@ export function feedDate(s) {
   if (!Number.isFinite(ms)) return null
   return `${new Date(ms + BRT).toISOString().slice(0, 16)}-03:00`
 }
+
+// ---------------- fase 2: arquivos do watcher (branch `live`) ----------------
+/** endereço de um arquivo publicado pelo watcher (branch órfão `live`; cache de ~5 min na origem) */
+export const LIVE_RAW = 'https://raw.githubusercontent.com/celowiz/quant-terminal/live/'
+
+/** cotação do watcher [último, anterior, unix, fuso s] → dia do pregão no fuso da bolsa (AAAA-MM-DD) ou null */
+export function tradeDay(q) {
+  if (!Array.isArray(q) || !(q[2] > 0)) return null
+  return new Date((q[2] + (q[3] || 0)) * 1000).toISOString().slice(0, 10)
+}
+
+/** negociou nos últimos maxMin minutos (mercado aberto agora)? */
+export const quoteFresh = (q, nowMs, maxMin = 30) => Array.isArray(q) && q[2] > 0 && nowMs - q[2] * 1000 <= maxMin * 60000
+
+/**
+ * Aplica uma cotação do watcher à série diária: mesmo pregão → troca o último fechamento; pregão mais novo →
+ * acrescenta. Cotação de pregão mais antigo que o arquivo é ignorada (o retrato diário vence).
+ * Devolve { dates, close, applied }.
+ */
+export function applyQuote(dates, close, q) {
+  const day = tradeDay(q)
+  if (!day || !(q[0] > 0)) return { dates, close, applied: false }
+  let i = dates.length - 1
+  while (i >= 0 && close[i] == null) i--
+  const lastDay = i >= 0 ? dates[i] : ''
+  if (day < lastDay) return { dates, close, applied: false }
+  if (day === lastDay) { const c = close.slice(); c[i] = q[0]; return { dates: dates.slice(0, i + 1), close: c.slice(0, i + 1), applied: true } }
+  return { dates: [...dates.slice(0, i + 1), day], close: [...close.slice(0, i + 1), q[0]], applied: true }
+}
+
+/** selo das telas com cotações do watcher: com atraso (mediana dos que negociam agora) ou mercado fechado */
+export function quotesBadge(quotes, atMs, nowMs) {
+  const qs = (quotes || []).filter(q => Array.isArray(q) && q[2] > 0)
+  if (!qs.length) return null
+  const live = qs.filter(q => quoteFresh(q, nowMs)).map(q => delayMin(q[2] * 1000, nowMs)).sort((a, b) => a - b)
+  if (live.length) return { kind: 'delayed', delay: live[Math.floor((live.length - 1) / 2)], at: atMs || nowMs }
+  return { kind: 'closed', last: Math.max(...qs.map(q => q[2])) * 1000 }
+}
+
+/** observações recentes [[data, valor]] sobre a série publicada: troca a mesma data, acrescenta as novas */
+export function mergePoints(points, pts) {
+  const m = new Map((points || []).map(p => [p[0], p[1]]))
+  let fresh = 0
+  for (const p of pts || []) {
+    if (!Array.isArray(p) || !/^\d{4}-\d{2}-\d{2}$/.test(p[0]) || typeof p[1] !== 'number' || !Number.isFinite(p[1])) continue
+    if (!m.has(p[0])) fresh++
+    m.set(p[0], p[1])
+  }
+  return { points: [...m.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)), fresh }
+}
