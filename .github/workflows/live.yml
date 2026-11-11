@@ -6,8 +6,9 @@ name: live
 # force-push, só quando o conteúdo muda. O site lê esses arquivos e cai no retrato diário se faltarem.
 #
 # Encadeamento: cada execução roda até ~5h40 (ou até 22:00) e, se ainda estiver na janela, dispara a próxima
-# (workflow_dispatch com o GITHUB_TOKEN). O cron de hora em hora é só rede de segurança (o agendamento deste
-# repo costuma atrasar horas); fora da janela ou com outra execução ativa, sai em segundos.
+# (workflow_dispatch com o GITHUB_TOKEN) — também quando o watcher falha depois de 15 min rodando; uma falha rápida
+# não encadeia (evita laço) e a próxima execução da rede de segurança reinicia o encadeamento. Porteiro:
+# pipeline/live_gate.sh (janela, uma execução por vez, espera até 07:00 quando chega entre 05:00 e 07:00).
 on:
   workflow_dispatch:
     inputs:
@@ -15,8 +16,10 @@ on:
         description: 'execução anterior do encadeamento (ainda terminando; não conta como ativa)'
         required: false
         default: '0'
+  # rede de segurança a cada 20 min (seg–sáb UTC); cada execução fora da janela sai em segundos, e entre 05:00 e
+  # 07:00 BRT a primeira que chegar espera até 07:00 (início do dia sem depender de um cron pontual)
   schedule:
-    - cron: '17 * * * 1-6'
+    - cron: '7,27,47 * * * 1-6'
 
 permissions: {}
 
@@ -32,27 +35,21 @@ jobs:
       REPO: ${{ github.repository }}
       AFTER: ${{ inputs.after || '0' }}
     steps:
-      - name: Janela (dias úteis 07:00–22:00 BRT) e uma execução por vez
-        id: gate
-        run: |
-          go=true
-          dow=$(TZ=America/Sao_Paulo date +%u); hm=$(TZ=America/Sao_Paulo date +%H%M)
-          if [ "$dow" -gt 5 ] || [ "$hm" -lt 0700 ] || [ "$hm" -ge 2200 ]; then echo "fora da janela ($dow $hm BRT)"; go=false; fi
-          if [ "$go" = true ]; then
-            # a execução mais antiga em andamento continua; as demais saem (a que disparou esta não conta)
-            case "$AFTER" in ''|*[!0-9]*) AFTER=0;; esac
-            older=$(gh run list -R "$REPO" -w live.yml --status in_progress --limit 20 --json databaseId \
-              -q "[.[] | select(.databaseId < ${{ github.run_id }} and .databaseId != $AFTER)] | length")
-            if [ "${older:-0}" -gt 0 ]; then echo "outra execução já está ativa"; go=false; fi
-          fi
-          echo "go=$go" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: steps.gate.outputs.go == 'true'
         with:
           ref: main
           persist-credentials: false
-          sparse-checkout: pipeline/live_watch.py
+          sparse-checkout: |
+            pipeline/live_watch.py
+            pipeline/live_gate.sh
           sparse-checkout-cone-mode: false
+      - name: Janela (dias úteis 07:00–22:00 BRT; espera desde 05:00) e uma execução por vez
+        id: gate
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
+          bash pipeline/live_gate.sh
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         if: steps.gate.outputs.go == 'true'
         with:
@@ -68,13 +65,21 @@ jobs:
           git config http.https://github.com/.extraheader "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           if git fetch -q --depth 1 origin live; then git checkout -q FETCH_HEAD -- . && ls -la; else echo "branch live ainda não existe"; fi
       - name: Watcher
+        id: watch
         if: steps.gate.outputs.go == 'true'
         env:
           QT_LIVE_DIR: live-out
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
-        run: python pipeline/live_watch.py
+          SLEPT: ${{ steps.gate.outputs.slept }}
+        run: QT_LIVE_MAX_S=$((20400 - ${SLEPT:-0})) python pipeline/live_watch.py
       - name: Próxima execução (se ainda estiver na janela)
-        if: steps.gate.outputs.go == 'true' && success()
+        if: ${{ !cancelled() && steps.gate.outputs.go == 'true' }}
+        env:
+          OUTCOME: ${{ steps.watch.outcome }}
+          START: ${{ steps.gate.outputs.start }}
+          SLEPT: ${{ steps.gate.outputs.slept }}
         run: |
+          ran=$(( $(date +%s) - ${START:-0} - ${SLEPT:-0} ))
+          if [ "$OUTCOME" != success ] && [ "$ran" -lt 900 ]; then echo "watcher falhou após ${ran}s: sem encadear (a rede de segurança reinicia)"; exit 0; fi
           dow=$(TZ=America/Sao_Paulo date +%u); hm=$(TZ=America/Sao_Paulo date +%H%M)
           if [ "$dow" -le 5 ] && [ "$hm" -ge 0700 ] && [ "$hm" -lt 2150 ]; then gh workflow run live.yml -R "$REPO" --ref main -f after=${{ github.run_id }} && echo "próxima disparada"; else echo "janela encerrada"; fi

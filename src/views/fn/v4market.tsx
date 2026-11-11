@@ -12,7 +12,7 @@ import { fmtMonth, fmtQuarter, monthAbbr, fmtDayMonth } from '@/lib/dates'
 import { calName } from '@/lib/calNames.mjs'
 import { downloadCSV, CsvBtn, dayNum, fromDay, heat, HBars, VertexBars } from './v4util'
 import { useLive, b3QuoteLive, b3DayLive, useWorldLive } from '@/lib/liveFetch'
-import { b3FutOpen, dolCodes, delayMin, applyQuote, quoteFresh, quotesBadge, type LiveInfo, type WQuote } from '@/lib/live.mjs'
+import { b3FutOpen, dolCodes, futBadge, applyQuote, quoteFresh, quotesBadge, type LiveInfo, type WQuote } from '@/lib/live.mjs'
 
 const bp = (v: any, d = 1) => v == null || !isFinite(+v) ? '—' : `${+v > 0 ? '+' : ''}${nf(v, d)}`
 const mLabel = (iso: string) => fmtMonth(iso)  // 'Sep 26' (EN) / 'set 26' (PT), igual ao resto do site
@@ -667,17 +667,22 @@ export function BTMMView() {
   const codes = v ? (v.pick as any[]).map(c => c.code as string) : []
   const lv = useLive(codes.length ? async () => {
     const dol = dolCodes(Date.now())
-    const [qs, dq, day] = await Promise.all([Promise.all(codes.map(b3QuoteLive)), Promise.all(dol.map(b3QuoteLive)), b3DayLive(codes[0])])
+    const [qs, dq] = await Promise.all([Promise.all(codes.map(b3QuoteLive)), Promise.all(dol.map(b3QuoteLive))])
     const di = new Map<string, number>(); codes.forEach((c, i) => { if (qs[i]) di.set(c, qs[i]!.last) })
     const k = dq.findIndex(q => q)
     const dolQ = k >= 0 ? { code: dol[k], ...dq[k]! } : null
     if (!di.size && !dolQ) return null
+    // atraso medido no histórico do dia do contrato mais líquido (dólar futuro, depois o DI com mais negócios);
+    // o primeiro vértice do DI pode passar a manhã sem negócios e com histórico vazio
+    const byQty = codes.map((c, i) => ({ c, q: qs[i]?.qty ?? 0 })).filter(x => x.q > 0).sort((a, b) => b.q - a.q).map(x => x.c)
+    let day = null as Awaited<ReturnType<typeof b3DayLive>>
+    for (const c of [...(dolQ ? [dolQ.code] : []), ...byQty].slice(0, 3)) { day = await b3DayLive(c); if (day) break }
     return { di, dol: dolQ, last: day ? day.pts[day.pts.length - 1][0] * 1000 : null, day: day?.day || null }
   } : null, now => (b3FutOpen(now) ? 60000 : null), [codes.join(',')])
   if (!v) return <FnScreen code="BTMM"><Loading err={di.err || cv.err} /></FnScreen>
   const d = v.d, h = d.history?.[d.history.length - 1]
   const L2 = lv.data
-  const live: LiveInfo | null = L2 && lv.at && L2.last ? (b3FutOpen(lv.at) ? { kind: 'delayed', delay: delayMin(L2.last, lv.at), at: lv.at } : { kind: 'closed', last: L2.last }) : null
+  const live: LiveInfo | null = L2 ? futBadge(L2.last, lv.at, !!lv.at && b3FutOpen(lv.at), true) : null
   // com a cotação ao vivo, a variação é contra o último ajuste publicado (em pb)
   const diRows = (v.pick as any[]).map((c: any) => { const x = L2?.di.get(c.code); return x != null ? { l: `${c.code} ${dBR(c.mat)}`, v: x, chg: (x - c.rate) * 100, live: true } : { l: `${c.code} ${dBR(c.mat)}`, v: c.rate, chg: c.chg } })
   const nDiLive = diRows.filter((r: any) => r.live).length
@@ -689,7 +694,8 @@ export function BTMMView() {
   return (
     <FnScreen code="BTMM" title="Rates and money-market monitor – Brazil and US" live={live}
       source="B3 (DI1, Daily Bulletin), BCB (Selic, CDI, Copom), Tesouro Transparente (Tesouro Direto), FRED (Fed Funds, SOFR, T-bills, Treasuries), Yahoo (FX and commodities)."
-      note={`DI1 Δ vs previous session (${dBR(v.prevK)}); Tesouro and Treasuries vs 1 week; US money market vs previous print. No market-consensus column (no open source).`}>
+      note={LL(`DI1 Δ vs previous session (${dBR(v.prevK)}); Tesouro and Treasuries vs 1 week; US money market vs previous print. No market-consensus column (no open source). During the futures session, DI and US dollar futures show the exchange’s delayed last trade, refreshed every minute; the delay in the badge is measured on the intraday history of the most traded contract. When no contract has intraday history yet, the badge only shows the time of the check.`,
+        `DI1: Δ vs pregão anterior (${dBR(v.prevK)}); Tesouro e Treasuries vs 1 semana; mercado monetário dos EUA vs divulgação anterior. Sem coluna de consenso de mercado (não há fonte aberta). Durante o pregão de futuros, DI e dólar futuro mostram o último negócio com atraso da bolsa, atualizado a cada minuto; o atraso no selo é medido no histórico do dia do contrato mais negociado. Quando nenhum contrato tem histórico do dia ainda, o selo mostra só a hora da consulta.`)}>
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'repeat(4,minmax(0,1fr))' }}>
         <Panel title="Brazil – monetary policy">
           <KV rows={[['Selic target', `${nf(d.selic, 2)}%`, C.amber], ['CDI', `${nf(d.cdi, 2)}%`, C.amber], ['Spread Selic−CDI', `${nf(d.spread_selic_cdi, 2)} p.p.`], ['Next meeting', d.path?.[0] ? `${d.path[0].label} ${dBR(d.path[0].decision)}` : '—'], ['Implied move', d.path?.[0] ? `${bp(d.path[0].move_bp)} pb` : '—', clr(d.path?.[0]?.move_bp)], ['12m cumulative', h ? `${bp(h.cum_12m_bp)} pb` : '—', clr(h?.cum_12m_bp)], ['Implied year-end CDI', h ? `${nf(h.year_end_cdi, 2)}%` : '—'], ['Survey Selic next meeting', d.path?.[0]?.focus ? `${nf(d.path[0].focus.median, 2)}%` : '—', C.purple]]} />

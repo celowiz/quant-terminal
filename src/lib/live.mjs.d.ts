@@ -4,7 +4,7 @@ export function b3Open(ms: number, start?: number, end?: number): boolean
 export function b3FutOpen(ms: number): boolean
 export function dolCodes(ms: number): string[]
 export function b3Sym(t: string): string | null
-export type B3Quote = { last: number; open: number | null; high: number | null; low: number | null; avg: number | null; pct: number | null }
+export type B3Quote = { last: number; open: number | null; high: number | null; low: number | null; avg: number | null; pct: number | null; qty: number | null }
 export function b3Quote(j: any): B3Quote | null
 export function b3Day(j: any): { day: string; pts: [number, number][] } | null
 export function liveSession(day: { day: string; pts: [number, number][] } | null, fileBars: number[][]): number[][] | null
@@ -33,3 +33,4 @@ export function blsActual(points: [string, number][], series: string, period: st
 export function blsPending<T = any>(events: T[], nowMs: number): T[]
 export function ecoFill<T = any>(events: T[], bySeries: Record<string, [string, number][]> | null, nowMs: number): { events: T[]; filled: number }
 export function releaseNear(events: any[], nowMs: number, countries: string[], before?: number, after?: number): boolean
+export function futBadge(lastMs: number | null, atMs: number | null, open: boolean, haveQuotes: boolean): LiveInfo | null
