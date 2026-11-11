@@ -9,6 +9,8 @@ import XYChart from '@/components/fn/XYChart'
 import IntradayChart from '@/components/fn/IntradayChart'
 import { dropTrailingSnapshot, sessions, hasVolume, windowStats, sessionStats, BRT_OFF } from '@/lib/intraday.mjs'
 import { covers, FUNCTION_UNIVERSE } from '@/lib/activeTicker.mjs'
+import { b3Sym, b3Open, liveSession, delayMin, type LiveInfo } from '@/lib/live.mjs'
+import { useLive, b3DayLive, b3QuoteLive } from '@/lib/liveFetch'
 import { type Col, C, MONO, PALETTE, nf, pf, big, dBR, dBRfull, clr, short, useJSON, FnScreen, Panel, Grid, Btns, perLabel, Field, inputCls, inputStyle, KV, Loading, NA, isEquity, hasData, corpPath, defaultBench, benchLabel, benchChoices, usePeers } from '@/components/fn/kit'
 import { getPrices, tickerKey, href, RECENT_PERIODS, type Price } from '@/lib/static'
 import { mean, std, regress, corr, align, weekly, monthEnds, monthlyReturns, maxDrawdown } from '@/lib/quant'
@@ -164,6 +166,7 @@ export function HRAView({ ticker }: { ticker: string }) {
 }
 
 // ======================= GIP =======================
+const sessionOfBRT = (u: number) => new Date((u - BRT_OFF) * 1000).toISOString().slice(0, 10)
 /** GIP sem dados intradiários: página amigável (sem buscar arquivo → sem 404 no console), com atalhos para GP/GPC. */
 function GIPNoData({ ticker }: { ticker: string }) {
   const n = (FUNCTION_UNIVERSE as Record<string, string[]>).GIP?.length || 0
@@ -188,22 +191,36 @@ export function GIPView({ ticker }: { ticker: string }) {
   const { data: d, err } = useJSON<any>(ok ? `intraday/${tickerKey(ticker)}.json` : null)
   const [res, setRes] = useState<'m1' | 'm5'>('m1'), [day, setDay] = useState<string>(''), [kind, setKind] = useState<'line' | 'candle'>('line')
   const [vwOn, setVwOn] = useState(true)
+  // pregão de hoje direto da bolsa (fechamento por minuto, com atraso), a cada minuto com o pregão aberto
+  const sym = ok ? b3Sym(ticker) : null
+  const lv = useLive(sym ? () => Promise.all([b3DayLive(sym), b3QuoteLive(sym)]).then(([x, q]) => (x ? { ...x, q } : null)) : null, now => (b3Open(now) ? 60000 : null), [sym])
   const calc = useMemo(() => {
     if (!d) return null
-    const bars = dropTrailingSnapshot(d[res] || [])
+    let bars = dropTrailingSnapshot(d[res] || [])
+    const add = res === 'm1' && lv.data ? liveSession(lv.data, bars) : null
+    if (add) bars = [...bars.filter((b: number[]) => sessionOfBRT(b[0]) !== lv.data!.day), ...add]
+    const liveDay = add ? lv.data!.day : null
     const S = sessions(bars), days = S.map(s => s.day)
     const sel = day && days.includes(day) ? day : res === 'm1' ? days[days.length - 1] : 'all'
     const B = sel === 'all' ? bars : (S.find(s => s.day === sel)?.bars || [])
-    const vol = hasVolume(bars)
+    const vol = sel === liveDay ? false : hasVolume(sel === 'all' ? bars : B)
     const si = sel === 'all' ? -1 : days.indexOf(sel)
-    const prevClose = si > 0 ? S[si - 1].bars[S[si - 1].bars.length - 1][4] : null
-    const st = windowStats(B)
+    const lq = sel === liveDay ? lv.data?.q : null
+    // pregão ao vivo: fechamento anterior oficial implícito na variação da bolsa (a última barra do arquivo pode ser anterior ao leilão de fechamento)
+    const prevClose = lq && lq.pct != null && lq.pct > -100 ? lq.last / (1 + lq.pct / 100) : si > 0 ? S[si - 1].bars[S[si - 1].bars.length - 1][4] : null
+    let st = windowStats(B)
+    // pregão ao vivo: abertura, máxima, mínima e último vêm da cotação da bolsa (as barras só têm o fechamento do minuto)
+    const q = lq
+    if (st && sel === liveDay) st = { ...st, open: q?.open ?? NaN, high: q?.high ?? NaN, low: q?.low ?? NaN, last: q?.last ?? st.last }
     const dec = st && st.last >= 1000 ? 0 : 2
-    return { days, sel, B, prevClose, st, vol, per: sel === 'all' ? sessionStats(bars) : [], dec }
-  }, [d, res, day])
+    return { days, sel, B, prevClose, st, vol, per: sel === 'all' ? sessionStats(bars) : [], dec, liveDay }
+  }, [d, res, day, lv.data])
   if (!ok) return <GIPNoData ticker={ticker} />
   if (!d || !calc) return <FnScreen code="GIP" ticker={ticker} title={L('Intraday Graph', 'Gráfico intradiário')}><Loading err={err} /></FnScreen>
-  const { st, dec } = calc, all = calc.sel === 'all'
+  const { st, dec } = calc, all = calc.sel === 'all', liveSel = !!calc.liveDay && calc.sel === calc.liveDay
+  const lastLive = lv.data ? lv.data.pts[lv.data.pts.length - 1][0] * 1000 : null
+  const live: LiveInfo | null = lv.data && lv.at && lastLive ? (b3Open(lv.at) && lv.data.day === new Date(lv.at - BRT_OFF * 1000).toISOString().slice(0, 10)
+    ? { kind: 'delayed', delay: delayMin(lastLive, lv.at), at: lv.at } : { kind: 'closed', last: lastLive }) : null
   const chg = st && calc.prevClose ? (st.last / calc.prevClose - 1) * 100 : null
   const hhmm = (u: number) => new Date((u - BRT_OFF) * 1000).toISOString().slice(11, 16)
   const dayOf = (u: number) => new Date((u - BRT_OFF) * 1000).toISOString().slice(0, 10)
@@ -213,7 +230,9 @@ export function GIPView({ ticker }: { ticker: string }) {
       'Horário de Brasília; barras com atraso (não é tempo real). As barras de 1 minuto cobrem os pregões mais recentes; as de 5 minutos, cerca de 60 dias. A barra ainda em formação (sem negócios) não é exibida.')}{' '}
     {L('VWAP = Σ(typical price × volume) ÷ Σ volume, accumulated from each session open; the bands are ±1σ and ±2σ of the volume-weighted typical price.',
       'VWAP = Σ(preço típico × volume) ÷ Σ volume, acumulado desde a abertura de cada pregão; as bandas são ±1σ e ±2σ do preço típico ponderado pelo volume.')}
-    {!calc.vol && <> {L('This index has no traded volume, so VWAP, its bands and the volume pane are not available.', 'Este índice não tem volume negociado; por isso VWAP, bandas e painel de volume não estão disponíveis.')}</>}
+    {sym && <> {L('During the session, today’s bars come straight from the exchange’s delayed quotes and refresh every minute. They carry only the 1-minute close, so that session is drawn as a line, without VWAP or volume, until the next daily update brings the full bars. For that session, open, high, low, change and previous close follow the exchange’s official quote.',
+      'Durante o pregão, as barras de hoje vêm direto das cotações com atraso da bolsa e se atualizam a cada minuto. Elas trazem só o fechamento de cada minuto; por isso esse pregão aparece em linha, sem VWAP nem volume, até a atualização diária trazer as barras completas. Nesse pregão, abertura, máxima, mínima, variação e fechamento anterior seguem a cotação oficial da bolsa.')}</>}
+    {!calc.vol && !liveSel && <> {L('This index has no traded volume, so VWAP, its bands and the volume pane are not available.', 'Este índice não tem volume negociado; por isso VWAP, bandas e painel de volume não estão disponíveis.')}</>}
   </>
   const perCols: Col<any>[] = [
     { k: 'day', label: L('Session', 'Pregão'), fmt: v => dBR(v) },
@@ -227,17 +246,18 @@ export function GIPView({ ticker }: { ticker: string }) {
   ]
   const span = (u: number) => `${all ? dBR(dayOf(u)) + ' ' : ''}${hhmm(u)}`
   return (
-    <FnScreen code="GIP" ticker={ticker} title={L('Intraday Graph', 'Gráfico intradiário')} wrap
+    <FnScreen code="GIP" ticker={ticker} title={L('Intraday Graph', 'Gráfico intradiário')} wrap live={live}
       right={<>
         <Btns opts={[{ v: 'm1', l: '1 min' }, { v: 'm5', l: '5 min' }]} value={res} onChange={v => { setRes(v); setDay('') }} />
         <Field label={L('Session', 'Pregão')}><select data-gip-session className={inputCls} style={inputStyle} value={calc.sel} onChange={e => setDay(e.target.value)}><option value="all">{L(`All (${calc.days.length})`, `Todos (${calc.days.length})`)}</option>{calc.days.slice().reverse().map((x: string) => <option key={x} value={x}>{dBRfull(x)}</option>)}</select></Field>
-        <Btns opts={[{ v: 'line', l: L('Line', 'Linha') }, { v: 'candle', l: 'Candle' }]} value={kind} onChange={setKind} />
-        {calc.vol ? <Btns opts={[{ v: true, l: 'VWAP ±σ' }, { v: false, l: L('Off', 'Desl.') }]} value={vwOn} onChange={setVwOn} /> : <span className="text-[11px]" style={{ color: C.muted }} data-gip-novwap>{L('VWAP n/a (no volume)', 'VWAP indisponível (sem volume)')}</span>}
+        {liveSel ? <span className="text-[11px]" style={{ color: C.muted }} data-gip-liveonly>{L('Today: line only (1-minute closes)', 'Hoje: só linha (fechamento por minuto)')}</span>
+          : <Btns opts={[{ v: 'line', l: L('Line', 'Linha') }, { v: 'candle', l: 'Candle' }]} value={kind} onChange={setKind} />}
+        {liveSel ? null : calc.vol ? <Btns opts={[{ v: true, l: 'VWAP ±σ' }, { v: false, l: L('Off', 'Desl.') }]} value={vwOn} onChange={setVwOn} /> : <span className="text-[11px]" style={{ color: C.muted }} data-gip-novwap>{L('VWAP n/a (no volume)', 'VWAP indisponível (sem volume)')}</span>}
       </>}
       note={note}>
       {!st ? <Loading err={L('No bars for this window.', 'Sem barras nesta janela.')} /> : <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 240px' }}>
         <div className="min-w-0 flex flex-col gap-2">
-          <IntradayChart bars={calc.B} kind={kind} showVwap={!!vwapShown} prevClose={calc.prevClose} open={all ? null : st.open} separators={all} showVolume={calc.vol} decimals={dec} height={all ? 440 : 520} label={short(ticker)} />
+          <IntradayChart bars={calc.B} kind={liveSel ? 'line' : kind} showVwap={!!vwapShown} prevClose={calc.prevClose} open={all || !Number.isFinite(st.open) ? null : st.open} separators={all} showVolume={calc.vol} decimals={dec} height={all ? 440 : 520} label={short(ticker)} />
           {all && <Panel title={L('Per-session statistics', 'Estatísticas por pregão')}><Grid cols={perCols} rows={calc.per.slice().reverse()} maxH={190} /></Panel>}
         </div>
         <Panel title={all ? L(`All sessions (${calc.days.length})`, `Todos os pregões (${calc.days.length})`) : dBRfull(calc.sel)}>

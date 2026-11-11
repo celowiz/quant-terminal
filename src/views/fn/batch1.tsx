@@ -7,6 +7,8 @@ import FnChart from '@/components/fn/FnChart'
 import { C, MONO, useJSON, FnScreen, Panel, Grid, Btns, Field, Spark, useFitH, useFit } from '@/components/fn/kit'
 import { n, pc, bps, cl, dUS, bigE, auto, Kpis, Loading2 } from './fn11util'
 import { lang } from '@/lib/settings'
+import { useLive, useCryptoTicker, cryptoProducts } from '@/lib/liveFetch'
+import type { LiveInfo } from '@/lib/live.mjs'
 
 const L = (en: string, pt: string) => (lang() === 'pt' ? pt : en)
 const pts = (rows: any[], i = 1) => (rows || []).filter(r => r[i] != null).map(r => ({ time: r[0], value: r[i] }))
@@ -272,14 +274,26 @@ const FNG_PT: Record<string, string> = { 'Extreme Fear': 'Medo extremo', Fear: '
 export function CRYPView() {
   const { data: d, err } = useJSON<any>('cryp.json')
   const [rng, setRng] = useState('1Y'), [sort, setSort] = useState('mcap')
-  const coins = useMemo(() => !d ? [] : [...d.coins].sort((a: any, b: any) => sort === 'mcap' ? (b.mcap ?? 0) - (a.mcap ?? 0) : (b[sort] ?? -1e9) - (a[sort] ?? -1e9)), [d, sort])
+  // preço e variação 24h ao vivo (websocket público) para as moedas negociadas contra o dólar; o resto vem do retrato diário
+  const prods = useLive(d ? cryptoProducts : null, () => null, [!!d])
+  const want = useMemo(() => (!d || !prods.data ? [] : (d.coins as any[]).map(c => `${String(c.sym).toUpperCase()}-USD`).filter(p => prods.data!.has(p))), [d, prods.data])
+  const tk = useCryptoTicker(want)
+  const coins = useMemo(() => !d ? [] : (d.coins as any[]).map((c: any) => {
+    const x = tk.px.get(`${String(c.sym).toUpperCase()}-USD`)
+    return x ? { ...c, price: x.price, ch24: x.open24 ? (x.price / x.open24 - 1) * 100 : c.ch24, live: true } : c
+  }).sort((a: any, b: any) => sort === 'mcap' ? (b.mcap ?? 0) - (a.mcap ?? 0) : (b[sort] ?? -1e9) - (a[sort] ?? -1e9)), [d, sort, tk.px])
+  const liveAt = tk.px.size ? Math.max(...Array.from(tk.px.values()).map(v => v.at)) : null
+  const live: LiveInfo | null = liveAt ? { kind: 'rt', at: liveAt } : null
+  const nLive = coins.filter((c: any) => c.live).length
   if (!d) return <FnScreen code="CRYP" title="Crypto Monitor"><Loading2 err={err} /></FnScreen>
   const g = d.global, f = d.fng[d.fng.length - 1], tv = d.tvl[d.tvl.length - 1]
   const last = (f?.[0] || d.generated_at).slice(0, 10), from = rangeFrom(last, rng)
-  const note = L(d.note, 'Preços em US$, foto no momento da atualização (cripto negocia 24/7). TVL = valor total travado em protocolos DeFi (por padrão exclui dupla contagem).')
+  const note = <>{L(d.note, 'Preços em US$, foto no momento da atualização (cripto negocia 24/7). TVL = valor total travado em protocolos DeFi (por padrão exclui dupla contagem).')}{' '}
+    {L('Price and 24h change of the coins quoted in US dollars on a public exchange feed update live (24h change = against the price 24 hours earlier on that feed). Market cap, volume, 7d, 30d and the other columns come from the daily update.',
+      'Preço e variação em 24h das moedas cotadas em dólar num feed público de corretora se atualizam ao vivo (variação 24h = contra o preço de 24 horas antes nesse feed). Valor de mercado, volume, 7d, 30d e as demais colunas vêm da atualização diária.')}</>
   const fl = (s: string) => lang() === 'pt' ? FNG_PT[s] || s : s
   return (
-    <FnScreen code="CRYP" title="Crypto Monitor" source={d.source} note={note} asOf={d.generated_at?.slice(0, 10)}
+    <FnScreen code="CRYP" title="Crypto Monitor" source={d.source} note={note} asOf={d.generated_at?.slice(0, 10)} live={live}
       right={<><Field label={L('Sort', 'Ordenar')}><Btns opts={[{ v: 'mcap', l: L('Mkt cap', 'Valor merc.') }, { v: 'ch24', l: '24h' }, { v: 'ch7d', l: '7d' }, { v: 'ch30d', l: '30d' }]} value={sort} onChange={setSort} /></Field>
         <Field label={L('Range', 'Período')}><Btns opts={['3M', '1Y', '3Y', 'MAX']} value={rng} onChange={setRng} /></Field></>}>
       <Kpis items={[
@@ -290,12 +304,12 @@ export function CRYPView() {
         [L('DeFi TVL', 'TVL DeFi'), tv ? `$${n(tv[1], 1)}B` : '—', C.cyan],
       ]} />
       <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,1.35fr) minmax(0,1fr)' }}>
-        <Panel title={L(`Top ${coins.length} by market cap (USD)`, `Top ${coins.length} por valor de mercado (US$)`)}>
+        <Panel title={L(`Top ${coins.length} by market cap (USD)`, `Top ${coins.length} por valor de mercado (US$)`)} right={nLive ? <span className="text-[11px]" style={{ color: C.muted }} data-cryp-nlive>{L(`● live: ${nLive} of ${coins.length}`, `● ao vivo: ${nLive} de ${coins.length}`)}</span> : undefined}>
           <Grid maxH={600} rows={coins} cols={[
             { k: 'rank', label: '#', align: 'r', color: () => C.muted },
             { k: 'sym', label: L('Coin', 'Moeda'), color: () => C.amber },
             { k: 'name', label: L('Name', 'Nome'), w: '110px' },
-            { k: 'price', label: L('Price', 'Preço'), align: 'r', fmt: x => auto(x), color: () => C.white },
+            { k: 'price', label: L('Price', 'Preço'), align: 'r', fmt: (x, r: any) => <span data-cryp-live={r.live ? '1' : undefined}>{auto(x)}{r.live ? <span style={{ color: C.up }}> ●</span> : null}</span>, color: () => C.white },
             { k: 'ch24', label: '24h %', align: 'r', fmt: x => pc(x), color: x => cl(x) },
             { k: 'ch7d', label: '7d %', align: 'r', fmt: x => pc(x), color: x => cl(x) },
             { k: 'ch30d', label: '30d %', align: 'r', fmt: x => pc(x), color: x => cl(x) },

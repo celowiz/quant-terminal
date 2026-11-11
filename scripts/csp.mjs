@@ -8,6 +8,17 @@ import { join } from 'node:path'
 const GA = ['https://*.googletagmanager.com']
 const GA_DATA = ['https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://*.googletagmanager.com']
 
+// Fontes ao vivo buscadas direto do navegador (CORS verificado num navegador real em 10/11/2026); só estes hosts.
+export const LIVE_HOSTS = [
+  'https://cotacao.b3.com.br',            // cotações com atraso e histórico do dia
+  'https://api.bcb.gov.br',               // séries oficiais
+  'https://olinda.bcb.gov.br',            // pesquisa de expectativas e PTAX
+  'https://www.bcb.gov.br',               // comunicados do Copom e notas à imprensa
+  'https://agenciabrasil.ebc.com.br',     // manchetes (licença aberta)
+  'https://api.exchange.coinbase.com',    // lista de pares de cripto
+  'wss://ws-feed.exchange.coinbase.com',  // cotações de cripto por websocket
+]
+
 export function inlineScriptHashes(html) {
   const out = new Set()
   const re = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi
@@ -27,7 +38,7 @@ export function buildPolicy(hashes) {
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${GA_DATA.join(' ')}`,
     "font-src 'self' data:",
-    `connect-src 'self' data: blob: https://servicodados.ibge.gov.br ${GA_DATA.join(' ')}`,
+    `connect-src 'self' data: blob: https://servicodados.ibge.gov.br ${LIVE_HOSTS.join(' ')} ${GA_DATA.join(' ')}`,
     "frame-src 'self'",
     "worker-src 'self' blob:",
     "object-src 'none'",
