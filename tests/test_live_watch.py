@@ -73,3 +73,26 @@ def test_modo_rapido_da_agenda():
     import time as _t
     st['agenda_t'] = _t.time()
     assert L.fred_every(st) in (60, 1800)
+
+def test_disparo_dos_builds_diarios(monkeypatch):
+    t = lambda d, h, m: dt.datetime(2026, 11, d, h, m, tzinfo=BRT)  # 10/11/2026 = terça
+    assert L.due_slot(t(10, 7, 47), {}, False) == 'morning'
+    assert L.due_slot(t(10, 7, 46), {}, False) is None
+    assert L.due_slot(t(10, 8, 0), {'morning': '2026-11-10'}, False) is None
+    assert L.due_slot(t(9, 8, 0), {}, False) is None          # segunda: manhã fica com o cron (sem pregão novo)
+    assert L.due_slot(t(14, 8, 0), {}, False) is None         # sábado
+    assert L.due_slot(t(10, 20, 30), {}, False) is None       # arquivo oficial ainda não saiu
+    assert L.due_slot(t(10, 20, 30), {}, True) == 'evening'
+    assert L.due_slot(t(10, 21, 55), {}, False) == 'evening'  # teto: dispara mesmo sem o arquivo (o build espera)
+    assert L.due_slot(t(10, 21, 56), {'evening': '2026-11-10'}, True) is None
+    sent = []
+    monkeypatch.setattr(L, 'dispatch_pages', lambda slot: sent.append(slot) or True)
+    monkeypatch.setattr(L, 'cotahist_ready', lambda tt: True)
+    monkeypatch.setattr(L, 'now', lambda: t(10, 20, 31))
+    st = {'files': {'dispatch.json': {'generated_at': 'x', 'morning': '2026-11-10'}}}
+    assert L.task_dispatch(st) == {'morning': '2026-11-10', 'evening': '2026-11-10'} and sent == ['evening']
+    st['files']['dispatch.json'] = {'morning': '2026-11-10', 'evening': '2026-11-10'}
+    assert L.task_dispatch(st) == {'morning': '2026-11-10', 'evening': '2026-11-10'} and sent == ['evening']  # não repete
+    monkeypatch.setattr(L, 'dispatch_pages', lambda slot: False)
+    monkeypatch.setattr(L, 'now', lambda: t(11, 7, 50))
+    assert L.task_dispatch({'files': {}}) is None  # disparo falhou: tenta de novo no próximo minuto

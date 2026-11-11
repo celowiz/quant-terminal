@@ -21,7 +21,15 @@ on:
   # PR: só valida typecheck + build (sem pipeline, sem issue, sem deploy)
   pull_request:
     branches: [main]
+  # slot: disparo do watcher (live.yml) no horário de um dos crons abaixo — o cron atrasado é pulado (job gate)
   workflow_dispatch:
+    inputs:
+      slot:
+        description: 'horário do build diário que este disparo substitui (morning = 07:47, evening = 19:30 BRT); manual = disparo à mão'
+        required: false
+        default: manual
+        type: choice
+        options: [manual, morning, evening]
   schedule:
     - cron: '47 10 * * 2-6'
     - cron: '30 22 * * 1-5'   # build da noite (fechamento oficial do dia); ver "Fechamento oficial do dia"
@@ -72,8 +80,33 @@ jobs:
           test -f out/index.html
           ! grep -ril bloomberg out/
 
+  # O agendamento deste repo costuma atrasar horas. O watcher (live.yml) dispara este workflow no horário certo;
+  # quando o cron atrasado chega depois de um disparo bem-sucedido (ou em andamento) para o mesmo horário, não refaz o build.
+  gate:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      skip: ${{ steps.g.outputs.skip }}
+    steps:
+      - id: g
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCHED: ${{ github.event.schedule }}
+        run: |
+          if [ "$SCHED" = '30 22 * * 1-5' ]; then hm='22:30'; else hm='10:47'; fi
+          t=$(date -u -d "today $hm" +%s); [ "$t" -gt "$(date -u +%s)" ] && t=$((t - 86400))
+          since=$(date -u -d "@$((t - 3600))" +%Y-%m-%dT%H:%M:%SZ)
+          n=$(gh run list -R "$GITHUB_REPOSITORY" -w pages.yml --event workflow_dispatch --limit 20 --json createdAt,status,conclusion \
+            -q "[.[] | select(.createdAt >= \"$since\") | select(.conclusion == \"success\" or .status != \"completed\")] | length" || echo 0)
+          skip=false; if [ "${n:-0}" -gt 0 ]; then skip=true; echo "build deste horário já disparado pelo watcher ($n desde $since): cron atrasado pulado"; fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+
   build:
-    if: github.event_name != 'pull_request'
+    needs: [gate]
+    if: ${{ !cancelled() && github.event_name != 'pull_request' && needs.gate.outputs.skip != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 240   # 90 do build + até 150 de espera pelo arquivo oficial no build da noite
     permissions:
@@ -177,7 +210,7 @@ jobs:
       # Build da noite: espera o arquivo diário oficial da B3 do pregão de hoje (HEAD a cada 5 min, até 150 min).
       # Achou → o pipeline grava a barra oficial de hoje (tickers.json "official" = hoje, data de referência por painel).
       - name: Fechamento oficial do dia (build da noite)
-        if: steps.mode.outputs.full == 'true' && github.event.schedule == '30 22 * * 1-5'
+        if: steps.mode.outputs.full == 'true' && (github.event.schedule == '30 22 * * 1-5' || inputs.slot == 'evening')
         timeout-minutes: 155
         run: |
           d=$(TZ=America/Sao_Paulo date +%d%m%Y)
@@ -245,7 +278,8 @@ jobs:
           retention-days: 3
 
   deploy:
-    if: github.event_name != 'pull_request'
+    # com o gate pulado (push/disparo), o resultado do build decide (sucesso implícito trataria o gate pulado como falha)
+    if: ${{ !cancelled() && github.event_name != 'pull_request' && needs.build.result == 'success' }}
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
