@@ -66,3 +66,6 @@ public/data/*
 
 # Variáveis de ambiente
 .env*
+
+# carteiras oficiais (semente do MOV/HMOV) são dados versionados
+!pipeline/data/portfolios/**/*.csv

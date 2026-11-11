@@ -60,10 +60,6 @@ jobs:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: pipeline/requirements.txt
-      - name: TEMP probe (remover antes do merge) — host de cotações alcançável do runner?
-        continue-on-error: true
-        run: |
-          for s in IBOV PETR4 VALE3; do curl -s -m 20 -o /tmp/q.json -w "$s %{http_code} %{time_total}s\n" "https://cotacao.b3.com.br/mds/api/v1/instrumentQuotation/$s"; head -c 300 /tmp/q.json; echo; done
       - name: Testes do pipeline (pytest)
         run: |
           pip install -r pipeline/requirements.txt
