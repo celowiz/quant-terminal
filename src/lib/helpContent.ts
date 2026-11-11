@@ -108,8 +108,8 @@ export const HELP: Record<string, HelpDoc> = {
     ],
   },
   YAS: {
-    en: 'Tesouro Direto bond pricing from the published rates (sell-back rate and PU), business days on the national holiday calendar (252 basis), compared with the DI1 curve.',
-    pt: 'Precificação dos títulos do Tesouro Direto a partir das taxas publicadas (taxa de venda e PU), dias úteis pelo calendário nacional (base 252), comparados com a curva DI1.',
+    en: 'Tesouro Direto bond pricing from the published sell-back rate and PU, business days on the national holiday calendar (252 basis), compared with the DI1 curve. For LFT the published figure is a spread over Selic, shown in basis points. Sell rate is the sell-back rate; Buy is the investor purchase rate.',
+    pt: 'Precificação dos títulos do Tesouro Direto a partir da taxa de venda publicada e do PU, dias úteis pelo calendário nacional (base 252), comparados com a curva DI1. Na LFT o valor publicado é um spread sobre a Selic, exibido em pontos-base. Taxa de venda é a taxa de recompra; Compra é a taxa de aquisição do investidor.',
     formulas: [
       { tex: R`PU_{LTN} = \frac{1000}{(1+y)^{du/252}}`, en: 'LTN (zero coupon).', pt: 'LTN (prefixado sem cupom).' },
       { tex: R`PU_{NTN\text{-}F} = \sum_{k} \frac{48{,}80885}{(1+y)^{du_k/252}} + \frac{1000}{(1+y)^{du_n/252}}`, en: 'NTN-F: 10% p.a. coupon paid half-yearly (Jan 1, Jul 1).', pt: 'NTN-F: cupom de 10% a.a. pago semestralmente (1/jan, 1/jul).' },

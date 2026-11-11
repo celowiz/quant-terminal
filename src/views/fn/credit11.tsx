@@ -4,20 +4,29 @@ import { tc } from '../../lib/themeRuntime'
 import React, { useEffect, useMemo, useState } from 'react'
 import { en } from '@/lib/enText'
 import FnChart from '@/components/fn/FnChart'
-import { C, MONO, useJSON, FnScreen, Panel, Grid, Btns, Field, KV, useFitH, useFit } from '@/components/fn/kit'
-import { HBars } from './v4util'
-import { n, sn, pc, bps, bigE, cl, dUS, dUSfull, mLab, Kpis, NumIn, Loading2, Unavailable } from './fn11util'
+import { C, MONO, useJSON, FnScreen, Panel, Grid, Btns, Field, KV, useFitH, useFit, useDesktop } from '@/components/fn/kit'
+import { HBars, downloadCSV, CsvBtn } from './v4util'
+import { n, pc, bigE, cl, dUS, dUSfull, mLab, Kpis, NumIn, Loading2, Unavailable } from './fn11util'
+import { lang } from '@/lib/settings'
 
 // ======================= YAS =======================
-const S_YAS = {
-  title: 'Yield & Spread Analysis – Brazilian federal bonds', type: 'Type', all: 'All', bonds: 'Bonds (Tesouro Direto, morning)',
-  c: { bond: 'Bond', maturity: 'Maturity', rate: 'Rate', bid: 'Sell', ask: 'Buy', pu: 'PU', du: 'BD' },
-  calc: 'Calculator', yld: 'Yield (% p.a.)', price: 'Price (PU)', notional: 'Face (R$)', reset: 'Reset',
-  risk: 'Risk', spread: 'Spreads', invoice: 'Invoice', flows: 'Cash flows',
-  k: { mac: 'Macaulay dur. (yrs)', mod: 'Modified dur.', cvx: 'Convexity', dv01: 'DV01 per face', dv01u: 'DV01 per bond', bd: 'Business days', vna: 'VNA', face: 'Face value per bond',
-    di: 'DI1 at maturity', sp: 'Spread vs DI1 (bp)', z: 'Z-spread vs DI1 (bp)', be: 'Breakeven inflation (DI1 vs real)', lft: 'Rate is a spread over Selic', qty: 'Quantity', principal: 'Principal (R$)', anbima: 'Tesouro Direto PU' },
-  fc: { date: 'Date', du: 'BD', cf: 'Flow (R$)', pv: 'PV (R$)', w: 'Weight' },
-  curve: 'DI1 curve (settlement) and bond rates', diLine: 'DI1 (% p.a.)',
+const yPT = () => lang() === 'pt'
+const yL = (en: string, pt: string) => (yPT() ? pt : en)
+const yasNum = (v: any, d = 2) => {
+  if (v == null || v === '' || !isFinite(+v)) return '—'
+  const x = Math.abs(+v) < 0.5 * Math.pow(10, -d) ? 0 : +v
+  return x.toLocaleString(yPT() ? 'pt-BR' : 'en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+}
+const yasBp = (v: any, d = 1) => {
+  if (v == null || !isFinite(+v)) return '—'
+  const x = Math.abs(+v) < 0.5 * Math.pow(10, -d) ? 0 : +v
+  return `${x > 0 ? '+' : ''}${yasNum(x, d)}`
+}
+/** LFT is published as a percent spread over Selic (0.03 = 3 bp); other bonds as a yield % p.a. */
+const yasRate = (x: any, bond: string) => {
+  if (x == null || !isFinite(+x)) return '—'
+  if (bond === 'LFT') return `${yasBp(+x * 100, 1)} ${yL('bp', 'pb')}`
+  return yasNum(x, 4)
 }
 type Bond = { id: string; bond: string; maturity: string; rate: number; bid: number; ask: number; pu: number; vna: number | null; du: number; flows: [number, number, string][] }
 const pv = (f: [number, number, string][], y: number) => f.reduce((s, [du, cf]) => s + cf / Math.pow(1 + y / 100, du / 252), 0)
@@ -43,7 +52,9 @@ export function YASView() {
   const { data: d, err } = useJSON<any>('yas.json')
   const [typ, setTyp] = useState('All'), [id, setId] = useState<string | null>(null)
   const [y, setY] = useState<number | null>(null), [face, setFace] = useState<number | null>(1000000)
-  const S = S_YAS
+  const [more, setMore] = useState(false)
+  const desk = useDesktop()
+  const title = yL('Bond yield & spread — Tesouro Direto', 'Taxa e spread — Tesouro Direto')
   const bonds: Bond[] = d?.bonds || []
   const b = bonds.find(x => x.id === id) || bonds.find(x => x.bond === 'NTN-F') || bonds[0]
   useEffect(() => { if (b) setY(b.rate) }, [b?.id])
@@ -65,56 +76,92 @@ export function YASView() {
     const rows = f.map(([du, cf, dt]) => { const p = cf / Math.pow(yy, t(du)); return { date: dt, du, cf, pv: p, w: p / P * 100 } })
     return { P, mac, mod: mac / yy, cvx, dv1, unit, qty, di, z, rows, be: (b.bond === 'NTN-B' || b.bond === 'NTN-B P') && di != null ? ((1 + di / 100) / (1 + y / 100) - 1) * 100 : null }
   }, [b?.id, y, face, d])
-  if (!d) return <FnScreen code="YAS" title={S.title}><Loading2 err={err} /></FnScreen>
-  if (!bonds.length) return <FnScreen code="YAS" title={S.title} source={d.source}><Unavailable what="Tesouro Direto bond prices" note={d.note} /></FnScreen>
+  if (!d) return <FnScreen code="YAS" title={title} ownTitle><Loading2 err={err} /></FnScreen>
+  if (!bonds.length) return <FnScreen code="YAS" title={title} ownTitle><Unavailable what={yL('Tesouro Direto bond prices', 'Preços dos títulos do Tesouro Direto')} note={d.note || undefined} /></FnScreen>
   const types = ['All', 'LTN', 'NTN-F', 'NTN-B', 'NTN-B P', 'LFT']
   const isPre = b.bond === 'LTN' || b.bond === 'NTN-F'
+  const source = yL('Published Tesouro Direto morning rates and prices, with the DI1 settlement curve for spreads.',
+    'Taxas e preços da manhã do Tesouro Direto, com a curva DI1 de ajuste para os spreads.')
+  const note = yL(
+    `Pricing date ${dUSfull(d.ref_date)}. DI1 curve date ${dUSfull(d.di_ref_date)}. Sell rate is the published sell-back rate; Buy is the investor purchase rate. For LFT, the table shows the published Selic spread in basis points.`,
+    `Data da cotação ${dUSfull(d.ref_date)}. Data da curva DI1 ${dUSfull(d.di_ref_date)}. Taxa de venda é a taxa de recompra publicada; Compra é a taxa de aquisição do investidor. Na LFT, a tabela mostra o spread publicado sobre a Selic, em pontos-base.`)
+  const listed = bonds.filter(x => typ === 'All' || x.bond === typ)
+  const bondCols = [
+    { k: 'bond', label: yL('Bond', 'Título'), color: () => C.amber },
+    { k: 'maturity', label: yL('Maturity', 'Vencimento'), fmt: (x: any) => dUS(x) },
+    { k: 'rate', label: yL('Sell rate', 'Taxa de venda'), align: 'r' as const, tip: yL('For LFT, the published figure is a spread over Selic (bp).', 'Na LFT, o valor publicado é um spread sobre a Selic (pb).'), fmt: (x: any, m: any) => yasRate(x, m.bond), color: () => C.white },
+    { k: 'ask', label: yL('Buy', 'Compra'), align: 'r' as const, fmt: (x: any, m: any) => yasRate(x, m.bond), color: () => C.muted },
+    { k: 'pu', label: 'PU', align: 'r' as const, fmt: (x: any) => yasNum(x, 6) },
+  ]
+  const pick = (cols: any[], keys: string[]) => (desk || more) ? cols : cols.filter(c => keys.includes(c.k))
+  const expList = () => {
+    const head = [yL('Bond', 'Título'), yL('Maturity', 'Vencimento'), yL('Sell rate', 'Taxa de venda'), yL('Buy', 'Compra'), 'PU', yL('Business days', 'Dias úteis'), 'VNA', yL('Unit', 'Unidade')]
+    const rows = listed.map(x => {
+      const lft = x.bond === 'LFT'
+      return [x.bond, x.maturity, lft ? (x.rate != null ? +(x.rate * 100).toFixed(4) : null) : x.rate, lft ? (x.ask != null ? +(x.ask * 100).toFixed(4) : null) : x.ask, x.pu, x.du, x.vna, lft ? yL('bp over Selic', 'pb sobre a Selic') : yL('% p.a.', '% a.a.')]
+    })
+    downloadCSV('yas-bonds.csv', head, rows)
+  }
+  const expFlows = () => {
+    if (!b || !r) return
+    const head = [yL('Date', 'Data'), yL('Business days', 'Dias úteis'), yL('Flow (R$)', 'Fluxo (R$)'), yL('PV (R$)', 'VP (R$)'), yL('Weight', 'Peso')]
+    downloadCSV('yas-cashflows.csv', head, r.rows.map((row: any) => [row.date, row.du, row.cf, row.pv, row.w]))
+  }
   return (
-    <FnScreen code="YAS" title={S.title} right={<Field label={S.type}><Btns opts={types.map(t => ({ v: t, l: t === 'All' ? S.all : t }))} value={typ} onChange={setTyp} /></Field>}
-      source={d.source} note={<>Pricing date {dUSfull(d.ref_date)}; DI1 curve {dUSfull(d.di_ref_date)}. {Object.entries(d.conventions || {}).map(([k, v]) => `${k}: ${v}`).join(' · ')}{d.note ? ` · ${d.note}` : ''}</>}>
-      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: 'minmax(0,0.95fr) minmax(0,1.05fr) minmax(0,1fr)' }}>
-        <Panel title={S.bonds}>
-          <Grid maxH={600} rows={bonds.filter(x => typ === 'All' || x.bond === typ)} onRow={(x: any) => setId(x.id)} rowStyle={(x: any) => x.id === b.id ? { background: tc('#1f2a44') } : undefined} cols={[
-            { k: 'bond', label: S.c.bond, color: () => C.amber }, { k: 'maturity', label: S.c.maturity, fmt: x => dUS(x) },
-            { k: 'rate', label: S.c.rate, align: 'r', fmt: x => n(x, 4), color: () => C.white },
-            { k: 'bid', label: S.c.bid, align: 'r', fmt: x => n(x, 4), color: () => C.muted }, { k: 'ask', label: S.c.ask, align: 'r', fmt: x => n(x, 4), color: () => C.muted },
-            { k: 'pu', label: S.c.pu, align: 'r', fmt: x => n(x, 6) },
-          ]} />
+    <FnScreen code="YAS" title={title} ownTitle wrap
+      right={<>
+        <Field label={yL('Type', 'Tipo')}><Btns opts={types.map(t => ({ v: t, l: t === 'All' ? yL('All', 'Todos') : t }))} value={typ} onChange={setTyp} /></Field>
+        <span data-yas-csv className="flex flex-wrap items-center gap-1">
+          <CsvBtn onClick={expList} />
+          <button data-yas-csv-flows type="button" onClick={expFlows} className="px-2 py-[1px] text-[12px] border" style={{ borderColor: C.amber, color: C.amber }}>{yL('Cash flows CSV', 'CSV do fluxo')}</button>
+        </span>
+      </>}
+      source={source} note={note}>
+      <div className="grid gap-2 fn-grid min-w-0 w-full max-w-full" style={{ gridTemplateColumns: desk ? 'minmax(0,0.95fr) minmax(0,1.05fr) minmax(0,1fr)' : 'minmax(0,1fr)' }}>
+        <Panel title={yL('Tesouro Direto bonds (morning)', 'Títulos do Tesouro Direto (manhã)')}>
+          {!desk && !more && <div data-yas-hint className="px-2 pt-1 text-[11px]" style={{ color: C.muted }}>{yL('Showing bond, maturity, sell rate and PU.', 'Mostrando título, vencimento, taxa de venda e PU.')}</div>}
+          <div data-yas-bonds className="min-w-0 w-full overflow-x-auto">
+            <Grid stickyFirst maxH={600} rows={listed} onRow={(x: any) => setId(x.id)} rowStyle={(x: any) => x.id === b.id ? { background: tc('#1f2a44') } : undefined} cols={pick(bondCols, ['bond', 'maturity', 'rate', 'pu'])} />
+          </div>
+          {!desk && <button data-yas-more type="button" className="mt-1 px-2 py-[1px] text-[11px] border" style={{ borderColor: C.line, color: C.amber }} onClick={() => setMore(!more)}>{more ? yL('Fewer columns', 'Menos colunas') : yL('More columns', 'Mais colunas')}</button>}
         </Panel>
         <div className="min-w-0">
-          <Panel title={`${S.calc} · ${b.bond} ${dUSfull(b.maturity)}`}>
-            <div className="flex flex-wrap items-center gap-3 p-1 text-[12px]">
-              <Field label={S.yld}><NumIn value={y == null ? null : +y.toFixed(6)} onChange={v => setY(v)} w={90} /></Field>
-              <Field label={S.price}><NumIn value={r ? +r.P.toFixed(6) : null} onChange={v => { if (v && v > 0) setY(solveY(b.flows, v, y ?? b.rate)) }} w={110} /></Field>
-              <Field label={S.notional}><NumIn value={face} onChange={setFace} w={100} /></Field>
-              <button className="px-2 py-[1px] border text-[12px]" style={{ borderColor: C.line, color: C.amber }} onClick={() => setY(b.rate)}>{S.reset}</button>
+          <Panel title={`${yL('Calculator', 'Calculadora')} · ${b.bond} ${dUSfull(b.maturity)}`}>
+            <div data-yas-calc className="flex flex-wrap items-end gap-x-3 gap-y-2 p-1 text-[12px] min-w-0 w-full">
+              <Field label={yL('Yield (% p.a.)', 'Taxa (% a.a.)')}><NumIn value={y == null ? null : +y.toFixed(6)} onChange={v => setY(v)} w={90} /></Field>
+              <Field label={yL('Price (PU)', 'Preço (PU)')}><NumIn value={r ? +r.P.toFixed(6) : null} onChange={v => { if (v && v > 0) setY(solveY(b.flows, v, y ?? b.rate)) }} w={110} /></Field>
+              <Field label={yL('Face (R$)', 'Valor de face (R$)')}><NumIn value={face} onChange={setFace} w={100} /></Field>
+              <button type="button" className="px-2 py-[1px] border text-[12px]" style={{ borderColor: C.line, color: C.amber }} onClick={() => setY(b.rate)}>{yL('Reset', 'Restaurar')}</button>
             </div>
-            {r && <KV cols={2} rows={[
-              [S.k.anbima, n(b.pu, 6)], [S.k.bd, String(b.du)],
-              [S.k.face, n(r.unit, 6)], ...(b.vna ? [[S.k.vna, n(b.vna, 6)] as [string, string]] : []),
+            {r && <KV cols={desk ? 2 : 1} rows={[
+              [yL('Tesouro Direto PU', 'PU Tesouro Direto'), yasNum(b.pu, 6)], [yL('Business days', 'Dias úteis'), String(b.du ?? '—')],
+              [yL('Face value per bond', 'Valor de face por título'), yasNum(r.unit, 6)], ...(b.vna ? [[yL('VNA', 'VNA'), yasNum(b.vna, 6)] as [string, string]] : []),
             ]} />}
           </Panel>
-          {r && <Panel title={S.risk} className="mt-2"><KV cols={2} rows={[
-            [S.k.mac, n(r.mac, 4), C.white], [S.k.mod, n(r.mod, 4), C.white], [S.k.cvx, n(r.cvx, 4)], [S.k.dv01u, n(r.dv1, 6)],
-            [S.k.dv01, r.qty != null ? `R$ ${n(r.dv1 * r.qty, 2)}` : '—', C.amber],
+          {r && <Panel title={yL('Risk', 'Risco')} className="mt-2"><KV cols={desk ? 2 : 1} rows={[
+            [yL('Macaulay dur. (yrs)', 'Duration de Macaulay (anos)'), yasNum(r.mac, 4), C.white], [yL('Modified dur.', 'Duration modificada'), yasNum(r.mod, 4), C.white],
+            [yL('Convexity', 'Convexidade'), yasNum(r.cvx, 4)], [yL('DV01 per bond', 'DV01 por título'), yasNum(r.dv1, 6)],
+            [yL('DV01 per face', 'DV01 do lote'), r.qty != null ? `R$ ${yasNum(r.dv1 * r.qty, 2)}` : '—', C.amber],
           ]} /></Panel>}
-          {r && <Panel title={S.spread} className="mt-2"><KV cols={1} rows={b.bond === 'LFT' ? [[S.k.lft, `${sn(y! * 100, 2)} bp`, C.amber]] : [
-            [S.k.di, r.di != null ? `${n(r.di, 4)}%` : '—'],
-            ...(isPre ? [[S.k.sp, r.di != null ? bps((y! - r.di) * 100, 1) : '—', cl(y! - (r.di ?? y!))], [S.k.z, r.z != null ? bps(r.z, 1) : '—', C.amber]] as any : []),
-            ...(b.bond === 'NTN-B' || b.bond === 'NTN-B P' ? [[S.k.be, r.be != null ? `${n(r.be, 3)}%` : '—', C.amber]] as any : []),
+          {r && <Panel title={yL('Spreads', 'Spreads')} className="mt-2"><KV cols={1} rows={b.bond === 'LFT' ? [[yL('Published Selic spread', 'Spread publicado sobre a Selic'), `${yasBp((y ?? 0) * 100, 2)} ${yL('bp', 'pb')}`, C.amber]] : [
+            [yL('DI1 at maturity', 'DI1 no vencimento'), r.di != null ? `${yasNum(r.di, 4)}%` : '—'],
+            ...(isPre ? [[yL('Spread vs DI1 (bp)', 'Spread vs DI1 (pb)'), r.di != null ? `${yasBp((y! - r.di) * 100, 1)} ${yL('bp', 'pb')}` : '—', cl(y! - (r.di ?? y!))], [yL('Z-spread vs DI1 (bp)', 'Z-spread vs DI1 (pb)'), r.z != null ? `${yasBp(r.z, 1)} ${yL('bp', 'pb')}` : '—', C.amber]] as any : []),
+            ...(b.bond === 'NTN-B' || b.bond === 'NTN-B P' ? [[yL('Breakeven inflation (DI1 vs real)', 'Inflação implícita (DI1 vs real)'), r.be != null ? `${yasNum(r.be, 3)}%` : '—', C.amber]] as any : []),
           ]} /></Panel>}
-          {r && <Panel title={S.invoice} className="mt-2"><KV cols={1} rows={[[S.k.qty, r.qty != null ? n(r.qty, 4) : '—'], [S.k.principal, r.qty != null ? `R$ ${n(r.qty * r.P, 2)}` : '—', C.white]]} /></Panel>}
+          {r && <Panel title={yL('Invoice', 'Financeiro')} className="mt-2"><KV cols={1} rows={[[yL('Quantity', 'Quantidade'), r.qty != null ? yasNum(r.qty, 4) : '—'], [yL('Principal (R$)', 'Principal (R$)'), r.qty != null ? `R$ ${yasNum(r.qty * r.P, 2)}` : '—', C.white]]} /></Panel>}
         </div>
         <div className="min-w-0">
-          <Panel title={S.flows}>
-            <Grid maxH={300} rows={r?.rows || []} cols={[
-              { k: 'date', label: S.fc.date, fmt: x => dUS(x), color: () => C.amber }, { k: 'du', label: S.fc.du, align: 'r' },
-              { k: 'cf', label: S.fc.cf, align: 'r', fmt: x => n(x, 6) }, { k: 'pv', label: S.fc.pv, align: 'r', fmt: x => n(x, 6), color: () => C.white },
-              { k: 'w', label: S.fc.w, align: 'r', fmt: x => `${n(x, 2)}%` },
-            ]} />
+          <Panel title={yL('Cash flows', 'Fluxo de caixa')}>
+            <div data-yas-flows className="min-w-0 w-full overflow-x-auto">
+              <Grid stickyFirst maxH={300} rows={r?.rows || []} cols={[
+                { k: 'date', label: yL('Date', 'Data'), fmt: (x: any) => dUS(x), color: () => C.amber }, { k: 'du', label: yL('BD', 'DU'), align: 'r' as const },
+                { k: 'cf', label: yL('Flow (R$)', 'Fluxo (R$)'), align: 'r' as const, fmt: (x: any) => yasNum(x, 6) }, { k: 'pv', label: yL('PV (R$)', 'VP (R$)'), align: 'r' as const, fmt: (x: any) => yasNum(x, 6), color: () => C.white },
+                { k: 'w', label: yL('Weight', 'Peso'), align: 'r' as const, fmt: (x: any) => `${yasNum(x, 2)}%` },
+              ]} />
+            </div>
           </Panel>
-          <Panel title={S.curve} className="mt-2">
-            <YasCurve di={d.di1} bonds={bonds.filter(x => x.bond === 'LTN' || x.bond === 'NTN-F')} sel={b} />
+          <Panel title={yL('DI1 curve (settlement) and bond rates', 'Curva DI1 (ajuste) e taxas dos títulos')} className="mt-2">
+            <YasCurve di={d.di1 || []} bonds={bonds.filter(x => x.bond === 'LTN' || x.bond === 'NTN-F')} sel={b} />
           </Panel>
         </div>
       </div>
@@ -122,15 +169,15 @@ export function YASView() {
   )
 }
 function YasCurve({ di, bonds, sel }: { di: [number, number][]; bonds: Bond[]; sel: Bond }) {
-  const fitH = useFitH(230, 120), { active } = useFit(), H = active ? fitH : 220, W = 440, m = { l: 40, r: 8, t: 8, b: 20 }
+  const fitH = useFitH(230, 120), { active } = useFit(), H = active ? fitH : 220, W = 440, m = { l: 48, r: 8, t: 8, b: 20 }
   const xs = [...di.map(p => p[0]), ...bonds.map(b => b.du)], ys = [...di.map(p => p[1]), ...bonds.map(b => b.rate)]
-  const x0 = 0, x1 = Math.max(...xs), y0 = Math.min(...ys) - 0.1, y1 = Math.max(...ys) + 0.1
+  const x0 = 0, x1 = Math.max(1, ...xs), y0 = (ys.length ? Math.min(...ys) : 0) - 0.1, y1 = (ys.length ? Math.max(...ys) : 1) + 0.1
   const X = (v: number) => m.l + (v - x0) / (x1 - x0) * (W - m.l - m.r), Y = (v: number) => m.t + (1 - (v - y0) / (y1 - y0)) * (H - m.t - m.b)
   return <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ fontFamily: MONO, maxHeight: H }}>
-    {Array.from({ length: 5 }, (_, i) => y0 + (y1 - y0) * i / 4).map((t, i) => <g key={i}><line x1={m.l} x2={W - m.r} y1={Y(t)} y2={Y(t)} stroke={tc(tc('#1c1c1c'))} /><text x={m.l - 3} y={Y(t) + 3} fontSize={9} fill={C.muted} textAnchor="end">{n(t, 2)}</text></g>)}
-    {Array.from({ length: Math.floor(x1 / 252) + 1 }, (_, i) => i * 252).map(t => <text key={t} x={X(t)} y={H - 6} fontSize={9} fill={C.muted} textAnchor="middle">{t / 252}y</text>)}
+    {Array.from({ length: 5 }, (_, i) => y0 + (y1 - y0) * i / 4).map((tick, i) => <g key={i}><line x1={m.l} x2={W - m.r} y1={Y(tick)} y2={Y(tick)} stroke={tc(tc('#1c1c1c'))} /><text x={m.l - 3} y={Y(tick) + 3} fontSize={9} fill={C.muted} textAnchor="end">{yasNum(tick, 2)}</text></g>)}
+    {Array.from({ length: Math.floor(x1 / 252) + 1 }, (_, i) => i * 252).map(tick => <text key={tick} x={X(tick)} y={H - 6} fontSize={9} fill={C.muted} textAnchor="middle">{tick / 252}y</text>)}
     <polyline points={di.map(p => `${X(p[0])},${Y(p[1])}`).join(' ')} fill="none" stroke={C.cyan} strokeWidth={1.5} />
-    {bonds.map(b => <circle key={b.id} cx={X(b.du)} cy={Y(b.rate)} r={b.id === sel.id ? 4.5 : 2.5} fill={b.bond === 'LTN' ? C.amber : C.white} stroke={b.id === sel.id ? C.down : 'none'}><title>{`${b.id}: ${n(b.rate, 4)}%`}</title></circle>)}
+    {bonds.map(bd => <circle key={bd.id} cx={X(bd.du)} cy={Y(bd.rate)} r={bd.id === sel.id ? 4.5 : 2.5} fill={bd.bond === 'LTN' ? C.amber : C.white} stroke={bd.id === sel.id ? C.down : 'none'}><title>{`${bd.id}: ${yasNum(bd.rate, 4)}%`}</title></circle>)}
     <text x={m.l + 4} y={m.t + 10} fontSize={10} fill={C.cyan}>━ DI1</text><text x={m.l + 50} y={m.t + 10} fontSize={10} fill={C.amber}>● LTN</text><text x={m.l + 100} y={m.t + 10} fontSize={10} fill={C.white}>● NTN-F</text>
   </svg>
 }
