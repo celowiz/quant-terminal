@@ -6,7 +6,7 @@ import { useFit, useDesktop, NewsCards, FnScreen, Panel, Grid, Btns, Field, KV, 
 import FnChart from '../../components/fn/FnChart'
 import XYChart from '../../components/fn/XYChart'
 import { href } from '../../lib/static'
-import { downloadCSV } from './v4util'
+import { downloadCSV, CsvBtn } from './v4util'
 import { en } from '../../lib/enText'
 import { lang } from '../../lib/settings'
 import { t } from '../../lib/i18n'
@@ -200,27 +200,115 @@ export function WFIView() {
 }
 
 // ---------------- ECON ----------------
+const ePT = () => lang() === 'pt'
+const eL = (en: string, pt: string) => (ePT() ? pt : en)
+const econNum = (v: any, d = 2) => {
+  if (v == null || v === '' || !isFinite(+v)) return '—'
+  const x = Math.abs(+v) < 0.5 * Math.pow(10, -d) ? 0 : +v
+  return x.toLocaleString(ePT() ? 'pt-BR' : 'en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+}
+/** Curated labels keyed by series id (ids stay internal; never shown). */
+const ECON_LAB: Record<string, [string, string, string, string]> = {
+  SGS432: ['Selic target', 'Meta da Selic', '% p.a.', '% a.a.'],
+  SGS12: ['CDI', 'CDI', '% per day', '% a.d.'],
+  SGS433: ['IPCA — monthly change', 'IPCA — variação mensal', '% m/m', '% m/m'],
+  SGS13522: ['IPCA — 12-month', 'IPCA — acumulado 12 meses', '% 12m', '% 12m'],
+  SGS189: ['IGP-M — monthly change', 'IGP-M — variação mensal', '% m/m', '% m/m'],
+  SGS188: ['INPC — monthly change', 'INPC — variação mensal', '% m/m', '% m/m'],
+  SGS24369: ['Unemployment rate (PNAD)', 'Taxa de desocupação (PNAD Contínua)', '%', '%'],
+  SGS24363: ['IBC-Br (seasonally adjusted)', 'IBC-Br (índice dessazonalizado)', 'index', 'índice'],
+  SGS4380: ['Monthly GDP (current prices)', 'PIB mensal (valores correntes)', 'R$ millions', 'R$ milhões'],
+  SGS1: ['USD PTAX (ask)', 'Dólar PTAX (venda)', 'R$/US$', 'R$/US$'],
+  SGS13762: ['General government gross debt', 'Dívida bruta do governo geral', '% of GDP', '% do PIB'],
+  SGS5793: ['Public-sector primary balance (12m)', 'Resultado primário do setor público (12m)', '% of GDP', '% do PIB'],
+  SGS22707: ['Trade balance — monthly', 'Balança comercial — saldo mensal', 'US$ millions', 'US$ milhões'],
+  SGS3546: ['International reserves', 'Reservas internacionais', 'US$ millions', 'US$ milhões'],
+  FEDFUNDS: ['Effective federal funds rate', 'Taxa efetiva dos fed funds', '%', '%'],
+  CPIAUCSL: ['US CPI (index)', 'CPI dos EUA (índice)', 'index', 'índice'],
+  UNRATE: ['US unemployment rate', 'Desemprego nos EUA', '%', '%'],
+  PAYEMS: ['Nonfarm payrolls', 'Folha não agrícola', 'thousands', 'milhares'],
+  GDPC1: ['US real GDP', 'PIB real dos EUA', 'US$ billions (2017)', 'US$ bilhões (2017)'],
+  DGS10: ['10-year Treasury yield', 'Treasury de 10 anos', '%', '%'],
+  T10Y2Y: ['10-year minus 2-year spread', 'Spread 10 anos − 2 anos', 'pp', 'p.p.'],
+  DCOILBRENTEU: ['Brent crude', 'Petróleo Brent', 'US$/barrel', 'US$/barril'],
+}
+const ECON_FOCUS: Record<string, [string, string]> = {
+  IPCA: ['IPCA', 'IPCA'], Selic: ['Selic', 'Selic'], 'PIB Total': ['GDP', 'PIB'], 'Câmbio': ['BRL/USD', 'Câmbio'], 'IGP-M': ['IGP-M', 'IGP-M'],
+}
+const ECON_BARS = new Set(['SGS433', 'SGS189', 'SGS188', 'SGS22707'])
+const econName = (id: string, fallback?: string) => { const L = ECON_LAB[id]; return L ? eL(L[0], L[1]) : (fallback || id) }
+const econUnit = (id: string, fallback?: string) => { const L = ECON_LAB[id]; return L ? eL(L[2], L[3]) : (fallback || '—') }
+const econFocus = (ind: string) => { const L = ECON_FOCUS[ind]; return L ? eL(L[0], L[1]) : ind }
 export function ECONView() {
   const { data: d, err } = useJSON<any>('econ.json')
   const [sel, setSel] = useState<string>('SGS13522')
-  if (!d) return <FnScreen code="ECON"><Loading err={err} /></FnScreen>
-  const rows = (cty: string) => d.series.filter((s: any) => s.country === cty).map((s: any) => { const p = s.points, n = p.length; return { ...s, last: p[n - 1]?.[1], prev: p[n - 2]?.[1], date: p[n - 1]?.[0], chg: n > 1 ? p[n - 1][1] - p[n - 2][1] : null, spark: p.slice(-24).map((x: any) => x[1]) } })
-  const s = d.series.find((x: any) => x.id === sel)
-  const cols = [{ k: 'name', label: 'Indicator', color: () => C.amber }, { k: 'date', label: 'Ref.', align: 'r' as const, fmt: (v: string, r: any) => r.freq === 'D' ? dBR(v) : v ? fmtMonth(v.slice(0, 7) + '-01') : v }, { k: 'last', label: 'Last', align: 'r' as const, fmt: (v: number) => nf(v, Math.abs(v) > 1000 ? 0 : 2) }, { k: 'prev', label: 'Previous', align: 'r' as const, fmt: (v: number) => nf(v, Math.abs(v) > 1000 ? 0 : 2) }, { k: 'chg', label: 'Var', align: 'r' as const, fmt: (v: number) => nf(v, 2), color: clr }, { k: 'unit', label: 'Unit', color: () => C.muted }, { k: 'spark', label: 'Trend', align: 'c' as const, fmt: (v: any) => <Spark data={v} w={70} h={14} /> }]
-  const focus = d.focus as any[]
+  const [more, setMore] = useState(false)
+  const desk = useDesktop()
+  const title = eL('Economic indicators and expectations', 'Indicadores econômicos e expectativas')
+  if (!d) return <FnScreen code="ECON" title={title} ownTitle><Loading err={err} /></FnScreen>
+  const rows = (cty: string) => d.series.filter((s: any) => s.country === cty).map((s: any) => {
+    const p = s.points || [], n = p.length
+    return { ...s, label: econName(s.id, s.name), unitLabel: econUnit(s.id, s.unit), last: p[n - 1]?.[1] ?? null, prev: p[n - 2]?.[1] ?? null, date: p[n - 1]?.[0] || null, chg: n > 1 && p[n - 1]?.[1] != null && p[n - 2]?.[1] != null ? p[n - 1][1] - p[n - 2][1] : null, spark: p.slice(-24).map((x: any) => x[1]) }
+  })
+  const br = rows('BR'), us = rows('US')
+  const s = d.series.find((x: any) => x.id === sel) || d.series[0]
+  const numFmt = (v: any) => econNum(v, v != null && Math.abs(+v) > 1000 ? 0 : 2)
+  const cols = [
+    { k: 'label', label: eL('Indicator', 'Indicador'), color: () => C.amber },
+    { k: 'date', label: eL('Ref.', 'Ref.'), align: 'r' as const, fmt: (v: string, r: any) => v ? (r.freq === 'D' ? dBR(v) : fmtMonth(v.slice(0, 7) + '-01')) : '—' },
+    { k: 'last', label: eL('Last', 'Último'), align: 'r' as const, fmt: numFmt },
+    { k: 'prev', label: eL('Previous', 'Anterior'), align: 'r' as const, fmt: numFmt },
+    { k: 'chg', label: eL('Change', 'Variação'), align: 'r' as const, fmt: (v: any) => econNum(v, 2), color: clr },
+    { k: 'unitLabel', label: eL('Unit', 'Unidade'), color: () => C.muted },
+    { k: 'spark', label: eL('Trend', 'Tendência'), align: 'c' as const, fmt: (v: any) => <Spark data={v} w={70} h={14} /> },
+  ]
+  const pick = (c: any[], keys: string[]) => (desk || more) ? c : c.filter(x => keys.includes(x.k))
+  const showCols = pick(cols, ['label', 'date', 'last', 'chg'])
+  const focus = (d.focus || []) as any[]
   const fInd = Array.from(new Set(focus.map(f => f.indicator))), fYears = Array.from(new Set(focus.map(f => f.year))).sort()
+  const source = eL('Official statistical series and a market survey of expectations (medians).',
+    'Séries estatísticas oficiais e uma pesquisa de mercado de expectativas (medianas).')
+  const note = eL('Click an indicator to see its history. There is no per-release consensus calendar; the survey table uses market-survey medians.',
+    'Clique num indicador para ver o histórico. Não há calendário de consenso por divulgação; a tabela de pesquisa usa as medianas da pesquisa de mercado.')
+  const expInd = () => {
+    const head = [eL('Country', 'País'), eL('Indicator', 'Indicador'), eL('Ref.', 'Ref.'), eL('Last', 'Último'), eL('Previous', 'Anterior'), eL('Change', 'Variação'), eL('Unit', 'Unidade')]
+    const pack = (cty: string, list: any[]) => list.map(r => [cty, r.label, r.date, r.last, r.prev, r.chg, r.unitLabel])
+    downloadCSV('econ-indicators.csv', head, [...pack(eL('Brazil', 'Brasil'), br), ...pack(eL('United States', 'Estados Unidos'), us)])
+  }
+  const expSurvey = () => {
+    const head = [eL('Indicator', 'Indicador'), ...fYears.map(String)]
+    const rows = fInd.map(ind => [econFocus(ind), ...fYears.map(y => { const f = focus.find(x => x.indicator === ind && x.year === y); return f ? f.median : null })])
+    downloadCSV('econ-survey.csv', head, rows)
+  }
+  const loc = ePT() ? 'pt-BR' : 'en-US'
+  const chartName = s ? econName(s.id, s.name) : '—'
+  const chartUnit = s ? econUnit(s.id, s.unit) : ''
   return (
-    <FnScreen code="ECON" title="Economic Indicators / Expectations" source="BCB SGS and Focus Report (Olinda API), FRED; tools/pipeline/build_markets.py." note="Click an indicator to see its history. There is no release calendar with per-event consensus/forecast (proprietary data); the expectations column uses market survey medians.">
-      <div className="grid gap-2 fn-grid" style={{ gridTemplateColumns: '1.3fr 1fr' }}>
-        <div className="flex flex-col gap-2">
-          <Panel title="Brazil"><Grid onRow={(r: any) => setSel(r.id)} rowStyle={(r: any) => r.id === sel ? { background: tc('#1a1205') } : undefined} cols={cols} rows={rows('BR')} /></Panel>
-          <Panel title="United States"><Grid onRow={(r: any) => setSel(r.id)} rowStyle={(r: any) => r.id === sel ? { background: tc('#1a1205') } : undefined} cols={cols} rows={rows('US')} /></Panel>
+    <FnScreen code="ECON" title={title} ownTitle wrap source={source} note={note}
+      right={<span data-econ-csv className="flex flex-wrap items-center gap-1">
+        <CsvBtn onClick={expInd} />
+        <button data-econ-csv-survey type="button" onClick={expSurvey} className="px-2 py-[1px] text-[12px] border" style={{ borderColor: C.amber, color: C.amber }}>{eL('Survey CSV', 'CSV da pesquisa')}</button>
+      </span>}>
+      <div className="grid gap-2 fn-grid min-w-0 w-full max-w-full" style={{ gridTemplateColumns: desk ? '1.3fr 1fr' : 'minmax(0,1fr)' }}>
+        <div className="flex flex-col gap-2 min-w-0">
+          {!desk && !more && <div data-econ-hint className="px-2 pt-1 text-[11px]" style={{ color: C.muted }}>{eL('Showing indicator, date, last and change.', 'Mostrando indicador, data, último e variação.')}</div>}
+          <Panel title={eL('Brazil', 'Brasil')}>
+            <div data-econ-br className="min-w-0 w-full overflow-x-auto"><Grid stickyFirst onRow={(r: any) => setSel(r.id)} rowStyle={(r: any) => r.id === sel ? { background: tc('#1a1205') } : undefined} cols={showCols} rows={br} /></div>
+          </Panel>
+          <Panel title={eL('United States', 'Estados Unidos')}>
+            <div data-econ-us className="min-w-0 w-full overflow-x-auto"><Grid stickyFirst onRow={(r: any) => setSel(r.id)} rowStyle={(r: any) => r.id === sel ? { background: tc('#1a1205') } : undefined} cols={showCols} rows={us} /></div>
+          </Panel>
+          {!desk && <button data-econ-more type="button" className="px-2 py-[1px] text-[11px] border self-start" style={{ borderColor: C.line, color: C.amber }} onClick={() => setMore(!more)}>{more ? eL('Fewer columns', 'Menos colunas') : eL('More columns', 'Mais colunas')}</button>}
         </div>
-        <div className="flex flex-col gap-2">
-          <Panel title={`${s?.name} (${s?.unit})`}><FnChart height={300} panes={[{ series: [{ kind: s?.freq === 'M' && /variação|saldo/.test(s?.name) ? 'hist' : 'line', data: (s?.points || []).map((p: any) => ({ time: p[0], value: p[1], color: p[1] >= 0 ? C.amber : C.down })), color: C.amber, title: (s?.name || '').split(' – ')[0].slice(0, 18), decimals: 2 }] }]} /></Panel>
-          <Panel title={`Market survey — medians (${dBR(focus[0]?.date)})`}>
-            <table className="w-full text-[12px]"><thead><tr><th className="px-2 py-1 text-left font-normal" style={{ color: C.amber }}>Indicator</th>{fYears.map(y => <th key={y} className="px-2 py-1 text-right font-normal" style={{ color: C.amber }}>{y}</th>)}</tr></thead>
-              <tbody>{fInd.map(ind => <tr key={ind} className="border-t" style={{ borderColor: tc('#1a1a1a') }}><td className="px-2 py-[2px]">{en(ind)}</td>{fYears.map(y => { const f = focus.find(x => x.indicator === ind && x.year === y); return <td key={y} className="px-2 py-[2px] text-right">{f ? nf(f.median, 2) : '—'}</td> })}</tr>)}</tbody></table>
+        <div className="flex flex-col gap-2 min-w-0">
+          <Panel title={`${chartName}${chartUnit ? ` (${chartUnit})` : ''}`}>
+            <FnChart height={300} alwaysLegend panes={[{ series: [{ kind: s && ECON_BARS.has(s.id) ? 'hist' : 'line', data: (s?.points || []).map((p: any) => ({ time: p[0], value: p[1], color: p[1] >= 0 ? C.amber : C.down })), color: C.amber, title: chartName, decimals: 2, locale: loc }] }]} />
+          </Panel>
+          <Panel title={`${eL('Market survey — medians', 'Pesquisa de mercado — medianas')}${focus[0]?.date ? ` (${dBR(focus[0].date)})` : ''}`}>
+            <div data-econ-survey className="min-w-0 w-full overflow-x-auto">
+              <table className="w-full text-[12px]"><thead><tr><th className="px-2 py-1 text-left font-normal" style={{ color: C.amber }}>{eL('Indicator', 'Indicador')}</th>{fYears.map(y => <th key={y} className="px-2 py-1 text-right font-normal" style={{ color: C.amber }}>{y}</th>)}</tr></thead>
+                <tbody>{fInd.map(ind => <tr key={ind} className="border-t" style={{ borderColor: tc('#1a1a1a') }}><td className="px-2 py-[2px]">{econFocus(ind)}</td>{fYears.map(y => { const f = focus.find(x => x.indicator === ind && x.year === y); return <td key={y} className="px-2 py-[2px] text-right">{f ? econNum(f.median, 2) : '—'}</td> })}</tr>)}</tbody></table>
+            </div>
           </Panel>
         </div>
       </div>
