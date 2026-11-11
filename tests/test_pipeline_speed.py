@@ -74,7 +74,7 @@ def test_run_all_tem_todas_as_etapas_uma_vez():
     names = _order()
     assert sorted(names) == sorted(set(names))
     assert set(names) == {'prices', 'markets', 'calendar', 'options', 'corp', 'rates', 'news', 'anb', 'fns1', 'fns3',
-                          'fns2', 'extra', 'macro', 'credit', 'sec', 'des', 'fns4', 'slim', 'coverage', 'alerts'}
+                          'fns2', 'extra', 'macro', 'credit', 'sec', 'des', 'fns4', 'fuel', 'slim', 'coverage', 'alerts'}
 
 
 def test_run_all_respeita_dependencias():
@@ -88,7 +88,7 @@ def test_run_all_respeita_dependencias():
     pos = lambda n: re.search(rf'^\s*(?:STEP_TIMEOUT=\d+ )?run {n}\s', RUN_ALL, re.M).start()
     assert len(waits) == 2
     for n in ('prices', 'markets', 'corp', 'rates', 'fns2', 'calendar', 'options'): assert pos(n) < waits[0], n
-    for n in ('extra', 'macro', 'credit', 'sec', 'des'): assert waits[0] < pos(n) < waits[1], n
+    for n in ('extra', 'macro', 'credit', 'sec', 'des', 'fns4', 'fuel'): assert waits[0] < pos(n) < waits[1], n
     for n in ('slim', 'coverage', 'alerts'): assert pos(n) > waits[1], n
     assert 'prices' in RUN_ALL[RUN_ALL.rindex('for f in'):]   # só a falha de prices derruba o job
 

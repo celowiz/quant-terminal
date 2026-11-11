@@ -213,6 +213,10 @@ export const HELP: Record<string, HelpDoc> = {
       { tex: R`\text{52w Low} = \min_{t-52w < s \le t} P_s,\quad \text{52w High} = \max_{t-52w < s \le t} P_s`, en: '52-week range on daily closes.', pt: 'Faixa de 52 semanas nos fechamentos diários.' },
     ],
   },
+  FUEL: {
+    en: 'Weekly average pump prices in Brazil for each fuel that appears in the official survey (gasoline, additized gasoline, ethanol, diesel grades, natural gas and LPG, as available). Averages are shown for the country, for each region and for each state. Changes compare the latest week with the previous week and with the same week a year earlier. The oil price converted into reais is shown alongside for comparison only; it is not a pump price. Missing values appear as —.',
+    pt: 'Preço médio semanal nas bombas no Brasil para cada combustível que aparece na pesquisa oficial (gasolina, gasolina aditivada, etanol, tipos de diesel, gás natural e GLP, conforme disponíveis). As médias valem para o país, para cada região e para cada estado. As variações comparam a última semana com a anterior e com a mesma semana um ano antes. O preço do petróleo convertido em reais aparece ao lado só para comparação; não é um preço de bomba. Valores ausentes aparecem como —.',
+  },
   ECON: {
     en: 'Official statistical series for Brazil and the United States: the latest reading, the previous reading, and a history chart. The survey table shows market-survey medians for the coming years, not a release-by-release consensus. Click a row to plot that series. Missing values appear as —.',
     pt: 'Séries estatísticas oficiais do Brasil e dos Estados Unidos: a leitura mais recente, a anterior e o gráfico de histórico. A tabela de pesquisa mostra as medianas da pesquisa de mercado para os próximos anos, não um consenso por data de divulgação. Clique numa linha para ver a série. Valores ausentes aparecem como —.',

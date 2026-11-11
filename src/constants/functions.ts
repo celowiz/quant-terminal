@@ -61,6 +61,7 @@ export const FUNCTION_LIST: FunctionItem[] = [
   { code: 'FX', desc: 'Currency Quotes', pt: 'Cotações de moedas', cat: 'fxcmd' },
   { code: 'WCRS', desc: 'World Currency Ranker', pt: 'Ranking de moedas', cat: 'fxcmd' },
   { code: 'GLCO', desc: 'Global Commodities', pt: 'Commodities globais', cat: 'fxcmd' },
+  { code: 'FUEL', desc: 'Pump fuel prices', pt: 'Preços de combustíveis nas bombas', cat: 'fxcmd' },
   { code: 'WIRP', desc: 'Rate Probabilities', pt: 'Probabilidades de juros', cat: 'rates' },
   { code: 'FOMC', desc: 'Fed & Copom Meetings', pt: 'Reuniões do Fed e do Copom', cat: 'rates' },
   { code: 'WB', desc: 'World Bonds', pt: 'Títulos soberanos mundiais', cat: 'rates' },

@@ -14,7 +14,7 @@ import { lang } from '@/lib/settings'
 import { t } from '@/lib/i18n'
 
 // rótulo do arquivo na lista de datas; arquivos com nome de fonte ganham um nome neutro
-const REF_ALIAS: Record<string, string | [string, string]> = { focus: 'survey', wirp: ['implied path', 'trajetória implícita'] }
+const REF_ALIAS: Record<string, string | [string, string]> = { focus: 'survey', wirp: ['implied path', 'trajetória implícita'], fuel: ['pump prices', 'preços nas bombas'] }
 // arquivos por ativo (pasta/ATIVO) ganham um nome legível em vez do caminho interno
 const DIR_LABEL: Record<string, [string, string]> = { corp: ['Company data', 'Dados da empresa'] }
 const refLabel = (p: string) => {
