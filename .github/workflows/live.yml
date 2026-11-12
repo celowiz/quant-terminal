@@ -5,10 +5,16 @@ name: live
 # séries dos EUA com a chave em segredo) e publica arquivos pequenos no branch órfão `live` — um único commit,
 # force-push, só quando o conteúdo muda. O site lê esses arquivos e cai no retrato diário se faltarem.
 #
-# Encadeamento: cada execução roda até ~5h40 (ou até 22:00) e, se ainda estiver na janela, dispara a próxima
-# (workflow_dispatch com o GITHUB_TOKEN) — também quando o watcher falha depois de 15 min rodando; uma falha rápida
-# não encadeia (evita laço) e a próxima execução da rede de segurança reinicia o encadeamento. Porteiro:
-# pipeline/live_gate.sh (janela, uma execução por vez, espera até 07:00 quando chega entre 05:00 e 07:00).
+# Encadeamento: cada execução na janela roda até ~5h10 e dispara a próxima (workflow_dispatch com o
+# GITHUB_TOKEN) — também quando o watcher falha depois de 15 min rodando; uma falha rápida não encadeia
+# (evita laço) e a próxima execução da rede de segurança reinicia. Ao fim da janela (22:00 BRT), em vez
+# de sair, dispara uma espera noturna (mode=standby): dorme em blocos de ~5h05 (abaixo do limite de 6 h
+# do Actions; um único passo de sono, sem Python nem branch live) até as 07:00 do próximo dia útil —
+# sexta à noite encadeia até segunda 07:00. A última espera dorme o restante e vira o watcher. O próximo
+# elo é disparado ~15 min antes do fim do sono, com novas tentativas se a execução não ficar in_progress
+# (startup_failure). Porteiro: pipeline/live_gate.sh (janela, uma execução por vez, espera até 07:00
+# quando alcança a abertura neste job). Rede de segurança a cada 20 min (seg–sáb UTC): se já houver
+# espera ou watcher ativo, sai em segundos; se a cadeia tiver morrido, retoma a espera (ou o watcher).
 on:
   workflow_dispatch:
     inputs:
@@ -16,8 +22,13 @@ on:
         description: 'execução anterior do encadeamento (ainda terminando; não conta como ativa)'
         required: false
         default: '0'
-  # rede de segurança a cada 20 min (seg–sáb UTC); cada execução fora da janela sai em segundos, e entre 05:00 e
-  # 07:00 BRT a primeira que chegar espera até 07:00 (início do dia sem depender de um cron pontual)
+      mode:
+        description: 'watch = janela diurna; standby = espera noturna até 07:00 do próximo dia útil'
+        required: false
+        default: watch
+        type: choice
+        options: [watch, standby]
+  # rede de segurança a cada 20 min (seg–sáb UTC); cada execução com outra já ativa sai em segundos
   schedule:
     - cron: '7,27,47 * * * 1-6'
 
@@ -34,6 +45,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
       AFTER: ${{ inputs.after || '0' }}
+      RUN_ID: ${{ github.run_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,11 +54,10 @@ jobs:
           sparse-checkout: |
             pipeline/live_watch.py
             pipeline/live_gate.sh
+            pipeline/live_chain.sh
           sparse-checkout-cone-mode: false
-      - name: Janela (dias úteis 07:00–22:00 BRT; espera desde 05:00) e uma execução por vez
+      - name: Janela (dias úteis 07:00–22:00 BRT; espera noturna ou até 07:00) e uma execução por vez
         id: gate
-        env:
-          RUN_ID: ${{ github.run_id }}
         run: |
           echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
           bash pipeline/live_gate.sh
@@ -71,15 +82,33 @@ jobs:
           QT_LIVE_DIR: live-out
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           SLEPT: ${{ steps.gate.outputs.slept }}
-        run: QT_LIVE_MAX_S=$((20400 - ${SLEPT:-0})) python pipeline/live_watch.py
-      - name: Próxima execução (se ainda estiver na janela)
-        if: ${{ !cancelled() && steps.gate.outputs.go == 'true' }}
+        run: |
+          # 5h10 de watcher deixa ~40 min no timeout de 350 min para o disparo com novas tentativas
+          max=$((18600 - ${SLEPT:-0}))
+          [ "$max" -lt 600 ] && max=600
+          QT_LIVE_MAX_S=$max python pipeline/live_watch.py
+      - name: Próxima execução (janela, ou espera noturna)
+        if: ${{ !cancelled() && (steps.gate.outputs.go == 'true' || steps.gate.outputs.standby == 'true') }}
         env:
           OUTCOME: ${{ steps.watch.outcome }}
           START: ${{ steps.gate.outputs.start }}
           SLEPT: ${{ steps.gate.outputs.slept }}
+          STANDBY: ${{ steps.gate.outputs.standby }}
+          STANDBY_SLEEP: ${{ steps.gate.outputs.sleep_s }}
+          NEXT_MODE: ${{ steps.gate.outputs.next_mode }}
         run: |
+          if [ "$STANDBY" = true ]; then
+            echo "espera noturna ${STANDBY_SLEEP}s, depois dispara mode=${NEXT_MODE:-standby}"
+            sleep "$STANDBY_SLEEP"
+            bash pipeline/live_chain.sh "${NEXT_MODE:-standby}"
+            exit 0
+          fi
           ran=$(( $(date +%s) - ${START:-0} - ${SLEPT:-0} ))
           if [ "$OUTCOME" != success ] && [ "$ran" -lt 900 ]; then echo "watcher falhou após ${ran}s: sem encadear (a rede de segurança reinicia)"; exit 0; fi
           dow=$(TZ=America/Sao_Paulo date +%u); hm=$(TZ=America/Sao_Paulo date +%H%M)
-          if [ "$dow" -le 5 ] && [ "$hm" -ge 0700 ] && [ "$hm" -lt 2150 ]; then gh workflow run live.yml -R "$REPO" --ref main -f after=${{ github.run_id }} && echo "próxima disparada"; else echo "janela encerrada"; fi
+          if [ "$dow" -le 5 ] && [ "$hm" -ge 0700 ] && [ "$hm" -lt 2150 ]; then
+            bash pipeline/live_chain.sh watch
+          else
+            echo "janela encerrada ($dow $hm BRT): dispara espera noturna"
+            bash pipeline/live_chain.sh standby
+          fi

@@ -23,9 +23,14 @@ Selo (`LiveBadge`): "Ao vivo · atualizado às hh:mm:ss", "Atraso de N min · at
 ## 2. Watcher (`pipeline/live_watch.py` + `.github/workflows/live.yml`)
 
 Fontes sem CORS ou com chave. Dias úteis 07:00–22:00 BRT, uma execução por vez (a mais antiga vence), cada uma até
-~5h40 e depois dispara a próxima (`workflow_dispatch` com o GITHUB_TOKEN). Cron de hora em hora só como rede de
-segurança (o agendamento deste repositório atrasa horas). Publica no branch órfão `live` — um único commit,
-force-push, só quando o conteúdo muda:
+~5h10 e depois dispara a próxima (`workflow_dispatch` com o GITHUB_TOKEN). Ao fim da janela (22:00 BRT) a cadeia não
+para: dispara uma espera noturna (`mode=standby`) que dorme em blocos de ~5h05 (abaixo do limite de 6 h do Actions; um
+único passo de sono, sem Python) até as 07:00 do próximo dia útil — sexta à noite encadeia até segunda 07:00. A última
+espera dorme o restante e vira o watcher. O próximo elo é disparado ao fim do bloco (~5h05, 15 min antes do teto de 5h20 do job), com novas
+tentativas se a execução não ficar `in_progress` (`startup_failure`). Cron a cada 20 min (`7,27,47 * * * 1-6`, seg–sáb UTC) só como
+rede de segurança (o agendamento deste repositório atrasa horas ou simplesmente não dispara): se já houver espera ou
+watcher ativo, a execução sai em segundos; se a cadeia tiver morrido, ela retoma. Publica no branch órfão `live` — um
+único commit, force-push, só quando o conteúdo muda:
 
 - `world.json` — índices mundiais e futuros (Yahoo chart: último, fechamento anterior, hora, fuso), 5 min
 - `news.json` — RSS de CVM, Receita, Fed e SEC; fatos relevantes (CVM RAD, categoria IPE 4); plantão de notícias da B3 (sem informes rotineiros), 4 min
